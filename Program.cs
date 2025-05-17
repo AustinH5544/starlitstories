@@ -3,6 +3,7 @@ using OpenAI;
 using OpenAI.Chat;
 using Hackathon_2025.Models; // For OpenAISettings model
 using Microsoft.Extensions.Options;
+using Hackathon_2025.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,9 @@ builder.Services.Configure<OpenAISettings>(
 
 // Register HttpClient for manual requests if needed
 builder.Services.AddHttpClient();
+
+// Register the story generator service
+builder.Services.AddScoped<IStoryGeneratorService, OpenAIStoryGenerator>();
 
 // Enable CORS (for React dev server on port 5173)
 builder.Services.AddCors(options =>

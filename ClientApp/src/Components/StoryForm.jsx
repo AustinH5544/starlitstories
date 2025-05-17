@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 
 const StoryForm = ({ onSubmit }) => {
     const [formData, setFormData] = useState({
-        childName: '',
-        favoriteCharacter: '',
+        characterName: '',
+        characterDescription: '',
         theme: ''
     });
 
@@ -18,7 +18,7 @@ const StoryForm = ({ onSubmit }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (formData.childName && formData.favoriteCharacter && formData.theme) {
+        if (formData.characterName && formData.characterDescription && formData.theme) {
             onSubmit(formData); // calls function from parent (App.jsx)
         }
     };
@@ -28,18 +28,18 @@ const StoryForm = ({ onSubmit }) => {
             <h2>Create a Personalized Bedtime Story</h2>
             <input
                 type="text"
-                name="childName"
+                name="characterName"
                 placeholder="Character's Name"
-                value={formData.childName}
+                value={formData.characterName}
                 onChange={handleChange}
                 required
                 style={styles.input}
             />
             <input
                 type="text"
-                name="favoriteCharacter"
+                name="characterDescription"
                 placeholder="Description Of Character"
-                value={formData.favoriteCharacter}
+                value={formData.characterDescription}
                 onChange={handleChange}
                 required
                 style={styles.input}
