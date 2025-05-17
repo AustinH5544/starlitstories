@@ -23,15 +23,15 @@ public class StoryController : ControllerBase
             return BadRequest("Invalid input");
         }
 
-        var pages = await _storyService.GenerateStoryAsync(request);
+        var pages = await _storyService.GenerateFullStoryAsync(request);
         return Ok(new { pages });
     }
 
     [HttpPost("generate-full")]
     public async Task<IActionResult> GenerateFullStory([FromBody] StoryRequest request)
     {
-        var storyPages = await _storyService.GenerateStoryAsync(request, includeImages: true);
-        return Ok(new { pages = storyPages });
+        var result = await _storyService.GenerateFullStoryAsync(request);
+        return Ok(result);
     }
 
 

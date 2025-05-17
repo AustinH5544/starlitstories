@@ -16,12 +16,19 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
         _apiKey = config["OpenAI:ApiKey"]!;
     }
 
-    public async Task<List<StoryPage>> GenerateStoryAsync(StoryRequest request, bool includeImages = false)
+    public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
     {
         var prompt = $"""
-    Write an 8-paragraph story for young children about {request.CharacterName}, {request.CharacterDescription}, who goes on an adventure in {request.Theme}.
-    Use short, clear sentences. Keep language playful and easy to understand. Each paragraph should describe one story scene.
-    """;
+Write a complete children's story in 8 paragraphs featuring a main character named {request.CharacterName}, who is {request.CharacterDescription}, going on an adventure involving {request.Theme}.
+
+Structure the story with:
+- A clear beginning that introduces the setting and character
+- A middle that includes a magical or challenging journey
+- An ending with a resolution, lesson, or happy conclusion
+
+Use simple, imaginative language and short, playful sentences. Each paragraph should represent a different scene in the story.
+""";
+
 
         var requestBody = new
         {
@@ -55,6 +62,7 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
         var storyPages = new List<StoryPage>();
+
         for (int i = 0; i < paragraphs.Count(); i++)
         {
             storyPages.Add(new StoryPage
@@ -64,16 +72,25 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
             });
         }
 
-        if (includeImages)
+        var imageUrls = await GenerateImagesFromPrompts(imagePrompts.ToList());
+
+        for (int i = 0; i < storyPages.Count; i++)
         {
-            var imageUrls = await GenerateImagesFromPrompts(imagePrompts.ToList());
-            for (int i = 0; i < storyPages.Count; i++)
-            {
-                storyPages[i].ImageUrl = imageUrls[i];
-            }
+            storyPages[i].ImageUrl = imageUrls[i];
         }
 
-        return storyPages;
+
+        var title = await GenerateTitleAsync(request.CharacterName, request.Theme);
+        var coverPrompt = PromptBuilder.BuildCoverPrompt(request.CharacterName, request.CharacterDescription, request.Theme);
+        var coverUrl = (await GenerateImagesFromPrompts(new List<string> { coverPrompt }))[0];
+
+        return new StoryResult
+        {
+            Title = title,
+            CoverImagePrompt = coverPrompt,
+            CoverImageUrl = coverUrl,
+            Pages = storyPages
+        };
     }
 
 
@@ -106,4 +123,31 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
         return imageUrls;
     }
 
+    private async Task<string> GenerateTitleAsync(string characterName, string theme)
+    {
+        var prompt = $"""
+    Suggest a creative and whimsical children's book title based on a character named {characterName} and a theme of "{theme}". The title should be short, magical, and memorable.
+    """;
+
+        var requestBody = new
+        {
+            model = "gpt-3.5-turbo",
+            messages = new[]
+            {
+            new { role = "user", content = prompt }
+        },
+            temperature = 0.9,
+            max_tokens = 20
+        };
+
+        var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+        req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+        var res = await _httpClient.SendAsync(req);
+        res.EnsureSuccessStatusCode();
+
+        var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
+        return json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString()!;
+    }
 }
