@@ -1,0 +1,19 @@
+﻿.navbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    background-color: #fff;
+    border-bottom: 1px solid #ccc;
+    font-weight: bold;
+}
+
+.nav-left, .nav-right {
+    display: flex;
+    gap: 1rem;
+}
+
+.nav-center .logo {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #0077cc;
+}
