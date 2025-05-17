@@ -7,4 +7,8 @@
     <RootNamespace>Hackathon_2025</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="OpenAI" Version="2.1.0" />
+  </ItemGroup>
+
 </Project>
