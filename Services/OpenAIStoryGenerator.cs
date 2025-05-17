@@ -2,7 +2,8 @@
 using System.Text;
 using System.Text.Json;
 using Hackathon_2025.Models;
-using Hackathon_2025.Services;
+
+namespace Hackathon_2025.Services;
 
 public class OpenAIStoryGenerator : IStoryGeneratorService
 {
@@ -15,9 +16,12 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
         _apiKey = config["OpenAI:ApiKey"]!;
     }
 
-    public async Task<List<string>> GenerateStoryAsync(StoryRequest request)
+    public async Task<List<StoryPage>> GenerateStoryAsync(StoryRequest request)
     {
-        var prompt = $"Write an 8-paragraph story for young children about {request.CharacterName}, {request.CharacterDescription}, who goes on an adventure in {request.Theme}. Use short, clear sentences. Keep language playful and easy to understand. Each paragraph should describe one story scene.";
+        var prompt = $"""
+        Write an 8-paragraph story for young children about {request.CharacterName}, {request.CharacterDescription}, who goes on an adventure in {request.Theme}.
+        Use short, clear sentences. Keep language playful and easy to understand. Each paragraph should describe one story scene.
+        """;
 
         var requestBody = new
         {
@@ -28,7 +32,7 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
                 new { role = "user", content = prompt }
             },
             temperature = 0.8,
-            max_tokens = 600
+            max_tokens = 800
         };
 
         var json = JsonSerializer.Serialize(requestBody);
@@ -47,6 +51,18 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
             .GetProperty("content")
             .GetString();
 
-        return storyText!.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+        var paragraphs = storyText!
+            .Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+        var storyPages = paragraphs.Select(p => new StoryPage
+        {
+            Text = p,
+            ImagePrompt = PromptBuilder.BuildImagePrompt(
+                request.CharacterName,
+                request.CharacterDescription,
+                p)
+        }).ToList();
+
+        return storyPages;
     }
 }
