@@ -1,7 +1,9 @@
-﻿namespace Hackathon_2025.Models;
-
-public class StoryPage
+﻿namespace Hackathon_2025.Models
 {
-    public string Text { get; set; }
-    public string ImagePrompt { get; set; }
+    public class StoryPage
+    {
+        public string Text { get; set; }
+        public string ImagePrompt { get; set; }
+        public string? ImageUrl { get; set; }
+    }
 }

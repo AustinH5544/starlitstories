@@ -27,6 +27,14 @@ public class StoryController : ControllerBase
         return Ok(new { pages });
     }
 
+    [HttpPost("generate-full")]
+    public async Task<IActionResult> GenerateFullStory([FromBody] StoryRequest request)
+    {
+        var storyPages = await _storyService.GenerateStoryAsync(request, includeImages: true);
+        return Ok(new { pages = storyPages });
+    }
+
+
     [HttpGet("ping")]
     public IActionResult Ping() => Ok("Story API is alive!");
 }

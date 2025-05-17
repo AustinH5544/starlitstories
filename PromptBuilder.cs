@@ -1,4 +1,8 @@
-﻿namespace Hackathon_2025.Services;
+﻿using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text;
+
+namespace Hackathon_2025.Services;
 
 public static class PromptBuilder
 {
@@ -26,4 +30,47 @@ public static class PromptBuilder
 
         return "exploring a magical forest";
     }
+    public static async Task<string> BuildImagePromptWithSceneAsync(
+    string characterName,
+    string characterDescription,
+    string paragraph,
+    HttpClient httpClient,
+    string apiKey)
+    {
+        string style = "Children’s book watercolor illustration. Soft lighting. Gentle pastel tones. Full body. Storybook style.";
+        string anchor = $"{characterName}, {characterDescription}";
+
+        // Use GPT to summarize the paragraph visually
+        var prompt = $"""
+    Summarize the following story paragraph into a short visual scene that can be used in an illustration. Describe only what the main character is doing and what the scene looks like. Do not mention the character’s name or appearance — that will be added separately.
+
+    Paragraph: "{paragraph}"
+
+    Example response: "playing hopscotch with a squirrel under a leafy oak tree"
+    """;
+
+        var requestBody = new
+        {
+            model = "gpt-3.5-turbo",
+            messages = new[]
+            {
+            new { role = "user", content = prompt }
+        },
+            temperature = 0.7,
+            max_tokens = 50
+        };
+
+        var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+        var res = await httpClient.SendAsync(req);
+        res.EnsureSuccessStatusCode();
+
+        var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
+        var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+
+        return $"{style} {anchor} is {scene}.";
+    }
+
 }

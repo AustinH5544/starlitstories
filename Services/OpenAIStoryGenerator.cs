@@ -16,53 +16,94 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
         _apiKey = config["OpenAI:ApiKey"]!;
     }
 
-    public async Task<List<StoryPage>> GenerateStoryAsync(StoryRequest request)
+    public async Task<List<StoryPage>> GenerateStoryAsync(StoryRequest request, bool includeImages = false)
     {
         var prompt = $"""
-        Write an 8-paragraph story for young children about {request.CharacterName}, {request.CharacterDescription}, who goes on an adventure in {request.Theme}.
-        Use short, clear sentences. Keep language playful and easy to understand. Each paragraph should describe one story scene.
-        """;
+    Write an 8-paragraph story for young children about {request.CharacterName}, {request.CharacterDescription}, who goes on an adventure in {request.Theme}.
+    Use short, clear sentences. Keep language playful and easy to understand. Each paragraph should describe one story scene.
+    """;
 
         var requestBody = new
         {
             model = "gpt-3.5-turbo",
             messages = new[]
             {
-                new { role = "system", content = "You are a creative children's story writer." },
-                new { role = "user", content = prompt }
-            },
+            new { role = "system", content = "You are a creative children's story writer." },
+            new { role = "user", content = prompt }
+        },
             temperature = 0.8,
             max_tokens = 800
         };
 
-        var json = JsonSerializer.Serialize(requestBody);
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-        httpRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        httpRequest.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(httpRequest);
         response.EnsureSuccessStatusCode();
 
-        using var responseStream = await response.Content.ReadAsStreamAsync();
-        var result = await JsonDocument.ParseAsync(responseStream);
-        var storyText = result.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString();
+        var storyText = (await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync()))
+            .RootElement.GetProperty("choices")[0]
+            .GetProperty("message").GetProperty("content").GetString();
 
-        var paragraphs = storyText!
-            .Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var paragraphs = storyText!.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
 
-        var storyPages = paragraphs.Select(p => new StoryPage
+        // Generate image prompts in parallel
+        var imagePromptTasks = paragraphs.Select(p =>
+            PromptBuilder.BuildImagePromptWithSceneAsync(request.CharacterName, request.CharacterDescription, p, _httpClient, _apiKey)).ToList();
+
+        var imagePrompts = await Task.WhenAll(imagePromptTasks);
+
+        var storyPages = new List<StoryPage>();
+        for (int i = 0; i < paragraphs.Count(); i++)
         {
-            Text = p,
-            ImagePrompt = PromptBuilder.BuildImagePrompt(
-                request.CharacterName,
-                request.CharacterDescription,
-                p)
-        }).ToList();
+            storyPages.Add(new StoryPage
+            {
+                Text = paragraphs[i],
+                ImagePrompt = imagePrompts[i]
+            });
+        }
+
+        if (includeImages)
+        {
+            var imageUrls = await GenerateImagesFromPrompts(imagePrompts.ToList());
+            for (int i = 0; i < storyPages.Count; i++)
+            {
+                storyPages[i].ImageUrl = imageUrls[i];
+            }
+        }
 
         return storyPages;
     }
+
+
+    private async Task<List<string>> GenerateImagesFromPrompts(List<string> prompts)
+    {
+        var imageUrls = new List<string>();
+
+        foreach (var prompt in prompts)
+        {
+            var req = new
+            {
+                model = "dall-e-3",
+                prompt = prompt,
+                n = 1,
+                size = "1024x1024"
+            };
+
+            using var msg = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations");
+            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            msg.Content = new StringContent(JsonSerializer.Serialize(req), Encoding.UTF8, "application/json");
+
+            var res = await _httpClient.SendAsync(msg);
+            res.EnsureSuccessStatusCode();
+
+            var resultJson = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
+            var url = resultJson.RootElement.GetProperty("data")[0].GetProperty("url").GetString();
+            imageUrls.Add(url!);
+        }
+
+        return imageUrls;
+    }
+
 }
