@@ -1,36 +1,35 @@
-using Microsoft.AspNetCore.Mvc;
-using OpenAI;
-using OpenAI.Chat;
-using Hackathon_2025.Models; // For OpenAISettings model
-using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Hackathon_2025.Data;
+using Hackathon_2025.Models;
 using Hackathon_2025.Services;
+using OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load API key from appsettings.json or environment variable
+// Load OpenAI API Key
 var apiKey = builder.Configuration["OpenAI:ApiKey"]
            ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
 
-// Optional: throw if missing
 if (string.IsNullOrWhiteSpace(apiKey))
 {
-    throw new InvalidOperationException("OpenAI API key is missing. Set it in appsettings.json or as an environment variable.");
+    throw new InvalidOperationException("OpenAI API key is missing.");
 }
 
-// Register OpenAI client using the API key
+// EF Core (SQLite)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Password hashing
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+
+// OpenAI config
+builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
-
-// Register OpenAISettings configuration binding
-builder.Services.Configure<OpenAISettings>(
-    builder.Configuration.GetSection("OpenAI"));
-
-// Register HttpClient for manual requests if needed
 builder.Services.AddHttpClient();
-
-// Register the story generator service
 builder.Services.AddScoped<IStoryGeneratorService, OpenAIStoryGenerator>();
 
-// Enable CORS (for React dev server on port 5173)
+// Enable CORS for React dev server
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
@@ -40,21 +39,19 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod());
 });
 
-// Add MVC + API controller support
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddEndpointsApiExplorer(); // required for minimal APIs
 
 var app = builder.Build();
 
-// Middleware pipeline
+// Middleware
 app.UseCors("AllowFrontend");
 
-app.UseDefaultFiles(); // Serve index.html by default
-app.UseStaticFiles();  // Serve static files from wwwroot
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.UseRouting();
-app.MapControllers(); // Enable API endpoints
-
-app.MapFallbackToFile("/index.html"); // For SPA routing fallback
+app.MapControllers();
+app.MapFallbackToFile("/index.html");
 
 app.Run();
