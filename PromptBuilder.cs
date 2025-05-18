@@ -74,6 +74,6 @@ public static class PromptBuilder
     }
     public static string BuildCoverPrompt(string characterName, string characterDescription, string theme)
     {
-        return $"Children’s book cover illustration. Bright and magical colors. Storybook style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}. Center composition, soft lighting, designed for a cover.";
+        return $"Children’s book cover illustration. Bright and magical colors. Storybook style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}. Center composition, soft lighting, designed for a cover. No text or title.";
     }
 }
