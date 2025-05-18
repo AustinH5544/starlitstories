@@ -7,7 +7,7 @@ namespace Hackathon_2025.Services;
 public static class PromptBuilder
 {
     private static string ArtStyle =>
-    "Watercolor illustration in the style of Beatrix Potter. Soft lighting. Gentle pastel tones. Full-body character composition. Front-facing, centered layout. Suitable for a children's storybook. Do not include any text, letters, or writing. Do not draw or depict any physical book. Do not include a color palette in the image.";
+    "Watercolor illustration. Soft lighting. Gentle pastel tones. Full-body character composition. Front-facing, centered layout. Suitable for a children's storybook. Do not include any text, letters, or writing. Do not draw or depict any physical book. Do not include a color palette in the image.";
 
     public static string BuildImagePrompt(string characterName, string characterDescription, string paragraph)
     {
@@ -33,6 +33,7 @@ public static class PromptBuilder
 
         return "exploring a magical forest";
     }
+
     public static async Task<string> BuildImagePromptWithSceneAsync(
     string characterName,
     string characterDescription,
@@ -73,10 +74,11 @@ public static class PromptBuilder
 
         return $"{ArtStyle} {anchor} is {scene}.";
     }
+
     public static string BuildCoverPrompt(string characterName, string characterDescription, string theme)
     {
         return $"""
-    Watercolor illustration in the style of Beatrix Potter. Bright, magical colors. Gentle pastel tones. Full-body character centered. Suitable for the front cover of a children’s book. Do not include any text, logos, or physical books. Do not include a color palette in the image. Maintain a consistent illustration style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}.
+    Watercolor illustration. Bright, magical colors. Gentle pastel tones. Full-body character centered. Suitable for the front cover of a children’s book. Do not include any text, logos, or physical books. Do not include a color palette in the image. Maintain a consistent illustration style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}.
     """;
     }
 }
