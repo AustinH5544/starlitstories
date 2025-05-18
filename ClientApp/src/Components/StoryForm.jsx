@@ -5,7 +5,13 @@ import React, { useState } from 'react';
 const StoryForm = ({ onSubmit }) => {
     const [formData, setFormData] = useState({
         characterName: '',
-        characterDescription: '',
+        gender: '',
+        skinTone: '',
+        hairColor: '',
+        eyeColor: '',
+        age: '',
+        shirtColor: '',
+        pantsColor: '',
         theme: ''
     });
 
@@ -18,9 +24,14 @@ const StoryForm = ({ onSubmit }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (formData.characterName && formData.characterDescription && formData.theme) {
-            onSubmit(formData); // calls function from parent (App.jsx)
-        }
+
+        const characterDescription = `a ${formData.age}-year-old ${formData.gender} with ${formData.skinTone} skin, ${formData.hairColor} hair, and ${formData.eyeColor} eyes, wearing a ${formData.shirtColor} shirt and ${formData.pantsColor} pants`;
+
+        onSubmit({
+            characterName: formData.characterName,
+            characterDescription,
+            theme: formData.theme
+        });
     };
 
     return (
@@ -35,14 +46,68 @@ const StoryForm = ({ onSubmit }) => {
                 style={styles.input}
             />
             <input
-                type="text"
-                name="characterDescription"
-                placeholder="Description Of Character"
-                value={formData.characterDescription}
+                name="gender"
+                placeholder="Gender"
+                value={formData.gender}
                 onChange={handleChange}
                 required
                 style={styles.input}
             />
+
+            <input
+                name="skinTone"
+                placeholder="Skin Tone"
+                value={formData.skinTone}
+                onChange={handleChange}
+                required
+                style={styles.input}
+            />
+
+            <input
+                name="hairColor"
+                placeholder="Hair Color"
+                value={formData.hairColor}
+                onChange={handleChange}
+                required
+                style={styles.input}
+            />
+
+            <input
+                name="eyeColor"
+                placeholder="Eye Color"
+                value={formData.eyeColor}
+                onChange={handleChange}
+                required
+                style={styles.input}
+            />
+
+            <input
+                name="age"
+                placeholder="Age"
+                value={formData.age}
+                onChange={handleChange}
+                required
+                style={styles.input}
+            />
+
+            <input
+                name="shirtColor"
+                placeholder="Shirt Color"
+                value={formData.shirtColor}
+                onChange={handleChange}
+                required
+                style={styles.input}
+            />
+
+            <input
+                name="pantsColor"
+                placeholder="Pants Color"
+                value={formData.pantsColor}
+                onChange={handleChange}
+                required
+                style={styles.input}
+            />
+
             <input
                 type="text"
                 name="theme"
