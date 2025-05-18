@@ -31,3 +31,9 @@
     border-radius: 8px;
     cursor: pointer;
 }
+
+.warning-message {
+    color: crimson;
+    margin-top: 1rem;
+    font-weight: bold;
+}
