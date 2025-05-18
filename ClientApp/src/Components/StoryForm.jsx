@@ -25,7 +25,6 @@ const StoryForm = ({ onSubmit }) => {
 
     return (
         <form onSubmit={handleSubmit} style={styles.form}>
-            <h2>Create a Personalized Bedtime Story</h2>
             <input
                 type="text"
                 name="characterName"
