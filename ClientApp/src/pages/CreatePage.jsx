@@ -1,11 +1,12 @@
 ﻿import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import StoryForm from '../components/StoryForm';
 import axios from '../api';
 import './CreatePage.css';
 import { useNavigate } from 'react-router-dom';
 
 const CreatePage = () => {
-    //const [storyPages, setStoryPages] = useState([]);
+    const { user } = useAuth();
     const [story, setStory] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [storyReady, setStoryReady] = useState(false);
@@ -19,12 +20,20 @@ const CreatePage = () => {
         setStory(null);
 
         try {
-            const res = await axios.post('/story/generate-full', formData);
+            // Append user email to form data
+            const fullRequest = {
+                ...formData,
+                email: user?.email || '',
+            };
+
+            const res = await axios.post('/story/generate-full', fullRequest);
             setStory(res.data);
             setStoryReady(true);
         } catch (err) {
             console.error('API Error:', err);
-            setError("Oops! Something went wrong generating your story.");
+            const message =
+                err?.response?.data ?? 'Oops! Something went wrong generating your story.';
+            setError(message);
         } finally {
             setIsLoading(false);
         }
@@ -38,27 +47,24 @@ const CreatePage = () => {
         !error;
 
     return (
-        <>
-            <div className="create-page">
-                <div className="create-form-wrapper">
-                    <h2 className="create-header">Create a Personalized Bedtime Story</h2>
-                    <StoryForm onSubmit={generateStory} />
+        <div className="create-page">
+            <div className="create-form-wrapper">
+                <h2 className="create-header">Create a Personalized Bedtime Story</h2>
+                <StoryForm onSubmit={generateStory} />
 
-                    {isLoading && <p className="loading-text">✨ Generating your story...</p>}
+                {isLoading && <p className="loading-text">✨ Generating your story...</p>}
+                {!isLoading && error && <p className="create-error">{error}</p>}
 
-                    {!isLoading && error && <p className="create-error">{error}</p>}
-
-                    {!isLoading && storyReady && isValidStory && (
-                        <button
-                            className="view-story-button"
-                            onClick={() => navigate('/view', { state: { story } })}
-                        >
-                            View Your Story
-                        </button>
-                    )}
-                </div>
+                {!isLoading && storyReady && isValidStory && (
+                    <button
+                        className="view-story-button"
+                        onClick={() => navigate('/view', { state: { story } })}
+                    >
+                        View Your Story
+                    </button>
+                )}
             </div>
-        </>
+        </div>
     );
 };
 

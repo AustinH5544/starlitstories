@@ -2,8 +2,10 @@
 
 public class User
 {
-public int Id { get; set; }
-public string Email { get; set; } = string.Empty;
-public string PasswordHash { get; set; } = string.Empty;
-public string Membership { get; set; } = "free";
+    public int Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
+    public string Membership { get; set; } = "free";
+    public int BooksGenerated { get; set; } = 0;
+    public DateTime LastReset { get; set; } = DateTime.UtcNow;
 }
