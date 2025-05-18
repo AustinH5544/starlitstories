@@ -18,10 +18,10 @@
     transition: border 0.2s ease-in-out;
 }
 
-    .auth-form input:focus {
-        border-color: #007bff;
-        outline: none;
-    }
+.auth-form input:focus {
+    border-color: #007bff;
+    outline: none;
+}
 
 .auth-form button {
     width: 100%;
@@ -36,6 +36,12 @@
     transition: background-color 0.2s;
 }
 
-    .auth-form button:hover {
-        background-color: #0056b3;
-    }
+.auth-form button:hover {
+    background-color: #0056b3;
+}
+
+.auth-error {
+    color: crimson;
+    font-weight: bold;
+    margin-top: 1rem;
+}

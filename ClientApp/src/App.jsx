@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ProfilePage from './pages/ProfilePage';
 import StoryViewerPage from './pages/StoryViewerPage';
+import SignupComplete from './pages/SignupComplete';
 
 function App() {
     return (
@@ -24,6 +25,7 @@ function App() {
                     <Route path="/signup" element={<SignupPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/view" element={<StoryViewerPage />} />
+                    <Route path="/signup/complete" element={<SignupComplete />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
