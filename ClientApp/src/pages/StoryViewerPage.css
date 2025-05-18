@@ -1,0 +1,47 @@
+﻿.story-viewer {
+    padding: 2rem;
+    text-align: center;
+    color: white;
+}
+
+.cover-image, .page-image {
+    max-width: 80%;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    margin-bottom: 1rem;
+}
+
+.page-text {
+    font-size: 1.2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+    background-color: rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+}
+
+.nav-buttons {
+    margin-top: 2rem;
+}
+
+    .nav-buttons button {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.2rem;
+        margin: 0 1rem;
+        border: none;
+        border-radius: 8px;
+        background-color: #0077cc;
+        color: white;
+        cursor: pointer;
+    }
+
+        .nav-buttons button:disabled {
+            background-color: #888;
+            cursor: not-allowed;
+        }
+
+.story-title {
+    font-size: 2.5rem;
+    margin-bottom: 1.5rem;
+    text-shadow: 2px 2px 4px #000;
+}

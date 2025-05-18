@@ -3,22 +3,25 @@ import NavBar from '../components/NavBar';
 import StoryForm from '../components/StoryForm';
 import axios from '../api';
 import './CreatePage.css';
+import { useNavigate } from 'react-router-dom';
 
 const CreatePage = () => {
-    const [storyPages, setStoryPages] = useState([]);
+    //const [storyPages, setStoryPages] = useState([]);
+    const [story, setStory] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [storyReady, setStoryReady] = useState(false);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     const generateStory = async (formData) => {
         setIsLoading(true);
         setStoryReady(false);
         setError(null);
-        setStoryPages([]);
+        setStory(null);
 
         try {
-            const res = await axios.post('/story/generate', formData);
-            setStoryPages(res.data.pages);
+            const res = await axios.post('/story/generate-full', formData);
+            setStory(res.data);
             setStoryReady(true);
         } catch (err) {
             console.error('API Error:', err);
@@ -29,8 +32,10 @@ const CreatePage = () => {
     };
 
     const isValidStory =
-        storyPages.length > 0 &&
-        !storyPages[0].toLowerCase().startsWith('oops') &&
+        story &&
+        Array.isArray(story.pages) &&
+        story.pages.length > 0 &&
+        story.pages[0].text?.toLowerCase().startsWith('oops') === false &&
         !error;
 
     return (
@@ -48,7 +53,7 @@ const CreatePage = () => {
                     {!isLoading && storyReady && isValidStory && (
                         <button
                             className="view-story-button"
-                            onClick={() => alert("This will navigate to the story page soon!")}
+                            onClick={() => navigate('/view', { state: { story } })}
                         >
                             View Your Story
                         </button>
