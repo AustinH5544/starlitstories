@@ -1,5 +1,4 @@
 ﻿import React, { useState } from 'react';
-import NavBar from '../components/NavBar';
 import './LoginPage.css';
 
 const LoginPage = () => {
@@ -14,7 +13,6 @@ const LoginPage = () => {
 
     return (
         <>
-            <NavBar />
             <div className="auth-container">
                 <h2>Log In</h2>
                 <form onSubmit={handleSubmit} className="auth-form">

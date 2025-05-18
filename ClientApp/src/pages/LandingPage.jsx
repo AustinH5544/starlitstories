@@ -1,5 +1,5 @@
 ﻿import { useNavigate } from 'react-router-dom'
-import NavBar from '../components/NavBar'
+//import NavBar from '../components/NavBar'
 import './LandingPage.css'
 
 const LandingPage = () => {
@@ -7,7 +7,6 @@ const LandingPage = () => {
 
     return (
         <>
-            <NavBar />
             <div className="hero">
                 <div className="hero-text">
                     <h1>Welcome to your custom story generator</h1>

@@ -1,5 +1,4 @@
 ﻿import React from 'react';
-import NavBar from '../components/NavBar';
 import './AboutPage.css'; // optional, for styling
 
 const teamMembers = [
@@ -18,7 +17,6 @@ const teamMembers = [
 const AboutPage = () => {
     return (
         <>
-            <NavBar />
             <div className="about-container">
                 <h2>About the AI Storybook Creator</h2>
                 <p>

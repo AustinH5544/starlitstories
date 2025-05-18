@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import NavBar from '../components/NavBar';
 import './StoryViewerPage.css';
 
 const StoryViewerPage = () => {
@@ -38,7 +37,6 @@ const StoryViewerPage = () => {
     if (!story || !Array.isArray(story.pages)) {
         return (
             <>
-                <NavBar />
                 <div style={{ textAlign: 'center', padding: '2rem' }}>
                     <h2>Oops! No story found.</h2>
                     <p>Please return to the create page to generate one.</p>
@@ -67,7 +65,6 @@ const StoryViewerPage = () => {
 
     return (
         <>
-            <NavBar />
             <div className="story-viewer">
                 {isCover ? (
                     <div className="cover">

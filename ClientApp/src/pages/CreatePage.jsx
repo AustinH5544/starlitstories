@@ -1,5 +1,4 @@
 ﻿import React, { useState } from 'react';
-import NavBar from '../components/NavBar';
 import StoryForm from '../components/StoryForm';
 import axios from '../api';
 import './CreatePage.css';
@@ -40,7 +39,6 @@ const CreatePage = () => {
 
     return (
         <>
-            <NavBar />
             <div className="create-page">
                 <div className="create-form-wrapper">
                     <h2 className="create-header">Create a Personalized Bedtime Story</h2>
