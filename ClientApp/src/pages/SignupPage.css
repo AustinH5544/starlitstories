@@ -1,35 +1,41 @@
-﻿.signup-form-container {
+﻿.auth-container {
     max-width: 400px;
     margin: 4rem auto;
-    padding: 2rem;
-    text-align: center;
-    border: 1px solid #ddd;
+    padding: 2.5rem;
+    background-color: #fdfdfd;
     border-radius: 12px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.05);
-    background-color: white;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+    text-align: center;
 }
 
-.signup-form input {
+.auth-form input {
     width: 100%;
-    margin: 0.5rem 0;
-    padding: 0.75rem;
+    padding: 0.85rem;
+    margin: 0.75rem 0;
     border-radius: 6px;
     border: 1px solid #ccc;
     font-size: 1rem;
+    transition: border 0.2s ease-in-out;
 }
 
-.signup-form button {
+    .auth-form input:focus {
+        border-color: #007bff;
+        outline: none;
+    }
+
+.auth-form button {
     width: 100%;
-    padding: 0.75rem;
-    margin-top: 1rem;
+    padding: 0.85rem;
+    margin-top: 1.5rem;
     background-color: #007bff;
     color: white;
     font-size: 1rem;
     border: none;
     border-radius: 6px;
     cursor: pointer;
+    transition: background-color 0.2s;
 }
 
-    .signup-form button:hover {
+    .auth-form button:hover {
         background-color: #0056b3;
     }

@@ -6,22 +6,30 @@ const SignupPage = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
+    const [membership, setMembership] = useState('');
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
         if (password !== confirm) {
             alert("Passwords don't match");
             return;
         }
-        // TODO: Send signup request to backend
-        console.log({ email, password });
+
+        if (!membership) {
+            alert('Please select a membership plan.');
+            return;
+        }
+
+        // TODO: Send signup info to backend
+        console.log({ email, password, membership });
     };
 
     return (
         <>
             <NavBar />
             <div className="auth-container">
-                <h2>Sign Up</h2>
+                <h2>Create an Account</h2>
                 <form onSubmit={handleSubmit} className="auth-form">
                     <input
                         type="email"
@@ -44,6 +52,18 @@ const SignupPage = () => {
                         onChange={(e) => setConfirm(e.target.value)}
                         required
                     />
+
+                    <select
+                        value={membership}
+                        onChange={(e) => setMembership(e.target.value)}
+                        required
+                    >
+                        <option value="">Select Membership Plan</option>
+                        <option value="free">Free — 1 book/month</option>
+                        <option value="pro">Pro ($5/mo) — 10 books/month</option>
+                        <option value="premium">Premium ($15/mo) — 50 books/month</option>
+                    </select>
+
                     <button type="submit">Create Account</button>
                 </form>
             </div>
