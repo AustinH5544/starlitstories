@@ -1,0 +1,63 @@
+﻿/* Main background container */
+.create-page {
+    background-image: url('/createpagebk.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Vertically center */
+    align-items: center; /* Horizontally center */
+
+    padding: 2rem;
+    color: white;
+    text-align: center;
+}
+
+/* Matches the look of hero text */
+.create-header {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    text-shadow: 2px 2px 4px #000;
+    text-align: center;
+}
+
+/* For form container and text under the heading */
+.create-form-wrapper {
+    max-width: 800px;
+    width: 100%;
+    text-align: center;
+}
+
+/* Error message */
+.create-error {
+    color: red;
+    margin-top: 1rem;
+    font-weight: bold;
+}
+
+/* Button that appears after story is ready */
+.view-story-button {
+    margin-top: 2rem;
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    background-color: #28a745;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+    .view-story-button:hover {
+        background-color: #218838;
+    }
+
+/* Loading message */
+.loading-text {
+    margin-top: 1.5rem;
+    font-style: italic;
+    text-shadow: 1px 1px 2px #000;
+}
