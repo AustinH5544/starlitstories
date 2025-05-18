@@ -7,7 +7,7 @@ namespace Hackathon_2025.Services;
 public static class PromptBuilder
 {
     private static string ArtStyle =>
-    "Watercolor illustration in the style of Beatrix Potter. Soft lighting. Gentle pastel tones. Full-body character composition. Front-facing, centered layout. Suitable for a children's storybook. Maintain this exact art style across all images. Do not include any text, letters, or writing. Do not draw or depict any physical book.";
+    "Watercolor illustration in the style of Beatrix Potter. Soft lighting. Gentle pastel tones. Full-body character composition. Front-facing, centered layout. Suitable for a children's storybook. Do not include any text, letters, or writing. Do not draw or depict any physical book. Do not include a color palette in the image.";
 
     public static string BuildImagePrompt(string characterName, string characterDescription, string paragraph)
     {
@@ -48,8 +48,6 @@ public static class PromptBuilder
     Summarize the following story paragraph into a short visual scene that can be used in an illustration. Describe only what the main character is doing and what the scene looks like. Do not mention the character’s name or appearance — that will be added separately.
 
     Paragraph: "{paragraph}"
-
-    Example response: "playing hopscotch with a squirrel under a leafy oak tree"
     """;
 
         var requestBody = new
@@ -78,7 +76,7 @@ public static class PromptBuilder
     public static string BuildCoverPrompt(string characterName, string characterDescription, string theme)
     {
         return $"""
-    Watercolor illustration in the style of Beatrix Potter. Bright, magical colors. Gentle pastel tones. Full-body character centered. Suitable for the front cover of a children’s book. Do not include any text, logos, or physical books. Maintain a consistent illustration style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}.
+    Watercolor illustration in the style of Beatrix Potter. Bright, magical colors. Gentle pastel tones. Full-body character centered. Suitable for the front cover of a children’s book. Do not include any text, logos, or physical books. Do not include a color palette in the image. Maintain a consistent illustration style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}.
     """;
     }
 }
