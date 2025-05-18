@@ -6,4 +6,3 @@ public class StoryRequest
     public string CharacterDescription { get; set; }
     public string Theme { get; set; }
 }
-

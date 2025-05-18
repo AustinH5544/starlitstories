@@ -6,14 +6,17 @@ namespace Hackathon_2025.Services;
 
 public static class PromptBuilder
 {
+    private static string ArtStyle =>
+    "Watercolor illustration in the style of Beatrix Potter. Soft lighting. Gentle pastel tones. Full-body character composition. Front-facing, centered layout. Suitable for a children's storybook. Maintain this exact art style across all images. Do not include any text, letters, or writing. Do not draw or depict any physical book.";
+
     public static string BuildImagePrompt(string characterName, string characterDescription, string paragraph)
     {
-        string style = "Children’s book watercolor illustration. Soft lighting. Gentle pastel tones. Full body. Storybook style.";
+        //string style = "Children’s book watercolor illustration. Soft lighting. Gentle pastel tones. Full body. Storybook style.";
         string anchor = $"{characterName}, {characterDescription}";
 
         string scene = SummarizeScene(paragraph);
 
-        return $"{style} {anchor} is {scene}.";
+        return $"{ArtStyle} {anchor} is {scene}.";
     }
 
     private static string SummarizeScene(string paragraph)
@@ -37,7 +40,7 @@ public static class PromptBuilder
     HttpClient httpClient,
     string apiKey)
     {
-        string style = "Children’s book watercolor illustration. Soft lighting. Gentle pastel tones. Full body. Storybook style.";
+        //string style = "Children’s book watercolor illustration. Soft lighting. Gentle pastel tones. Full body. Storybook style.";
         string anchor = $"{characterName}, {characterDescription}";
 
         // Use GPT to summarize the paragraph visually
@@ -70,10 +73,12 @@ public static class PromptBuilder
         var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
         var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
 
-        return $"{style} {anchor} is {scene}.";
+        return $"{ArtStyle} {anchor} is {scene}.";
     }
     public static string BuildCoverPrompt(string characterName, string characterDescription, string theme)
     {
-        return $"Children’s book cover illustration. Bright and magical colors. Storybook style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}. Center composition, soft lighting, designed for a cover. No text or title.";
+        return $"""
+    Watercolor illustration in the style of Beatrix Potter. Bright, magical colors. Gentle pastel tones. Full-body character centered. Suitable for the front cover of a children’s book. Do not include any text, logos, or physical books. Maintain a consistent illustration style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}.
+    """;
     }
 }
