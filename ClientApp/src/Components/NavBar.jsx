@@ -11,8 +11,8 @@ const NavBar = () => (
             <span className="logo">StoryGen</span>
         </div>
         <div className="nav-right">
-            <a href="#">Sign Up</a>
-            <a href="#">Login</a>
+            <Link to="/signup">Sign Up</Link>
+            <Link to="/login">Login</Link>
         </div>
     </nav>
 );
