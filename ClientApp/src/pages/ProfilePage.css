@@ -15,9 +15,9 @@
     padding: 0 1rem;
 }
 
-    .profile-details p {
-        margin: 0.5rem 0;
-    }
+.profile-details p {
+    margin: 0.5rem 0;
+}
 
 .logout-button {
     margin-top: 2rem;
@@ -30,6 +30,41 @@
     font-size: 1rem;
 }
 
-    .logout-button:hover {
-        background-color: #b02a37;
-    }
+ .logout-button:hover {
+     background-color: #b02a37;
+ }
+
+.story-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.story-card {
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    text-align: center;
+    padding: 1rem;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.story-card:hover {
+    transform: translateY(-4px);
+}
+
+.story-card img {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.story-card .date {
+    font-size: 0.8rem;
+    color: gray;
+}
