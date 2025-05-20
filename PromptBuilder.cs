@@ -40,7 +40,12 @@ public static class PromptBuilder
             parts.Add($"with {skin} skin");
 
         if (fields.TryGetValue("hairColor", out var hair))
-            parts.Add($"{hair} hair");
+        {
+            if (fields.TryGetValue("hairStyle", out var style))
+                parts.Add($"{style} {hair} hair");
+            else
+                parts.Add($"{hair} hair");
+        }
 
         if (fields.TryGetValue("eyeColor", out var eyes))
             parts.Add($"{eyes} eyes");
@@ -50,6 +55,9 @@ public static class PromptBuilder
 
         if (fields.TryGetValue("pantsColor", out var pants))
             parts.Add($"and {pants} pants");
+
+        if (fields.TryGetValue("accessory", out var accessory) && !string.IsNullOrWhiteSpace(accessory))
+            parts.Add($"with a {accessory}");
 
         return string.Join(" ", parts);
     }

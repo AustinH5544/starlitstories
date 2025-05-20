@@ -14,12 +14,19 @@ const StoryForm = ({ onSubmit }) => {
 
     const defaultOptions = {
         age: Array.from({ length: 17 }, (_, i) => (i + 2).toString()),
-        gender: ['boy', 'girl', 'non-binary', 'gender-fluid', 'other'],
+        gender: ['boy', 'girl', 'man', 'woman', 'non-binary', 'gender-fluid', 'other'],
         skinTone: ['pale', 'light', 'tan', 'olive', 'brown', 'dark', 'freckled'],
         hairColor: [
             'blonde', 'dirty blonde', 'light brown', 'brown', 'dark brown',
             'black', 'red', 'auburn', 'gray', 'white', 'pink', 'blue', 'green', 'purple'
         ],
+        hairstylesByGender: {
+            boy: ['buzz cut', 'crew cut', 'spiky', 'messy', 'mohawk', 'slicked back', 'short side part'],
+            girl: ['braided', 'pigtails', 'ponytail', 'bun', 'double buns', 'bob cut', 'pixie cut', 'crown braid'],
+            man: ['buzz cut', 'crew cut', 'slicked back', 'short side part', 'undercut', 'shaggy', 'top knot'],
+            woman: ['long and flowing', 'curly', 'wavy', 'layered', 'bun', 'side shave', 'twists', 'halo braid'],
+            default: ['mohawk', 'afro', 'dreadlocks', 'straight', 'tied with ribbon', 'wind-swept']
+        },
         eyeColor: ['blue', 'green', 'hazel', 'brown', 'amber', 'gray', 'violet'],
         shirtColor: ['blue', 'red', 'green', 'yellow', 'purple', 'orange', 'pink', 'white', 'black'],
         pantsColor: ['blue', 'black', 'gray', 'green', 'khaki', 'white', 'brown'],
@@ -132,7 +139,7 @@ const StoryForm = ({ onSubmit }) => {
                         value={defaultThemes.includes(theme) ? theme : ''}
                         onChange={(e) => setTheme(e.target.value)}
                         style={styles.input}
-                        disabled={!defaultThemes.includes(theme) && theme.trim() !== ''}
+                        disabled={theme.trim() !== '' && !defaultThemes.includes(theme)} // Disable if user typed custom
                     >
                         <option value="">Select Theme</option>
                         {defaultThemes.map(t => (
@@ -144,7 +151,6 @@ const StoryForm = ({ onSubmit }) => {
                         value={!defaultThemes.includes(theme) ? theme : ''}
                         onChange={(e) => setTheme(e.target.value)}
                         style={styles.input}
-                        disabled={defaultThemes.includes(theme)}
                     />
                 </div>
             </div>
@@ -211,6 +217,11 @@ const StoryForm = ({ onSubmit }) => {
                         <>
                             {renderDropdownWithCustom(i, 'age', 'Age', defaultOptions.age)}
                             {renderDropdownWithCustom(i, 'gender', 'Gender', defaultOptions.gender)}
+                            {(() => {
+                                const gender = char.descriptionFields.gender || '';
+                                const options = defaultOptions.hairstylesByGender[gender] || defaultOptions.hairstylesByGender.default;
+                                return renderDropdownWithCustom(i, 'hairStyle', 'Hair Style', options);
+                            })()}
                             {renderDropdownWithCustom(i, 'skinTone', 'Skin Tone', defaultOptions.skinTone)}
                             {renderDropdownWithCustom(i, 'hairColor', 'Hair Color', defaultOptions.hairColor)}
                             {renderDropdownWithCustom(i, 'eyeColor', 'Eye Color', defaultOptions.eyeColor)}
