@@ -208,8 +208,13 @@ const StoryForm = ({ onSubmit }) => {
                             {renderDropdownWithCustom(i, 'hairColor', 'Hair Color', defaultOptions.hairColor)}
                             {renderDropdownWithCustom(i, 'eyeColor', 'Eye Color', defaultOptions.eyeColor)}
                             {renderDropdownWithCustom(i, 'shirtColor', 'Shirt Color', defaultOptions.shirtColor)}
-                                {renderDropdownWithCustom(i, 'pantsColor', 'Pants Color', defaultOptions.pantsColor)}
-                                {renderDropdownWithCustom(i, 'accessory', 'Accessory (optional)', defaultOptions.accessory)}
+                            {renderDropdownWithCustom(i, 'pantsColor', 'Pants Color', defaultOptions.pantsColor)}
+                            {renderDropdownWithCustom(
+                                i,
+                                'accessory',
+                                'Accessory (optional)',
+                                char.isAnimal ? defaultOptions.animalAccessories : defaultOptions.humanAccessories
+                            )}
                         </>
                     )}
 
