@@ -91,31 +91,36 @@ const StoryForm = ({ onSubmit }) => {
         onSubmit({ theme, characters: processedCharacters });
     };
 
-    const renderDropdownWithCustom = (index, field, label, options = []) => (
-        <div style={styles.fieldGroup}>
-            <label style={styles.label}>{label}</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                <select
-                    value={characters[index].descriptionFields[field] || ''}
-                    onChange={(e) => handleFieldChange(index, field, e.target.value)}
-                    style={{ ...styles.input, fontSize: '1.1rem', height: '2.5rem' }}
-                >
-                    <option value="">Select {label}</option>
-                    {options.map(opt => (
-                        <option key={opt} value={opt}>
-                            {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                        </option>
-                    ))}
-                </select>
-                <input
-                    placeholder={`Or enter custom ${label}`}
-                    value={characters[index].descriptionFields[field + 'Custom'] || ''}
-                    onChange={(e) => handleFieldChange(index, field + 'Custom', e.target.value)}
-                    style={styles.input}
-                />
+    const renderDropdownWithCustom = (index, field, label, options = []) => {
+        const customValue = characters[index].descriptionFields[field + 'Custom'] || '';
+
+        return (
+            <div style={styles.fieldGroup}>
+                <label style={styles.label}>{label}</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <select
+                        value={characters[index].descriptionFields[field] || ''}
+                        onChange={(e) => handleFieldChange(index, field, e.target.value)}
+                        style={{ ...styles.input, fontSize: '1.1rem', height: '2.5rem' }}
+                        disabled={!!customValue} // Disable dropdown if custom input has text
+                    >
+                        <option value="">Select {label}</option>
+                        {options.map(opt => (
+                            <option key={opt} value={opt}>
+                                {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                            </option>
+                        ))}
+                    </select>
+                    <input
+                        placeholder={`Or enter custom ${label}`}
+                        value={customValue}
+                        onChange={(e) => handleFieldChange(index, field + 'Custom', e.target.value)}
+                        style={styles.input}
+                    />
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
 
     return (
@@ -127,6 +132,7 @@ const StoryForm = ({ onSubmit }) => {
                         value={defaultThemes.includes(theme) ? theme : ''}
                         onChange={(e) => setTheme(e.target.value)}
                         style={styles.input}
+                        disabled={!defaultThemes.includes(theme) && theme.trim() !== ''}
                     >
                         <option value="">Select Theme</option>
                         {defaultThemes.map(t => (
@@ -138,6 +144,7 @@ const StoryForm = ({ onSubmit }) => {
                         value={!defaultThemes.includes(theme) ? theme : ''}
                         onChange={(e) => setTheme(e.target.value)}
                         style={styles.input}
+                        disabled={defaultThemes.includes(theme)}
                     />
                 </div>
             </div>
