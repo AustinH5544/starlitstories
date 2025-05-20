@@ -30,7 +30,7 @@ const SignupComplete = () => {
             });
 
             login(response.data);
-            navigate('/profile');
+            navigate('/');
         } catch (err) {
             console.error(err);
             setStatus('Signup failed. Please try again.');
