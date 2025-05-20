@@ -5,12 +5,10 @@ const teamMembers = [
     {
         name: 'Tyler Woody',
         image: '/tyler.jpg',
-        role: 'Full Stack Developer',
     },
     {
         name: 'Austin Harrison',
         image: '/austin.jpg',
-        role: 'Full Stack Developer',
     },
 ];
 
@@ -20,8 +18,38 @@ const AboutPage = () => {
             <div className="about-container">
                 <h2>About the AI Storybook Creator</h2>
                 <p>
-                    This project uses AI to help parents and kids create magical, personalized children's books. Stories are
-                    written and illustrated with OpenAI and DALL·E, then packaged together into a visual experience.
+                    This app empowers families to craft personalized, magical children's books using AI.
+                    With a few clicks, parents and kids can generate a custom story—complete with vivid
+                    illustrations—based on their chosen characters, themes, and imagination.
+                </p>
+
+                <h3>Why We Built This</h3>
+                <p>
+                    We believe every child deserves to see themselves as the hero of their own story.
+                    Our goal was to make storytelling more accessible, creative, and fun by blending
+                    technology with imagination.
+                </p>
+
+                <h3>How It Works</h3>
+                <p>
+                    Users enter character details (like name, age, animal species, or favorite colors) and a theme.
+                    The backend uses OpenAI's GPT to generate a whimsical 8-paragraph narrative and DALL·E 3 to create
+                    beautifully consistent illustrations. All of this comes together into a seamless storybook experience.
+                </p>
+
+                <h3>Technologies Used</h3>
+                <ul style={{ textAlign: 'left', maxWidth: '600px', margin: '1rem auto' }}>
+                    <li>React (Frontend)</li>
+                    <li>ASP.NET Core Web API (Backend)</li>
+                    <li>Entity Framework Core + SQLite</li>
+                    <li>OpenAI GPT & DALL·E API</li>
+                    <li>Azure (for hosting, storage, database)</li>
+                </ul>
+
+                <h3>Future Features</h3>
+                <p>
+                    We're planning to add story sharing, themed story packs, and
+                    the ability to print physical copies of your AI-generated books!
                 </p>
 
                 <h3>Meet the Developers</h3>

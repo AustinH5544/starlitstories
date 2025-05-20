@@ -1,9 +1,29 @@
 ﻿.about-container {
     padding: 2rem;
-    text-align: center;
     max-width: 800px;
     margin: 0 auto;
+    text-align: left;
+    font-family: 'Segoe UI', sans-serif;
+    line-height: 1.7;
 }
+
+    .about-container h2,
+    .about-container h3 {
+        text-align: center;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .about-container p {
+        margin-bottom: 1.5rem;
+        font-size: 1rem;
+    }
+
+    .about-container ul {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin-bottom: 2rem;
+    }
 
 .team-grid {
     display: flex;
@@ -15,6 +35,7 @@
 
 .team-member {
     width: 180px;
+    text-align: center;
 }
 
 .team-photo {
