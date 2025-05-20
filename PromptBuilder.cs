@@ -1,24 +1,70 @@
 ﻿using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text;
+using Hackathon_2025.Models;
 
 namespace Hackathon_2025.Services;
 
 public static class PromptBuilder
 {
     private static string ArtStyle =>
-    "Children’s book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene. The character must appear visually identical in every image — same face, hairstyle, clothing, proportions, and body type.";
+    "Children’s book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene. The characters must appear visually consistent in every image.";
 
-    public static string BuildImagePrompt(string characterName, string characterDescription, string paragraph)
+    public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph)
     {
-        string anchor = GetCharacterAnchor(characterName, characterDescription);
+        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
-        return $"{ArtStyle} {anchor} is {scene}.";
+        return $"{ArtStyle} {anchors} are {scene}.";
     }
 
-    private static string GetCharacterAnchor(string characterName, string characterDescription)
+    private static string GetCharacterAnchor(CharacterSpec character)
     {
-        return $"A consistent child character named {characterName}, who has {characterDescription}. The character must appear the same in every image — same hairstyle, eye shape, facial features, clothing, and build.";
+        var description = character.IsAnimal
+            ? BuildAnimalDescription(character.DescriptionFields)
+            : BuildHumanDescription(character.DescriptionFields);
+
+        return $"A consistent character named {character.Name}, who is {description}. (Role: {character.Role})";
+    }
+
+    private static string BuildHumanDescription(Dictionary<string, string> fields)
+    {
+        var parts = new List<string>();
+
+        if (fields.TryGetValue("age", out var age))
+            parts.Add($"a {age}-year-old");
+
+        if (fields.TryGetValue("gender", out var gender))
+            parts.Add(gender);
+
+        if (fields.TryGetValue("skinTone", out var skin))
+            parts.Add($"with {skin} skin");
+
+        if (fields.TryGetValue("hairColor", out var hair))
+            parts.Add($"{hair} hair");
+
+        if (fields.TryGetValue("eyeColor", out var eyes))
+            parts.Add($"{eyes} eyes");
+
+        if (fields.TryGetValue("shirtColor", out var shirt))
+            parts.Add($"wearing a {shirt} shirt");
+
+        if (fields.TryGetValue("pantsColor", out var pants))
+            parts.Add($"and {pants} pants");
+
+        return string.Join(" ", parts);
+    }
+
+    private static string BuildAnimalDescription(Dictionary<string, string> fields)
+    {
+        var species = fields.TryGetValue("species", out var s) ? s : "animal";
+        string color = "";
+        if (fields.TryGetValue("bodyColor", out var bodyColor) && fields.TryGetValue("bodyCovering", out var covering))
+        {
+            color = $"with {bodyColor} {covering}";
+        }
+        var accessory = fields.TryGetValue("accessory", out var a) ? $"wearing {a}" : "";
+
+        return $"a {species} {color} {accessory}".Trim();
     }
 
     private static string SummarizeScene(string paragraph)
@@ -36,18 +82,17 @@ public static class PromptBuilder
     }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
-        string characterName,
-        string characterDescription,
+        List<CharacterSpec> characters,
         string paragraph,
         HttpClient httpClient,
         string apiKey)
     {
-        string anchor = GetCharacterAnchor(characterName, characterDescription);
+        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
 
         var userPrompt = $"""
         Summarize the following story paragraph into a short visual scene that can be used in an illustration. 
-        Describe only what the main character is doing and what the environment looks like. 
-        Do not mention the character’s name or appearance — that will be added separately.
+        Describe only what the characters are doing and what the environment looks like. 
+        Do not mention names, appearance, or clothing.
 
         Paragraph: "{paragraph}"
         """;
@@ -60,11 +105,11 @@ public static class PromptBuilder
                 new
                 {
                     role = "system",
-                    content = "You are an assistant generating image prompts for a children's storybook. Never describe the character’s name, appearance, or clothing. Only describe the environment and what the character is doing."
+                    content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters’ names, appearance, or clothing. Only describe the environment and actions."
                 },
                 new { role = "user", content = userPrompt }
             },
-            temperature = 0.3, // Minimize randomness for consistency
+            temperature = 0.3,
             max_tokens = 60
         };
 
@@ -78,17 +123,16 @@ public static class PromptBuilder
         var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
         var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
 
-        return $"{ArtStyle} {anchor} is {scene}.";
+        return $"{ArtStyle} {anchors} are {scene}.";
     }
 
-    public static string BuildCoverPrompt(string characterName, string characterDescription, string theme)
+    public static string BuildCoverPrompt(List<CharacterSpec> characters, string theme)
     {
-        var anchor = GetCharacterAnchor(characterName, characterDescription);
-
+        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         return $"""
-    Children’s book watercolor illustration in a consistent art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI elements. No titles. No visual aids. No color palettes. No swatches. No book elements. Do not include any design features. Only illustrate the scene.
+        Children’s book watercolor illustration in a consistent art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body characters. Centered. Front-facing. Flat background. No text. No logos. No UI elements. No titles. No visual aids. No swatches. No book elements. Do not include any design features. Only illustrate the scene.
 
-    Depict: {anchor}, in a setting inspired by the theme: {theme}.
-    """;
+        Depict: {anchors}, in a setting inspired by the theme: {theme}.
+        """;
     }
 }

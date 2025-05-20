@@ -18,30 +18,33 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
 
     public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
     {
+        var characterList = string.Join(", ", request.Characters.Select(c => $"{c.Name} the {c.Role}"));
+
         var prompt = $"""
-Write a complete children's story in 8 paragraphs featuring a main character named {request.CharacterName}, going on an adventure involving {request.Theme}. The reader already knows what the character looks like, so do not describe the character’s appearance, clothing, or physical features. Focus on what happens in the story, the setting, and magical or adventurous events.
+Write a complete children's story in 8 paragraphs featuring these characters: {characterList}.
+They go on an adventure involving {request.Theme}. The reader already knows what the characters look like,
+so do not describe their appearance, clothing, or physical features.
 
 Structure the story with:
-- A clear beginning that introduces the setting and the character naturally
+- A clear beginning that introduces the setting and the characters naturally
 - A middle that includes a magical or challenging journey
 - An ending with a resolution, lesson, or happy conclusion
 
 Use simple, imaginative language and short, playful sentences. Each paragraph should represent a different scene in the story.
 """;
 
-
         var requestBody = new
         {
             model = "gpt-3.5-turbo",
             messages = new[]
             {
-            new
-            {
-                role = "system",
-                content = "You are a creative children's story writer. Never describe the character’s appearance, clothes, hair, or eye color. The story should focus on setting, action, and imagination, not physical traits."
+                new
+                {
+                    role = "system",
+                    content = "You are a creative children's story writer. Never describe the characters’ appearance, clothes, hair, or eye color. The story should focus on setting, action, and imagination, not physical traits."
+                },
+                new { role = "user", content = prompt }
             },
-            new { role = "user", content = prompt }
-        },
             temperature = 0.8,
             max_tokens = 800
         };
@@ -59,9 +62,8 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
 
         var paragraphs = storyText!.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
 
-        // Generate image prompts in parallel
         var imagePromptTasks = paragraphs.Select(p =>
-            PromptBuilder.BuildImagePromptWithSceneAsync(request.CharacterName, request.CharacterDescription, p, _httpClient, _apiKey)).ToList();
+            PromptBuilder.BuildImagePromptWithSceneAsync(request.Characters, p, _httpClient, _apiKey)).ToList();
 
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
@@ -83,9 +85,8 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
             storyPages[i].ImageUrl = imageUrls[i];
         }
 
-
-        var title = await GenerateTitleAsync(request.CharacterName, request.Theme);
-        var coverPrompt = PromptBuilder.BuildCoverPrompt(request.CharacterName, request.CharacterDescription, request.Theme);
+        var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
+        var coverPrompt = PromptBuilder.BuildCoverPrompt(request.Characters, request.Theme);
         var coverUrl = (await GenerateImagesFromPrompts(new List<string> { coverPrompt }))[0];
 
         return new StoryResult
@@ -96,7 +97,6 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
             Pages = storyPages
         };
     }
-
 
     private async Task<List<string>> GenerateImagesFromPrompts(List<string> prompts)
     {
@@ -130,16 +130,16 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
     private async Task<string> GenerateTitleAsync(string characterName, string theme)
     {
         var prompt = $"""
-    Suggest a creative and whimsical children's book title based on a character named {characterName} and a theme of "{theme}". The title should be short, magical, and memorable.
-    """;
+Suggest a creative and whimsical children's book title based on a character named {characterName} and a theme of "{theme}". The title should be short, magical, and memorable.
+""";
 
         var requestBody = new
         {
             model = "gpt-3.5-turbo",
             messages = new[]
             {
-            new { role = "user", content = prompt }
-        },
+                new { role = "user", content = prompt }
+            },
             temperature = 0.9,
             max_tokens = 20
         };
