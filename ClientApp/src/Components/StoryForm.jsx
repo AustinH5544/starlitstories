@@ -251,7 +251,9 @@ const styles = {
         fontSize: '1rem',
         borderRadius: '6px',
         border: '1px solid #ccc',
-        width: '100%'
+        width: '100%',
+        boxSizing: 'border-box',
+        minWidth: 0
     },
     characterBox: {
         padding: '1rem',

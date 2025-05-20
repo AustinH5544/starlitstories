@@ -22,9 +22,9 @@ public class StoryController : ControllerBase
     [HttpPost("generate-full")]
     public async Task<IActionResult> GenerateFullStory([FromBody] StoryRequest request)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.CharacterName) || string.IsNullOrWhiteSpace(request.Email))
+        if (request is null || string.IsNullOrWhiteSpace(request.Email) || request.Characters.Count == 0)
         {
-            return BadRequest("Invalid request.");
+            return BadRequest("Invalid request: Email and at least one character are required.");
         }
 
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);

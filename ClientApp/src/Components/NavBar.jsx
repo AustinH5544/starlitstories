@@ -13,7 +13,7 @@ const NavBar = () => {
             </div>
 
             <div className="nav-center">
-                <span className="logo">StoryGen</span>
+                <span className="logo">CozyPages</span>
             </div>
 
             <div className="nav-right">
