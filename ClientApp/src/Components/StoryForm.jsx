@@ -68,7 +68,7 @@ const StoryForm = ({ onSubmit }) => {
 
     const addCharacter = () => {
         setCharacters([...characters, {
-            role: 'friend',
+            role: '',
             roleCustom: '',
             name: '',
             isAnimal: false,
