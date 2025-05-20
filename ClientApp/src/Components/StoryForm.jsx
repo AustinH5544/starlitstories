@@ -25,12 +25,26 @@ const StoryForm = ({ onSubmit }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
 
-        const characterDescription = `a ${formData.age}-year-old ${formData.gender} with ${formData.skinTone} skin, ${formData.hairColor} hair, and ${formData.eyeColor} eyes, wearing a ${formData.shirtColor} shirt and ${formData.pantsColor} pants`;
+        const {
+            characterName,
+            age,
+            gender,
+            skinTone,
+            hairColor,
+            eyeColor,
+            shirtColor,
+            pantsColor,
+            theme
+        } = formData;
+
+        const normalized = (value) => value.trim().toLowerCase();
+
+        const characterDescription = `${normalized(age)}-year-old ${normalized(gender)} child with ${normalized(skinTone)} skin, ${normalized(hairColor)} hair, and ${normalized(eyeColor)} eyes, wearing a ${normalized(shirtColor)} shirt and ${normalized(pantsColor)} pants`;
 
         onSubmit({
-            characterName: formData.characterName,
+            characterName: normalized(characterName),
             characterDescription,
-            theme: formData.theme
+            theme: normalized(theme)
         });
     };
 

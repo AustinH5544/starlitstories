@@ -19,10 +19,10 @@ public class OpenAIStoryGenerator : IStoryGeneratorService
     public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
     {
         var prompt = $"""
-Write a complete children's story in 8 paragraphs featuring a main character named {request.CharacterName}, who is {request.CharacterDescription}, going on an adventure involving {request.Theme}.
+Write a complete children's story in 8 paragraphs featuring a main character named {request.CharacterName}, going on an adventure involving {request.Theme}. The reader already knows what the character looks like, so do not describe the character’s appearance, clothing, or physical features. Focus on what happens in the story, the setting, and magical or adventurous events.
 
 Structure the story with:
-- A clear beginning that introduces the setting and character
+- A clear beginning that introduces the setting and the character naturally
 - A middle that includes a magical or challenging journey
 - An ending with a resolution, lesson, or happy conclusion
 
@@ -35,7 +35,11 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
             model = "gpt-3.5-turbo",
             messages = new[]
             {
-            new { role = "system", content = "You are a creative children's story writer." },
+            new
+            {
+                role = "system",
+                content = "You are a creative children's story writer. Never describe the character’s appearance, clothes, hair, or eye color. The story should focus on setting, action, and imagination, not physical traits."
+            },
             new { role = "user", content = prompt }
         },
             temperature = 0.8,

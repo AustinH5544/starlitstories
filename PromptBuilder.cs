@@ -7,21 +7,23 @@ namespace Hackathon_2025.Services;
 public static class PromptBuilder
 {
     private static string ArtStyle =>
-    "Watercolor illustration. Soft lighting. Gentle pastel tones. Full-body character composition. Front-facing, centered layout. Suitable for a children's storybook. Do not include any text, letters, or writing. Do not draw or depict any physical book. Do not include a color palette in the image.";
+        "Children’s book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene.";
 
     public static string BuildImagePrompt(string characterName, string characterDescription, string paragraph)
     {
-        //string style = "Children’s book watercolor illustration. Soft lighting. Gentle pastel tones. Full body. Storybook style.";
-        string anchor = $"{characterName}, {characterDescription}";
-
+        string anchor = GetCharacterAnchor(characterName, characterDescription);
         string scene = SummarizeScene(paragraph);
-
         return $"{ArtStyle} {anchor} is {scene}.";
+    }
+
+    private static string GetCharacterAnchor(string characterName, string characterDescription)
+    {
+        // Locked-in description format to reduce visual drift
+        return $"A child named {characterName}, who has {characterDescription}";
     }
 
     private static string SummarizeScene(string paragraph)
     {
-        // Rule-based fallback for common scenes. Later, upgrade with LLM if needed.
         paragraph = paragraph.ToLower();
 
         if (paragraph.Contains("owl")) return "talking to a wise owl in a glowing forest";
@@ -35,31 +37,36 @@ public static class PromptBuilder
     }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
-    string characterName,
-    string characterDescription,
-    string paragraph,
-    HttpClient httpClient,
-    string apiKey)
+        string characterName,
+        string characterDescription,
+        string paragraph,
+        HttpClient httpClient,
+        string apiKey)
     {
-        //string style = "Children’s book watercolor illustration. Soft lighting. Gentle pastel tones. Full body. Storybook style.";
-        string anchor = $"{characterName}, {characterDescription}";
+        string anchor = GetCharacterAnchor(characterName, characterDescription);
 
-        // Use GPT to summarize the paragraph visually
-        var prompt = $"""
-    Summarize the following story paragraph into a short visual scene that can be used in an illustration. Describe only what the main character is doing and what the scene looks like. Do not mention the character’s name or appearance — that will be added separately.
+        var userPrompt = $"""
+        Summarize the following story paragraph into a short visual scene that can be used in an illustration. 
+        Describe only what the main character is doing and what the environment looks like. 
+        Do not mention the character’s name or appearance — that will be added separately.
 
-    Paragraph: "{paragraph}"
-    """;
+        Paragraph: "{paragraph}"
+        """;
 
         var requestBody = new
         {
             model = "gpt-3.5-turbo",
             messages = new[]
             {
-            new { role = "user", content = prompt }
-        },
-            temperature = 0.7,
-            max_tokens = 50
+                new
+                {
+                    role = "system",
+                    content = "You are an assistant generating image prompts for a children's storybook. Never describe the character’s name, appearance, or clothing. Only describe the environment and what the character is doing."
+                },
+                new { role = "user", content = userPrompt }
+            },
+            temperature = 0.3, // Minimize randomness for consistency
+            max_tokens = 60
         };
 
         var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
@@ -77,8 +84,12 @@ public static class PromptBuilder
 
     public static string BuildCoverPrompt(string characterName, string characterDescription, string theme)
     {
+        var anchor = GetCharacterAnchor(characterName, characterDescription);
+
         return $"""
-    Watercolor illustration. Bright, magical colors. Gentle pastel tones. Full-body character centered. Suitable for the front cover of a children’s book. Do not include any text, logos, or physical books. Do not include a color palette in the image. Maintain a consistent illustration style. Featuring {characterName}, {characterDescription}, with a background inspired by: {theme}.
+    Children’s book watercolor illustration in a consistent art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI elements. No titles. No visual aids. No color palettes. No swatches. No book elements. Do not include any design features. Only illustrate the scene.
+
+    Depict: {anchor}, in a setting inspired by the theme: {theme}.
     """;
     }
 }
