@@ -7,7 +7,7 @@ namespace Hackathon_2025.Services;
 public static class PromptBuilder
 {
     private static string ArtStyle =>
-        "Children’s book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene.";
+    "Children’s book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene. The character must appear visually identical in every image — same face, hairstyle, clothing, proportions, and body type.";
 
     public static string BuildImagePrompt(string characterName, string characterDescription, string paragraph)
     {
@@ -18,8 +18,7 @@ public static class PromptBuilder
 
     private static string GetCharacterAnchor(string characterName, string characterDescription)
     {
-        // Locked-in description format to reduce visual drift
-        return $"A child named {characterName}, who has {characterDescription}";
+        return $"A consistent child character named {characterName}, who has {characterDescription}. The character must appear the same in every image — same hairstyle, eye shape, facial features, clothing, and build.";
     }
 
     private static string SummarizeScene(string paragraph)
