@@ -5,7 +5,11 @@ using Hackathon_2025.Models;
 using Hackathon_2025.Services;
 using OpenAI;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    WebRootPath = "ClientApp/dist",
+    Args = args
+});
 
 // Load OpenAI API Key
 var apiKey = builder.Configuration["OpenAI:ApiKey"]
@@ -28,6 +32,9 @@ builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("Ope
 builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IStoryGeneratorService, OpenAIStoryGenerator>();
+
+// Stripe config
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
 // Enable CORS for React dev server
 builder.Services.AddCors(options =>

@@ -65,7 +65,7 @@ public class StoryController : ControllerBase
         // Generate and count
         var result = await _storyService.GenerateFullStoryAsync(request);
         // Save story to database
-        var story = new Story
+        Story story = new Story
         {
             Title = result.Title,
             CoverImageUrl = result.CoverImageUrl,

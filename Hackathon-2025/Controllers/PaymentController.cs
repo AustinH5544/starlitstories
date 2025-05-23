@@ -9,11 +9,12 @@ namespace Hackathon_2025.Controllers;
 [Route("api/[controller]")]
 public class PaymentsController : ControllerBase
 {
-    private readonly IConfiguration _config;
-    public PaymentsController(IConfiguration config)
+    private readonly StripeSettings _stripe;
+
+    public PaymentsController(IOptions<StripeSettings> stripeOptions)
     {
-        _config = config;
-        Stripe.StripeConfiguration.ApiKey = _config["Stripe:SecretKey"];
+        _stripe = stripeOptions.Value;
+        Stripe.StripeConfiguration.ApiKey = _stripe.SecretKey;
     }
 
     [HttpPost("create-checkout-session")]

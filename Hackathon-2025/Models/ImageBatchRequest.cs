@@ -2,5 +2,5 @@
 
 public class ImageBatchRequest
 {
-    public List<string> Prompts { get; set; }
+    public required List<string> Prompts { get; set; }
 }

@@ -1,5 +1,6 @@
 ﻿using Hackathon_2025.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -13,15 +14,20 @@ public class ImageController : ControllerBase
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
 
-    public ImageController(IConfiguration config, HttpClient httpClient)
+    public ImageController(IOptions<OpenAISettings> options, HttpClient httpClient)
     {
-        _apiKey = config["OpenAI:ApiKey"]!;
+        _apiKey = options.Value.ApiKey;
         _httpClient = httpClient;
     }
 
     [HttpPost("generate-batch")]
     public async Task<IActionResult> GenerateImages([FromBody] ImageBatchRequest request)
     {
+        if (request.Prompts == null || request.Prompts.Count == 0)
+        {
+            return BadRequest("Prompts list cannot be empty.");
+        }
+
         var imageUrls = new List<string>();
 
         foreach (var prompt in request.Prompts)
@@ -34,10 +40,9 @@ public class ImageController : ControllerBase
                 size = "1024x1024"
             };
 
-            var json = JsonSerializer.Serialize(requestBody);
             using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations");
             httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-            httpRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            httpRequest.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
             var response = await _httpClient.SendAsync(httpRequest);
             if (!response.IsSuccessStatusCode)
@@ -54,5 +59,4 @@ public class ImageController : ControllerBase
 
         return Ok(new { imageUrls });
     }
-
 }
