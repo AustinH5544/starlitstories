@@ -37,4 +37,17 @@ public class AuthRequestTests
         Assert.AreEqual("secure123", request.Password);
         Assert.AreEqual("Premium", request.Membership);
     }
+
+    [TestMethod]
+    public void AuthRequest_Membership_AllowsNullValue()
+    {
+        // Arrange
+        AuthRequest request = new AuthRequest();
+
+        // Act
+        request.Membership = null;
+
+        // Assert
+        Assert.IsNull(request.Membership);
+    }
 }
