@@ -78,12 +78,12 @@ body {
 }
 
 .stars {
-    background: #0c1445 url("/stars.png") repeat top center;
+    background: #0c1445 url("/starstest.png") repeat top center;
     z-index: -3;
 }
 
 .twinkling {
-    background: transparent url("/twinkling.png") repeat top center;
+    background: transparent url("/twinklingtest.png") repeat top center;
     z-index: -2;
     animation: move-twinkle 200s linear infinite;
 }
@@ -428,6 +428,29 @@ body {
     text-align: center;
 }
 
+    .vision-section .vision-content h2 {
+        text-align: center;
+        font-size: 2.5rem;
+        margin-bottom: 2rem;
+        position: relative;
+        display: block;
+        left: auto;
+        transform: none;
+        width: 100%;
+    }
+
+        .vision-section .vision-content h2:after {
+            content: "";
+            position: absolute;
+            width: 80px;
+            height: 4px;
+            background: linear-gradient(45deg, #a18cd1, #fbc2eb);
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 2px;
+        }
+
 .vision-content {
     max-width: 800px;
     margin: 0 auto;
@@ -437,6 +460,7 @@ body {
         margin-bottom: 3rem;
         color: #555;
         line-height: 1.7;
+        text-align: center; /* Add this line to center the text */
     }
 
 .vision-features {
