@@ -83,13 +83,14 @@
 }
 
 .stars {
-    background: #0c1445 url("/stars.png") repeat top center;
+    background: #0c1445 url("/stars2test.jpg") repeat top center;
     z-index: -3;
 }
 
 .twinkling {
-    background: transparent url("/twinkling.jpg") repeat top center;
+    background: transparent url("/twinklingtest.jpg") repeat top center;
     z-index: -2;
+    opacity: 0.3;
     animation: move-twinkle 200s linear infinite;
 }
 

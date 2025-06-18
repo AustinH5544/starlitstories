@@ -1,46 +1,626 @@
-﻿.about-container {
-    padding: 2rem;
-    max-width: 800px;
-    margin: 0 auto;
-    text-align: left;
-    font-family: 'Segoe UI', sans-serif;
-    line-height: 1.7;
+﻿/* Base Styles */
+.about-page {
+    width: 100%;
+    overflow-x: hidden;
+    color: #333;
 }
 
-    .about-container h2,
-    .about-container h3 {
-        text-align: center;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn 1s ease forwards;
+}
+
+.slide-up {
+    animation: slideUp 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
     }
 
-    .about-container p {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hero Section */
+.about-hero {
+    position: relative;
+    height: 60vh;
+    min-height: 400px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 0 20px;
+    overflow: hidden;
+}
+
+/* Animated background elements */
+.stars,
+.twinkling,
+.clouds {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.stars {
+    background: #0c1445 url("/starstest.png") repeat top center;
+    z-index: -3;
+}
+
+.twinkling {
+    background: transparent url("/twinklingtest.png") repeat top center;
+    z-index: -2;
+    animation: move-twinkle 200s linear infinite;
+}
+
+.clouds {
+    background: transparent url("/clouds.png") repeat top center;
+    z-index: -1;
+    opacity: 0.4;
+    animation: move-clouds 150s linear infinite;
+}
+
+@keyframes move-twinkle {
+    from {
+        background-position: 0 0;
+    }
+
+    to {
+        background-position: -10000px 5000px;
+    }
+}
+
+@keyframes move-clouds {
+    from {
+        background-position: 0 0;
+    }
+
+    to {
+        background-position: 10000px 0;
+    }
+}
+
+.about-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 800px;
+}
+
+.about-title {
+    font-size: 3.5rem;
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    color: white;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.about-subtitle {
+    font-size: 1.3rem;
+    max-width: 700px;
+    margin: 0 auto;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Section Styles */
+.about-section {
+    padding: 5rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.section-content {
+    max-width: 1200px;
+    width: 100%;
+    margin: 0 auto;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.about-section h2 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    position: relative;
+    display: inline-block;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+    .about-section h2:after {
+        content: "";
+        position: absolute;
+        width: 80px;
+        height: 4px;
+        background: linear-gradient(45deg, #a18cd1, #fbc2eb);
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-radius: 2px;
+    }
+
+/* Mission Section */
+.mission-section {
+    background: white;
+}
+
+    .mission-section .section-content {
+        display: flex;
+        align-items: center;
+        gap: 4rem;
+    }
+
+.section-image {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.section-text {
+    flex: 1;
+}
+
+    .section-text h2 {
+        text-align: left;
+        transform: none;
+        left: 0;
+    }
+
+        .section-text h2:after {
+            left: 0;
+            transform: none;
+        }
+
+    .section-text p {
         margin-bottom: 1.5rem;
-        font-size: 1rem;
+        line-height: 1.7;
+        color: #555;
     }
 
-    .about-container ul {
-        list-style-type: disc;
-        padding-left: 1.5rem;
-        margin-bottom: 2rem;
+.floating-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 20px;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
     }
+
+    50% {
+        transform: translateY(-20px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+/* How It Works Section */
+.how-section {
+    background: #f9f7ff;
+    position: relative;
+}
+
+    .how-section:before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100px;
+        background: linear-gradient(to bottom, white, #f9f7ff);
+    }
+
+.process-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 3rem;
+}
+
+.process-step {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+    .process-step:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+    }
+
+.step-icon {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(45deg, #a18cd1, #fbc2eb);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    color: white;
+    font-size: 1.8rem;
+    font-weight: bold;
+    box-shadow: 0 10px 20px rgba(161, 140, 209, 0.3);
+}
+
+.process-step h3 {
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.process-step p {
+    color: #666;
+    line-height: 1.6;
+}
+
+/* Benefits Section */
+.benefits-section {
+    background: white;
+}
+
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin-top: 3rem;
+}
+
+.benefit-card {
+    background: #f9f7ff;
+    border-radius: 15px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+    .benefit-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+.benefit-icon {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+}
+
+.benefit-card h3 {
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.benefit-card p {
+    color: #666;
+    line-height: 1.6;
+}
+
+/* Team Section */
+.team-section {
+    background: #f9f7ff;
+    position: relative;
+}
+
+    .team-section:before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100px;
+        background: linear-gradient(to bottom, white, #f9f7ff);
+    }
+
+.team-intro {
+    text-align: center;
+    max-width: 700px;
+    margin: 0 auto 3rem;
+    color: #555;
+}
 
 .team-grid {
     display: flex;
-    justify-content: center;
-    gap: 2rem;
     flex-wrap: wrap;
-    margin-top: 2rem;
+    justify-content: center;
+    gap: 3rem;
 }
 
-.team-member {
-    width: 180px;
+.team-card {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
     text-align: center;
+    max-width: 350px;
+    transition: all 0.3s ease;
+}
+
+    .team-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+    }
+
+.team-photo-wrapper {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 0 auto 1.5rem;
+    border: 5px solid #f9f7ff;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
 .team-photo {
     width: 100%;
-    height: auto;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    height: 100%;
+    object-fit: cover;
+}
+
+.team-card h3 {
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.team-role {
+    color: #a18cd1;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.team-bio {
+    color: #666;
+    line-height: 1.6;
+}
+
+/* Vision Section */
+.vision-section {
+    background: white;
+    text-align: center;
+}
+
+.vision-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+    .vision-content p {
+        margin-bottom: 3rem;
+        color: #555;
+        line-height: 1.7;
+    }
+
+.vision-features {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.vision-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    text-align: left;
+    background: #f9f7ff;
+    border-radius: 15px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+    .vision-feature:hover {
+        transform: translateX(10px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    }
+
+.vision-icon {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+}
+
+.vision-feature h3 {
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.vision-feature p {
+    margin-bottom: 0;
+    color: #666;
+}
+
+/* Contact Section */
+.contact-section {
+    background: linear-gradient(135deg, #0c1445, #30197d);
+    color: white;
+    text-align: center;
+}
+
+    .contact-section h2 {
+        color: white;
+    }
+
+        .contact-section h2:after {
+            background: white;
+        }
+
+.contact-intro {
+    max-width: 700px;
+    margin: 0 auto 3rem;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.contact-methods {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    margin-bottom: 4rem;
+}
+
+.contact-method {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: white;
+    text-decoration: none;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50px;
+    transition: all 0.3s ease;
+}
+
+    .contact-method:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-5px);
+    }
+
+.contact-icon {
+    font-size: 1.5rem;
+}
+
+.newsletter-signup {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+}
+
+    .newsletter-signup h3 {
+        margin-bottom: 1rem;
+    }
+
+    .newsletter-signup p {
+        margin-bottom: 1.5rem;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+.newsletter-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+    .newsletter-form input {
+        flex: 1;
+        padding: 0.8rem 1.2rem;
+        border: none;
+        border-radius: 50px;
+        font-size: 1rem;
+    }
+
+    .newsletter-form button {
+        padding: 0.8rem 1.5rem;
+        background: linear-gradient(45deg, #a18cd1, #fbc2eb);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+        .newsletter-form button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+    .about-title {
+        font-size: 3rem;
+    }
+
+    .mission-section .section-content {
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .section-image {
+        order: -1;
+    }
+
+    .section-text h2 {
+        text-align: center;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+        .section-text h2:after {
+            left: 50%;
+            transform: translateX(-50%);
+        }
+}
+
+@media (max-width: 768px) {
+    .about-title {
+        font-size: 2.5rem;
+    }
+
+    .about-subtitle {
+        font-size: 1.1rem;
+    }
+
+    .about-section {
+        padding: 4rem 1.5rem;
+    }
+
+        .about-section h2 {
+            font-size: 2rem;
+        }
+
+    .newsletter-form {
+        flex-direction: column;
+    }
+
+        .newsletter-form input,
+        .newsletter-form button {
+            width: 100%;
+        }
+}
+
+@media (max-width: 480px) {
+    .about-title {
+        font-size: 2rem;
+    }
+
+    .about-section h2 {
+        font-size: 1.8rem;
+    }
+
+    .contact-method {
+        width: 100%;
+        justify-content: center;
+    }
 }
