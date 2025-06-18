@@ -181,7 +181,7 @@ const LandingPage = () => {
                                 character!"
                             </p>
                             <div className="testimonial-author">
-                                <img src="/placeholder.svg?height=50&width=50" alt="Parent" className="testimonial-avatar" />
+                                <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
                                 <div>
                                     <p className="testimonial-name">Sarah T.</p>
                                     <p className="testimonial-relation">Mom of Emma, 5</p>
@@ -195,7 +195,7 @@ const LandingPage = () => {
                                 "My son was never interested in bedtime stories until we found CozyPages. Now he's excited for bedtime!"
                             </p>
                             <div className="testimonial-author">
-                                <img src="/placeholder.svg?height=50&width=50" alt="Parent" className="testimonial-avatar" />
+                                <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
                                 <div>
                                     <p className="testimonial-name">Michael R.</p>
                                     <p className="testimonial-relation">Dad of James, 6</p>
@@ -210,7 +210,7 @@ const LandingPage = () => {
                                 adventures!"
                             </p>
                             <div className="testimonial-author">
-                                <img src="/placeholder.svg?height=50&width=50" alt="Parent" className="testimonial-avatar" />
+                                <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
                                 <div>
                                     <p className="testimonial-name">Jennifer L.</p>
                                     <p className="testimonial-relation">Mom of Lily & Lucas, 7</p>
