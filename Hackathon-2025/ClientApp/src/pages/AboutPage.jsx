@@ -62,13 +62,21 @@ const AboutPage = () => {
                         Creating magical moments between parents and children, one personalized story at a time
                     </p>
                 </div>
+
+                <div className="scroll-indicator">
+                    <div className="mouse">
+                        <div className="wheel"></div>
+                    </div>
+                    <div className="arrow-down"></div>
+                    <p className="scroll-text">Scroll to learn more</p>
+                </div>
             </section>
 
             {/* Mission Section */}
             <section className="about-section mission-section">
-                <div className={`section-content ${isVisible.mission ? "fade-in" : ""}`}>
+                <div className="section-content mission-visible">
                     <div className="section-image">
-                        <img src="/mission-image.png" alt="Child reading a book" className="floating-image" />
+                        <img src="/ChildReading.jpg" alt="Child reading a book" className="floating-image" />
                     </div>
                     <div className="section-text">
                         <h2>Our Mission</h2>

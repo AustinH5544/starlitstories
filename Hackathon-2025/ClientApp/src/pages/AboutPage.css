@@ -1,4 +1,16 @@
 ﻿/* Base Styles */
+/* Reset any default margins/padding that might cause bottom spacing */
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
 .about-page {
     width: 100%;
     overflow-x: hidden;
@@ -66,12 +78,12 @@
 }
 
 .stars {
-    background: #0c1445 url("/starstest.png") repeat top center;
+    background: #0c1445 url("/stars.png") repeat top center;
     z-index: -3;
 }
 
 .twinkling {
-    background: transparent url("/twinklingtest.png") repeat top center;
+    background: transparent url("/twinkling.png") repeat top center;
     z-index: -2;
     animation: move-twinkle 200s linear infinite;
 }
@@ -141,6 +153,11 @@
     transform: translateY(30px);
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
+
+    .section-content.mission-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
 
 .about-section h2 {
     text-align: center;
@@ -464,6 +481,8 @@
     background: linear-gradient(135deg, #0c1445, #30197d);
     color: white;
     text-align: center;
+    padding-bottom: 3rem; /* Reduced from default 5rem */
+    margin-bottom: 0; /* Ensure no bottom margin */
 }
 
     .contact-section h2 {
@@ -555,6 +574,104 @@
             transform: translateY(-3px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
+
+/* Scroll Indicator */
+.scroll-indicator {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: white;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+    animation: fadeInUp 2s ease infinite;
+}
+
+    .scroll-indicator:hover {
+        opacity: 1;
+    }
+
+.mouse {
+    width: 30px;
+    height: 50px;
+    border: 2px solid white;
+    border-radius: 20px;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.wheel {
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: scroll 1.5s ease infinite;
+}
+
+@keyframes scroll {
+    0% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+}
+
+.arrow-down {
+    width: 20px;
+    height: 20px;
+    position: relative;
+    margin-bottom: 8px;
+}
+
+    .arrow-down:before,
+    .arrow-down:after {
+        content: "";
+        position: absolute;
+        width: 12px;
+        height: 2px;
+        background: white;
+        top: 10px;
+    }
+
+    .arrow-down:before {
+        left: 0;
+        transform: rotate(45deg);
+    }
+
+    .arrow-down:after {
+        right: 0;
+        transform: rotate(-45deg);
+    }
+
+.scroll-text {
+    font-size: 0.9rem;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+}
+
+@keyframes fadeInUp {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+
+    100% {
+        opacity: 0.7;
+        transform: translate(-50%, 0);
+    }
+}
 
 /* Responsive Styles */
 @media (max-width: 1024px) {
