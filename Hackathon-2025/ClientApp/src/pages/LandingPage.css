@@ -411,9 +411,7 @@
     font-size: 2.5rem;
     margin-bottom: 3rem;
     position: relative;
-    display: inline-block;
-    left: 50%;
-    transform: translateX(-50%);
+    display: block;
 }
 
     .section-title:after {
@@ -629,6 +627,12 @@
     color: white;
     text-align: center;
 }
+    .cta-section .section-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
 
     .cta-section .section-title {
         color: white;
