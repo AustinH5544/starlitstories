@@ -13,7 +13,7 @@
 
 /* Animated background elements */
 .stars,
-.twinkling,
+.small-clouds,
 .clouds {
     position: absolute;
     top: 0;
@@ -26,30 +26,36 @@
 }
 
 .stars {
-    background: #0c1445 url("/stars.png") repeat top center;
+    background: #0c1445 url("/stars.jpg") no-repeat top center;
+    background-size: cover;
     z-index: -3;
-}
-
-.twinkling {
-    background: transparent url("/twinkling.png") repeat top center;
-    z-index: -2;
-    animation: move-twinkle 200s linear infinite;
 }
 
 .clouds {
     background: transparent url("/clouds.png") repeat top center;
-    z-index: -1;
-    opacity: 0.4;
-    animation: move-clouds 150s linear infinite;
+    background-size: contain;
+    z-index: -2;
+    opacity: 0.8;
+    animation: move-clouds 500s linear infinite;
+    height: 50%;
 }
 
-@keyframes move-twinkle {
+.small-clouds {
+    background: transparent url("/small_clouds.png") repeat top center;
+    background-size: contain;
+    z-index: -1;
+    opacity: 1;
+    animation: move-small-clouds 1000s linear infinite;
+    height: 50%;
+}
+
+@keyframes move-small-clouds {
     from {
         background-position: 0 0;
     }
 
     to {
-        background-position: -10000px 5000px;
+        background-position: 10000px 0;
     }
 }
 

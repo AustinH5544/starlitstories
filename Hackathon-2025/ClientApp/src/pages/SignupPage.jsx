@@ -61,7 +61,7 @@ const SignupPage = () => {
     return (
         <div className="signup-page">
             <div className="stars"></div>
-            <div className="twinkling"></div>
+            <div className="small-clouds"></div>
             <div className="clouds"></div>
 
             <div className="signup-container">
