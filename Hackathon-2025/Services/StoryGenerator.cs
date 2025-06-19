@@ -5,12 +5,12 @@ using Hackathon_2025.Models;
 
 namespace Hackathon_2025.Services;
 
-public class OpenAIStoryGenerator : IStoryGeneratorService
+public class StoryGenerator : IStoryGeneratorService
 {
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
 
-    public OpenAIStoryGenerator(HttpClient httpClient, IConfiguration config)
+    public StoryGenerator(HttpClient httpClient, IConfiguration config)
     {
         _httpClient = httpClient;
         _apiKey = config["OpenAI:ApiKey"]!;
@@ -82,7 +82,7 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
 
         for (int i = 0; i < storyPages.Count; i++)
         {
-            storyPages[i].ImageUrl = imageUrls[i];
+            storyPages[i].ImageUrl = "data:image/png;base64," + imageUrls[i];
         }
 
         var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
@@ -104,24 +104,25 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
 
         foreach (var prompt in prompts)
         {
-            var req = new
+            var reqBody = new
             {
-                model = "dall-e-3",
                 prompt = prompt,
-                n = 1,
-                size = "1024x1024"
+                guidance_scale = 7.5,
+                num_inference_steps = 25,
+                seed = 1337
             };
 
-            using var msg = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations");
-            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-            msg.Content = new StringContent(JsonSerializer.Serialize(req), Encoding.UTF8, "application/json");
+            using var msg = new HttpRequestMessage(HttpMethod.Post, "http://192.168.0.11:5000/generate"); // Adjust URL/port as needed
+            msg.Content = new StringContent(JsonSerializer.Serialize(reqBody), Encoding.UTF8, "application/json");
 
             var res = await _httpClient.SendAsync(msg);
             res.EnsureSuccessStatusCode();
 
             var resultJson = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
-            var url = resultJson.RootElement.GetProperty("data")[0].GetProperty("url").GetString();
-            imageUrls.Add(url!);
+            var base64Image = resultJson.RootElement.GetProperty("image_base64").GetString();
+
+            // Optional: Store as data URL for frontend, or upload to cloud
+            imageUrls.Add("data:image/png;base64," + base64Image);
         }
 
         return imageUrls;

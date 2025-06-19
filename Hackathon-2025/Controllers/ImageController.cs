@@ -28,35 +28,34 @@ public class ImageController : ControllerBase
             return BadRequest("Prompts list cannot be empty.");
         }
 
-        var imageUrls = new List<string>();
+        var imageResults = new List<string>();
 
         foreach (var prompt in request.Prompts)
         {
             var requestBody = new
             {
-                model = "dall-e-3",
                 prompt = prompt,
-                n = 1,
-                size = "1024x1024"
+                guidance_scale = 7.5,
+                num_inference_steps = 25,
+                seed = 1337
             };
 
-            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations");
-            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+            using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "http://192.168.0.11:5000/generate"); // Replace with actual imageFX endpoint
             httpRequest.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
             var response = await _httpClient.SendAsync(httpRequest);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
-                return StatusCode((int)response.StatusCode, $"Image failed for prompt: {prompt}\n{error}");
+                return StatusCode((int)response.StatusCode, $"Image generation failed for prompt: {prompt}\n{error}");
             }
 
             var resultJson = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
-            var url = resultJson.RootElement.GetProperty("data")[0].GetProperty("url").GetString();
+            var imageBase64 = resultJson.RootElement.GetProperty("image_base64").GetString();
 
-            imageUrls.Add(url!);
+            imageResults.Add(imageBase64!); // You can optionally prepend "data:image/png;base64," if sending directly to frontend
         }
 
-        return Ok(new { imageUrls });
+        return Ok(new { images = imageResults });
     }
 }

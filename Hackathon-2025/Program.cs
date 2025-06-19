@@ -31,7 +31,7 @@ builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<IStoryGeneratorService, OpenAIStoryGenerator>();
+builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 
 // Stripe config
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
