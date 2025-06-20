@@ -46,7 +46,7 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
                 new { role = "user", content = prompt }
             },
             temperature = 0.8,
-            max_tokens = 800
+            max_tokens = 600
         };
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
@@ -82,7 +82,7 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
 
         for (int i = 0; i < storyPages.Count; i++)
         {
-            storyPages[i].ImageUrl = "data:image/png;base64," + imageUrls[i];
+            storyPages[i].ImageUrl = imageUrls[i];
         }
 
         var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
