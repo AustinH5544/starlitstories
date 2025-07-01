@@ -83,7 +83,7 @@
 }
 
 .stars {
-    background: #0c1445 url("/stars2test.jpg") repeat top center;
+    background: #0c1445 url("/stars.jpg") repeat top center;
     z-index: -3;
 }
 
@@ -627,6 +627,7 @@
     color: white;
     text-align: center;
 }
+
     .cta-section .section-content {
         display: flex;
         flex-direction: column;
