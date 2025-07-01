@@ -108,39 +108,55 @@
 
 .login-button,
 .logout-button {
-    padding: 0.5rem 1.2rem;
-    font-size: 1rem;
-    background: transparent;
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 50px;
+    padding: 0.5rem 1.2rem !important;
+    font-size: 1rem !important;
+    background: transparent !important;
+    color: white !important;
+    border: 1px solid rgba(255, 255, 255, 0.5) !important;
+    border-radius: 50px !important;
     cursor: pointer;
     transition: all 0.3s ease;
-    text-decoration: none;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 40px !important;
+    box-sizing: border-box !important;
+    line-height: 1 !important;
+    vertical-align: baseline !important;
+    margin: 0 !important;
 }
-
-    .login-button:hover,
-    .logout-button:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: white;
-    }
 
 .signup-button {
-    padding: 0.5rem 1.2rem;
-    font-size: 1rem;
-    background: linear-gradient(45deg, #a18cd1, #fbc2eb);
-    color: white;
-    border: none;
-    border-radius: 50px;
+    padding: 0.5rem 1.2rem !important;
+    font-size: 1rem !important;
+    background: linear-gradient(45deg, #a18cd1, #fbc2eb) !important;
+    color: white !important;
+    border: 1px solid transparent !important;
+    border-radius: 50px !important;
     cursor: pointer;
     transition: all 0.3s ease;
-    text-decoration: none;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 40px !important;
+    box-sizing: border-box !important;
+    line-height: 1 !important;
+    vertical-align: baseline !important;
+    margin: 0 !important;
 }
 
-    .signup-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(161, 140, 209, 0.3);
-    }
+.login-button:hover,
+.logout-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: white;
+}
+
+.signup-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(161, 140, 209, 0.3);
+}
 
 .user-menu {
     display: flex;
