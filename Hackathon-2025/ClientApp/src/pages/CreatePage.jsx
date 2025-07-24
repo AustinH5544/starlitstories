@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import StoryForm from "../components/StoryForm"
 import axios from "../api"
@@ -13,7 +13,30 @@ const CreatePage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [storyReady, setStoryReady] = useState(false)
     const [error, setError] = useState(null)
+    const [userProfile, setUserProfile] = useState(null)
+    const [profileLoading, setProfileLoading] = useState(true)
     const navigate = useNavigate()
+
+    // Fetch user profile to check story count
+    useEffect(() => {
+        const fetchUserProfile = async () => {
+            if (!user?.email) {
+                setProfileLoading(false)
+                return
+            }
+
+            try {
+                const res = await axios.get(`/profile/${user.email}`)
+                setUserProfile(res.data)
+            } catch (err) {
+                console.error("Error loading user profile:", err)
+            } finally {
+                setProfileLoading(false)
+            }
+        }
+
+        fetchUserProfile()
+    }, [user])
 
     const generateStory = async (formData) => {
         setIsLoading(true)
@@ -47,6 +70,31 @@ const CreatePage = () => {
         story.pages[0].text?.toLowerCase().startsWith("oops") === false &&
         !error
 
+    // Check if free user has reached their limit
+    const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1
+
+    if (profileLoading) {
+        return (
+            <div className="create-page">
+                <div className="stars"></div>
+                <div className="twinkling"></div>
+                <div className="clouds"></div>
+
+                <div className="create-container">
+                    <div className="loading-container">
+                        <div className="loading-spinner">
+                            <div className="spinner"></div>
+                        </div>
+                        <p className="loading-text">
+                            <span className="loading-icon">✨</span>
+                            Loading your account...
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="create-page">
             <div className="stars"></div>
@@ -61,41 +109,88 @@ const CreatePage = () => {
                     </p>
                 </div>
 
-                <div className="create-form-wrapper">
-                    <StoryForm onSubmit={generateStory} />
+                {isFreeUserAtLimit ? (
+                    <div className="upgrade-prompt">
+                        <div className="upgrade-icon">🚀</div>
+                        <h2 className="upgrade-title">Ready for More Magic?</h2>
+                        <p className="upgrade-message">
+                            You've created your free story! To continue crafting magical adventures for your little ones, upgrade to
+                            one of our premium plans.
+                        </p>
 
-                    {isLoading && (
-                        <div className="loading-container">
-                            <div className="loading-spinner">
-                                <div className="spinner"></div>
+                        <div className="upgrade-benefits">
+                            <div className="benefit-item">
+                                <span className="benefit-icon">📚</span>
+                                <span>Create multiple stories per month</span>
                             </div>
-                            <p className="loading-text">
-                                <span className="loading-icon">✨</span>
-                                Creating your magical story...
-                            </p>
-                            <p className="loading-subtext">This may take a few moments while our storytellers work their magic</p>
+                            <div className="benefit-item">
+                                <span className="benefit-icon">🎨</span>
+                                <span>Access to premium illustrations</span>
+                            </div>
+                            <div className="benefit-item">
+                                <span className="benefit-icon">👨‍👩‍👧‍👦</span>
+                                <span>Support for multiple characters</span>
+                            </div>
+                            <div className="benefit-item">
+                                <span className="benefit-icon">🖨️</span>
+                                <span>Download and print your stories</span>
+                            </div>
                         </div>
-                    )}
 
-                    {!isLoading && error && (
-                        <div className="error-container">
-                            <div className="error-icon">😔</div>
-                            <p className="create-error">{error}</p>
-                            <p className="error-subtext">Please try again or contact support if the problem persists</p>
-                        </div>
-                    )}
-
-                    {!isLoading && storyReady && isValidStory && (
-                        <div className="success-container">
-                            <div className="success-icon">🎉</div>
-                            <p className="success-text">Your story is ready!</p>
-                            <button className="view-story-button" onClick={() => navigate("/view", { state: { story } })}>
-                                <span className="button-icon">📖</span>
-                                <span>View Your Story</span>
+                        <div className="upgrade-actions">
+                            <button onClick={() => navigate("/upgrade")} className="upgrade-button">
+                                <span className="button-icon">⭐</span>
+                                <span>Upgrade Your Plan</span>
+                            </button>
+                            <button onClick={() => navigate("/profile")} className="back-to-profile-btn">
+                                <span className="button-icon">👤</span>
+                                <span>Back to Profile</span>
                             </button>
                         </div>
-                    )}
-                </div>
+
+                        <div className="upgrade-footer">
+                            <p>
+                                Questions? <a href="mailto:support@cozypages.com">Contact our support team</a>
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="create-form-wrapper">
+                        <StoryForm onSubmit={generateStory} />
+
+                        {isLoading && (
+                            <div className="loading-container">
+                                <div className="loading-spinner">
+                                    <div className="spinner"></div>
+                                </div>
+                                <p className="loading-text">
+                                    <span className="loading-icon">✨</span>
+                                    Creating your magical story...
+                                </p>
+                                <p className="loading-subtext">This may take a few moments while our storytellers work their magic</p>
+                            </div>
+                        )}
+
+                        {!isLoading && error && (
+                            <div className="error-container">
+                                <div className="error-icon">😔</div>
+                                <p className="create-error">{error}</p>
+                                <p className="error-subtext">Please try again or contact support if the problem persists</p>
+                            </div>
+                        )}
+
+                        {!isLoading && storyReady && isValidStory && (
+                            <div className="success-container">
+                                <div className="success-icon">🎉</div>
+                                <p className="success-text">Your story is ready!</p>
+                                <button className="view-story-button" onClick={() => navigate("/view", { state: { story } })}>
+                                    <span className="button-icon">📖</span>
+                                    <span>View Your Story</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     )
