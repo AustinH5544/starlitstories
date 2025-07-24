@@ -927,3 +927,381 @@
         font-size: 1rem;
     }
 }
+
+/* Header Layout Updates */
+.story-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+}
+
+.header-left,
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-right {
+    min-width: 200px;
+    justify-content: flex-end;
+}
+
+/* Share and Download Buttons */
+.share-button,
+.download-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 25px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+    .share-button:hover,
+    .download-button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+.download-dropdown {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.format-select {
+    padding: 0.3rem 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    color: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+    .format-select option {
+        background: #1a1a2e;
+        color: white;
+    }
+
+.button-text {
+    font-size: 0.85rem;
+}
+
+/* Share Modal */
+.share-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+}
+
+.share-modal-content {
+    background: rgba(16, 24, 64, 0.95);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 500px;
+    width: 90%;
+    cursor: default;
+}
+
+.share-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+    .share-modal-header h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        margin: 0;
+    }
+
+.close-modal-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1.1rem;
+}
+
+    .close-modal-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: scale(1.1);
+    }
+
+.share-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.story-preview {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.share-story-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.share-story-info h4 {
+    font-size: 1.1rem;
+    color: white;
+    margin: 0 0 0.3rem 0;
+}
+
+.share-story-info p {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+}
+
+.share-url-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+    .share-url-section label {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 600;
+    }
+
+.url-input-container {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.share-url-input {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: white;
+    font-size: 0.9rem;
+}
+
+.copy-button {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.7rem 1rem;
+    background: linear-gradient(45deg, #a18cd1, #fbc2eb);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+    .copy-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(161, 140, 209, 0.3);
+    }
+
+.share-options h4 {
+    font-size: 1rem;
+    color: white;
+    margin: 0 0 1rem 0;
+}
+
+.share-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+}
+
+.share-option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: white;
+}
+
+    .share-option-btn.email {
+        background: rgba(34, 139, 34, 0.2);
+        border-color: rgba(34, 139, 34, 0.4);
+    }
+
+    .share-option-btn.twitter {
+        background: rgba(29, 161, 242, 0.2);
+        border-color: rgba(29, 161, 242, 0.4);
+    }
+
+    .share-option-btn.facebook {
+        background: rgba(24, 119, 242, 0.2);
+        border-color: rgba(24, 119, 242, 0.4);
+    }
+
+    .share-option-btn.whatsapp {
+        background: rgba(37, 211, 102, 0.2);
+        border-color: rgba(37, 211, 102, 0.4);
+    }
+
+    .share-option-btn:hover {
+        transform: translateY(-2px);
+        opacity: 0.9;
+    }
+
+.share-icon {
+    font-size: 1.2rem;
+}
+
+/* Upgrade Prompt in Share Modal */
+.upgrade-prompt-small {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 15px;
+    margin-top: 1rem;
+}
+
+.upgrade-icon-small {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.upgrade-text-small strong {
+    color: #ffc107;
+    font-size: 0.95rem;
+}
+
+.upgrade-text-small p {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    margin: 0.3rem 0 0.8rem 0;
+}
+
+.mini-upgrade-btn {
+    padding: 0.4rem 1rem;
+    background: linear-gradient(45deg, #ff6b6b, #ffa500);
+    border: none;
+    border-radius: 20px;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+    .mini-upgrade-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+    }
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .story-header {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .header-left,
+    .header-right {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .header-right {
+        min-width: auto;
+    }
+
+    .download-dropdown {
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .button-text {
+        display: none;
+    }
+
+    .share-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .share-modal-content {
+        padding: 1.5rem;
+        margin: 1rem;
+    }
+
+    .story-preview {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .url-input-container {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 480px) {
+    .share-button,
+    .download-button {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    .format-select {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
+
+    .upgrade-prompt-small {
+        flex-direction: column;
+        text-align: center;
+    }
+}
