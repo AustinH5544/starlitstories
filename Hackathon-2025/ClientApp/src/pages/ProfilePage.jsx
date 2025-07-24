@@ -94,6 +94,11 @@ const ProfilePage = () => {
                         <span>Create New Story</span>
                     </button>
 
+                    <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
+                        <span className="button-icon">🚀</span>
+                        <span>Upgrade Plan</span>
+                    </button>
+
                     <button onClick={logout} className="logout-button">
                         <span className="button-icon">🚪</span>
                         <span>Log Out</span>

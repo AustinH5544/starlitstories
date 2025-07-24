@@ -1,16 +1,16 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { AuthProvider } from "./context/AuthContext"
 
-import NavBar from './components/NavBar';
-import LandingPage from './pages/LandingPage';
-import CreatePage from './pages/CreatePage';
-import AboutPage from './pages/AboutPage';
-import LoginPage from './pages/LoginPage';
-import SignupPage from './pages/SignupPage';
-import ProfilePage from './pages/ProfilePage';
-import StoryViewerPage from './pages/StoryViewerPage';
-import SignupComplete from './pages/SignupComplete';
+import NavBar from "./components/NavBar"
+import LandingPage from "./pages/LandingPage"
+import CreatePage from "./pages/CreatePage"
+import AboutPage from "./pages/AboutPage"
+import LoginPage from "./pages/LoginPage"
+import SignupPage from "./pages/SignupPage"
+import ProfilePage from "./pages/ProfilePage"
+import StoryViewerPage from "./pages/StoryViewerPage"
+import SignupComplete from "./pages/SignupComplete"
+import UpgradePage from "./pages/UpgradePage"
 
 function App() {
     return (
@@ -26,10 +26,11 @@ function App() {
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/view" element={<StoryViewerPage />} />
                     <Route path="/signup/complete" element={<SignupComplete />} />
+                    <Route path="/upgrade" element={<UpgradePage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
-    );
+    )
 }
 
-export default App;
+export default App
