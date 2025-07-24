@@ -9,4 +9,8 @@ public class User
     public string Membership { get; set; } = "free";
     public int BooksGenerated { get; set; } = 0;
     public DateTime LastReset { get; set; } = DateTime.UtcNow;
+
+    // Password reset fields
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetExpires { get; set; }
 }

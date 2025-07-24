@@ -11,6 +11,8 @@ import ProfilePage from "./pages/ProfilePage"
 import StoryViewerPage from "./pages/StoryViewerPage"
 import SignupComplete from "./pages/SignupComplete"
 import UpgradePage from "./pages/UpgradePage"
+import ForgotPasswordPage from "./pages/ForgotPasswordPage"
+import ResetPasswordPage from "./pages/ResetPasswordPage"
 
 function App() {
     return (
@@ -27,6 +29,8 @@ function App() {
                     <Route path="/view" element={<StoryViewerPage />} />
                     <Route path="/signup/complete" element={<SignupComplete />} />
                     <Route path="/upgrade" element={<UpgradePage />} />
+                    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/reset-password" element={<ResetPasswordPage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
