@@ -22,7 +22,7 @@ if (string.IsNullOrWhiteSpace(apiKey))
 
 // EF Core (SQLite)
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Password hashing
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
