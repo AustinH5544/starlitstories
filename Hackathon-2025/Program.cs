@@ -31,6 +31,12 @@ builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
 builder.Services.AddHttpClient();
+
+// Register the image generator (swap easily here)
+builder.Services.AddScoped<IImageGeneratorService, LocalImageGeneratorService>();
+// builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
+
+// Story generation depends on IImageGeneratorService
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 
 // Stripe config
@@ -41,7 +47,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
         policy => policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins("http://localhost:5173", "http://localhost:5174")
             .AllowAnyHeader()
             .AllowAnyMethod());
 });

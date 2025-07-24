@@ -9,11 +9,13 @@ public class StoryGenerator : IStoryGeneratorService
 {
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
+    private readonly IImageGeneratorService _imageService;
 
-    public StoryGenerator(HttpClient httpClient, IConfiguration config)
+    public StoryGenerator(HttpClient httpClient, IConfiguration config, IImageGeneratorService imageService)
     {
         _httpClient = httpClient;
         _apiKey = config["OpenAI:ApiKey"]!;
+        _imageService = imageService;
     }
 
     public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
@@ -78,7 +80,7 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
             });
         }
 
-        var imageUrls = await GenerateImagesFromPrompts(imagePrompts.ToList());
+        var imageUrls = await _imageService.GenerateImagesAsync(imagePrompts.ToList());
 
         for (int i = 0; i < storyPages.Count; i++)
         {
@@ -87,7 +89,7 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
 
         var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
         var coverPrompt = PromptBuilder.BuildCoverPrompt(request.Characters, request.Theme);
-        var coverUrl = (await GenerateImagesFromPrompts(new List<string> { coverPrompt }))[0];
+        var coverUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
 
         return new StoryResult
         {
@@ -96,36 +98,6 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
             CoverImageUrl = coverUrl,
             Pages = storyPages
         };
-    }
-
-    private async Task<List<string>> GenerateImagesFromPrompts(List<string> prompts)
-    {
-        var imageUrls = new List<string>();
-
-        foreach (var prompt in prompts)
-        {
-            var reqBody = new
-            {
-                prompt = prompt,
-                guidance_scale = 7.5,
-                num_inference_steps = 25,
-                seed = 1337
-            };
-
-            using var msg = new HttpRequestMessage(HttpMethod.Post, "http://192.168.0.11:5000/generate"); // Adjust URL/port as needed
-            msg.Content = new StringContent(JsonSerializer.Serialize(reqBody), Encoding.UTF8, "application/json");
-
-            var res = await _httpClient.SendAsync(msg);
-            res.EnsureSuccessStatusCode();
-
-            var resultJson = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
-            var base64Image = resultJson.RootElement.GetProperty("image_base64").GetString();
-
-            // Optional: Store as data URL for frontend, or upload to cloud
-            imageUrls.Add("data:image/png;base64," + base64Image);
-        }
-
-        return imageUrls;
     }
 
     private async Task<string> GenerateTitleAsync(string characterName, string theme)
