@@ -47,9 +47,11 @@ const NavBar = () => {
                     <Link to="/" className={location.pathname === "/" ? "active" : ""}>
                         Home
                     </Link>
-                    <Link to="/create" className={location.pathname === "/create" ? "active" : ""}>
-                        Create Story
-                    </Link>
+                    {user && (
+                        <Link to="/create" className={location.pathname === "/create" ? "active" : ""}>
+                            Create Story
+                        </Link>
+                    )}
                     <Link to="/about" className={location.pathname === "/about" ? "active" : ""}>
                         About
                     </Link>

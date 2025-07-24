@@ -281,6 +281,165 @@
     font-size: 1.4rem;
 }
 
+/* Auth Required Prompt Styles */
+.auth-required-prompt {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 3rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.auth-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.05);
+    }
+}
+
+.auth-title {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    background: linear-gradient(45deg, #f5b8ff, #a18cd1);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.auth-message {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 2.5rem;
+    line-height: 1.6;
+}
+
+.auth-benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+    text-align: left;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.benefit-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+    .benefit-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateX(5px);
+    }
+
+.benefit-icon {
+    font-size: 1.5rem;
+    width: 30px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.benefit-item span:last-child {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+}
+
+.auth-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.signup-cta-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 2.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    background: linear-gradient(45deg, #a18cd1, #fbc2eb);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(161, 140, 209, 0.5);
+}
+
+    .signup-cta-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 7px 20px rgba(161, 140, 209, 0.7);
+    }
+
+.login-cta-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+    .login-cta-button:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
+.auth-footer {
+    text-align: center;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+    .auth-footer p {
+        color: rgba(255, 255, 255, 0.7);
+        margin: 0;
+        font-size: 0.9rem;
+    }
+
+    .auth-footer a {
+        color: #ffd89b;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
 /* Responsive design */
 @media (max-width: 768px) {
     .create-page {
@@ -310,6 +469,35 @@
         padding: 0.8rem 1.5rem;
         font-size: 1rem;
     }
+
+    .auth-required-prompt {
+        padding: 2rem;
+    }
+
+    .auth-title {
+        font-size: 1.8rem;
+    }
+
+    .auth-message {
+        font-size: 1rem;
+    }
+
+    .auth-benefits {
+        max-width: 100%;
+    }
+
+    .benefit-item {
+        padding: 0.6rem;
+    }
+
+        .benefit-item span:last-child {
+            font-size: 0.9rem;
+        }
+
+    .signup-cta-button {
+        padding: 0.8rem 2rem;
+        font-size: 1rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -327,6 +515,24 @@
 
     .success-text {
         font-size: 1.1rem;
+    }
+
+    .auth-title {
+        font-size: 1.6rem;
+    }
+
+    .auth-icon {
+        font-size: 3rem;
+    }
+
+    .benefit-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+
+    .benefit-icon {
+        width: auto;
     }
 }
 
@@ -394,34 +600,6 @@
     max-width: 400px;
     margin-left: auto;
     margin-right: auto;
-}
-
-.benefit-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.8rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-}
-
-    .benefit-item:hover {
-        background: rgba(255, 255, 255, 0.08);
-        transform: translateX(5px);
-    }
-
-.benefit-icon {
-    font-size: 1.5rem;
-    width: 30px;
-    text-align: center;
-    flex-shrink: 0;
-}
-
-.benefit-item span:last-child {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 1rem;
 }
 
 .upgrade-actions {

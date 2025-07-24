@@ -1,9 +1,11 @@
 ﻿"use client"
 
 import { useState } from "react"
+import { useAuth } from "../context/AuthContext"
 import "./StoryForm.css"
 
 const StoryForm = ({ onSubmit }) => {
+    const { user } = useAuth()
     const [theme, setTheme] = useState("")
     const [characters, setCharacters] = useState([
         {
@@ -45,6 +47,7 @@ const StoryForm = ({ onSubmit }) => {
         eyeColor: ["blue", "green", "hazel", "brown", "amber", "gray", "violet"],
         shirtColor: ["blue", "red", "green", "yellow", "purple", "orange", "pink", "white", "black"],
         pantsColor: ["blue", "black", "gray", "green", "khaki", "white", "brown"],
+        shoeColor: ["black", "brown", "white", "red", "blue", "pink", "green", "yellow", "silver", "gold"],
         species: ["dog", "cat", "fox", "rabbit", "turtle", "bird", "dragon", "dinosaur", "horse", "bear", "koala"],
         bodyCovering: ["fur", "scales", "feathers", "skin", "shell"],
         bodyColor: [
@@ -179,6 +182,10 @@ const StoryForm = ({ onSubmit }) => {
         )
     }
 
+    // Check if user can add more characters
+    const canAddMoreCharacters = user?.membership !== "free" || characters.length < 1
+    const isAtCharacterLimit = user?.membership === "free" && characters.length >= 1
+
     return (
         <form onSubmit={handleSubmit} className="story-form">
             <div className="form-section">
@@ -301,6 +308,7 @@ const StoryForm = ({ onSubmit }) => {
                                 {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
                                 {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", defaultOptions.shirtColor)}
                                 {renderDropdownWithCustom(i, "pantsColor", "Pants Color", defaultOptions.pantsColor)}
+                                {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", defaultOptions.shoeColor)}
                                 {renderDropdownWithCustom(i, "accessory", "Accessory (optional)", defaultOptions.humanAccessories)}
                             </>
                         )}
@@ -309,10 +317,25 @@ const StoryForm = ({ onSubmit }) => {
             ))}
 
             <div className="form-actions">
-                <button type="button" onClick={addCharacter} className="add-character-btn">
-                    <span className="button-icon">➕</span>
-                    <span>Add Another Character</span>
-                </button>
+                {canAddMoreCharacters ? (
+                    <button type="button" onClick={addCharacter} className="add-character-btn">
+                        <span className="button-icon">➕</span>
+                        <span>Add Another Character</span>
+                    </button>
+                ) : (
+                    <div className="character-limit-notice">
+                        <div className="limit-icon">🔒</div>
+                        <div className="limit-content">
+                            <h4>Want to add more characters?</h4>
+                            <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
+                            <div className="limit-benefits">
+                                <span className="benefit">✨ Multiple characters</span>
+                                <span className="benefit">🎨 Premium illustrations</span>
+                                <span className="benefit">📚 More stories per month</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <button type="submit" className="generate-story-btn">
                     <span className="button-icon">✨</span>

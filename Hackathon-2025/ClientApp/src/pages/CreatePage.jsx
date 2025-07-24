@@ -73,6 +73,65 @@ const CreatePage = () => {
     // Check if free user has reached their limit
     const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1
 
+    // Show login prompt if user is not signed in
+    if (!user) {
+        return (
+            <div className="create-page">
+                <div className="stars"></div>
+                <div className="twinkling"></div>
+                <div className="clouds"></div>
+
+                <div className="create-container">
+                    <div className="auth-required-prompt">
+                        <div className="auth-icon">🔐</div>
+                        <h2 className="auth-title">Sign In Required</h2>
+                        <p className="auth-message">
+                            You need to be signed in to create magical stories for your little ones. Join thousands of families
+                            already creating personalized bedtime adventures!
+                        </p>
+
+                        <div className="auth-benefits">
+                            <div className="benefit-item">
+                                <span className="benefit-icon">✨</span>
+                                <span>Create personalized stories</span>
+                            </div>
+                            <div className="benefit-item">
+                                <span className="benefit-icon">🎨</span>
+                                <span>Beautiful custom illustrations</span>
+                            </div>
+                            <div className="benefit-item">
+                                <span className="benefit-icon">📚</span>
+                                <span>Save and revisit your stories</span>
+                            </div>
+                            <div className="benefit-item">
+                                <span className="benefit-icon">👨‍👩‍👧‍👦</span>
+                                <span>Share with family</span>
+                            </div>
+                        </div>
+
+                        <div className="auth-actions">
+                            <button onClick={() => navigate("/signup")} className="signup-cta-button">
+                                <span className="button-icon">🚀</span>
+                                <span>Create Free Account</span>
+                            </button>
+                            <button onClick={() => navigate("/login")} className="login-cta-button">
+                                <span className="button-icon">🔮</span>
+                                <span>Sign In</span>
+                            </button>
+                        </div>
+
+                        <div className="auth-footer">
+                            <p>
+                                Already have an account? <a href="/login">Sign in here</a> | New to CozyPages?{" "}
+                                <a href="/signup">Join free</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     if (profileLoading) {
         return (
             <div className="create-page">

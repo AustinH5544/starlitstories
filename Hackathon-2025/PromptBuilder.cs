@@ -8,7 +8,7 @@ namespace Hackathon_2025.Services;
 public static class PromptBuilder
 {
     private static string ArtStyle =>
-    "Children’s book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene. The characters must appear visually consistent in every image.";
+    "Children's book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene. The characters must appear visually consistent in every image.";
 
     public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph)
     {
@@ -55,6 +55,9 @@ public static class PromptBuilder
 
         if (fields.TryGetValue("pantsColor", out var pants))
             parts.Add($"and {pants} pants");
+
+        if (fields.TryGetValue("shoeColor", out var shoes))
+            parts.Add($"with {shoes} shoes");
 
         if (fields.TryGetValue("accessory", out var accessory) && !string.IsNullOrWhiteSpace(accessory))
             parts.Add($"with a {accessory}");
@@ -113,7 +116,7 @@ public static class PromptBuilder
                 new
                 {
                     role = "system",
-                    content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters’ names, appearance, or clothing. Only describe the environment and actions."
+                    content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters' names, appearance, or clothing. Only describe the environment and actions."
                 },
                 new { role = "user", content = userPrompt }
             },
@@ -138,7 +141,7 @@ public static class PromptBuilder
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         return $"""
-        Children’s book watercolor illustration in a consistent art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body characters. Centered. Front-facing. Flat background. No text. No logos. No UI elements. No titles. No visual aids. No swatches. No book elements. Do not include any design features. Only illustrate the scene.
+        Children's book watercolor illustration in a consistent art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body characters. Centered. Front-facing. Flat background. No text. No logos. No UI elements. No titles. No visual aids. No swatches. No book elements. Do not include any design features. Only illustrate the scene.
 
         Depict: {anchors}, in a setting inspired by the theme: {theme}.
         """;
