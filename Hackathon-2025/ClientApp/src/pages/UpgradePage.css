@@ -12,10 +12,10 @@
 }
 
     /* Animated background elements */
-    .upgrade-page .stars,
-    .upgrade-page .twinkling,
-    .upgrade-page .clouds {
-        position: fixed;
+    .profile-page .stars,
+    .profile-page .twinkling,
+    .profile-page .clouds {
+        position: absolute;
         top: 0;
         left: 0;
         right: 0;
@@ -25,23 +25,17 @@
         display: block;
     }
 
-    .upgrade-page .stars {
-        background: #0c1445 url("/stars.jpg") repeat top center;
+    .profile-page .stars {
         z-index: -3;
     }
 
-    .upgrade-page .twinkling {
-        background: transparent url("/twinklingtest.jpg") repeat top center;
+    .profile-page .twinkling {
         z-index: -2;
-        opacity: 0.3;
-        animation: move-twinkle 200s linear infinite;
     }
 
-    .upgrade-page .clouds {
-        background: transparent url("/clouds.png") repeat top center;
+    .profile-page .clouds {
         z-index: -1;
-        opacity: 0.7;
-        animation: move-clouds 300s linear infinite;
+        height: 50%;
     }
 
 @keyframes move-twinkle {

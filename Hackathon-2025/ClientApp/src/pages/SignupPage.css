@@ -40,15 +40,6 @@
     height: 50%;
 }
 
-.small-clouds {
-    background: transparent url("/small_clouds.png") repeat top center;
-    background-size: contain;
-    z-index: -1;
-    opacity: 1;
-    animation: move-small-clouds 1000s linear infinite;
-    height: 50%;
-}
-
 @keyframes move-small-clouds {
     from {
         background-position: 0 0;
