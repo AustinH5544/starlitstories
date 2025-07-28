@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Services;
+using Stripe.Checkout;
 using OpenAI;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
@@ -41,6 +42,9 @@ builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 
 // Stripe config
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
+
+// Register Stripe SessionService
+builder.Services.AddScoped<SessionService>();
 
 // Enable CORS for React dev server
 builder.Services.AddCors(options =>

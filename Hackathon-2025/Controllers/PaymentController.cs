@@ -10,10 +10,12 @@ namespace Hackathon_2025.Controllers;
 public class PaymentsController : ControllerBase
 {
     private readonly StripeSettings _stripe;
+    private readonly SessionService _sessionService;
 
-    public PaymentsController(IOptions<StripeSettings> stripeOptions)
+    public PaymentsController(IOptions<StripeSettings> stripeOptions, SessionService sessionService)
     {
         _stripe = stripeOptions.Value;
+        _sessionService = sessionService;
         Stripe.StripeConfiguration.ApiKey = _stripe.SecretKey;
     }
 
@@ -50,8 +52,7 @@ public class PaymentsController : ControllerBase
             CancelUrl = $"{domain}/signup?cancelled=true"
         };
 
-        var service = new SessionService();
-        Session session = service.Create(options);
+        var session = _sessionService.Create(options);
 
         return Ok(new { checkoutUrl = session.Url });
     }
