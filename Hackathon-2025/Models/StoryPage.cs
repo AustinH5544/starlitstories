@@ -8,10 +8,10 @@ public class StoryPage
     public int Id { get; set; }
 
     [Required]
-    public required string Text { get; set; }
+    public string Text { get; set; }
 
     [Required]
-    public required string ImagePrompt { get; set; }
+    public string ImagePrompt { get; set; }
     public string? ImageUrl { get; set; }
 
     [ForeignKey("StoryId")]

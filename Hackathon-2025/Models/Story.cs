@@ -12,5 +12,5 @@ public class Story
 
     // Foreign Key
     public int UserId { get; set; }
-    public User User { get; set; } = null!;
+    public User User { get; set; } = new();
 }
