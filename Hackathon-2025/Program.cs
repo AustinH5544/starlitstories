@@ -33,8 +33,8 @@ builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
 builder.Services.AddHttpClient();
 
 // Register the image generator (swap easily here)
-builder.Services.AddScoped<IImageGeneratorService, LocalImageGeneratorService>();
-// builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
+//builder.Services.AddScoped<IImageGeneratorService, LocalImageGeneratorService>();
+builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
 
 // Story generation depends on IImageGeneratorService
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
