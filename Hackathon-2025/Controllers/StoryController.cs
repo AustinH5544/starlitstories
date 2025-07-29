@@ -12,11 +12,13 @@ public class StoryController : ControllerBase
 {
     private readonly IStoryGeneratorService _storyService;
     private readonly AppDbContext _db;
+    private readonly BlobUploadService _blobService;
 
-    public StoryController(IStoryGeneratorService storyService, AppDbContext db)
+    public StoryController(IStoryGeneratorService storyService, AppDbContext db, BlobUploadService blobService)
     {
         _storyService = storyService;
         _db = db;
+        _blobService = blobService;
     }
 
     [HttpPost("generate-full")]
@@ -40,16 +42,15 @@ public class StoryController : ControllerBase
         {
             return StatusCode(403, "Free users can only generate one story.");
         }
-        else // Pro or Premium: monthly limit + reset
+        else
         {
             int monthlyLimit = user.Membership switch
             {
                 "pro" => 10,
                 "premium" => 50,
-                _ => 1 // fallback, shouldn't happen
+                _ => 1
             };
 
-            // Reset if new month
             if (user.LastReset.Month != now.Month || user.LastReset.Year != now.Year)
             {
                 user.BooksGenerated = 0;
@@ -62,9 +63,26 @@ public class StoryController : ControllerBase
             }
         }
 
-        // Generate and count
+        // Generate the story
         var result = await _storyService.GenerateFullStoryAsync(request);
-        // Save story to database
+
+        //  Upload cover image to Azure Blob Storage
+        var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
+        var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl, coverFileName);
+        result.CoverImageUrl = coverBlobUrl;
+
+        //  Upload each page image to Azure Blob Storage
+        for (int i = 0; i < result.Pages.Count; i++)
+        {
+            if (!string.IsNullOrEmpty(result.Pages[i].ImageUrl))
+            {
+                var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
+                var blobUrl = await _blobService.UploadImageAsync(result.Pages[i].ImageUrl!, pageFileName);
+                result.Pages[i].ImageUrl = blobUrl;
+            }
+        }
+
+        //  Save story to database with Blob URLs
         Story story = new Story
         {
             Title = result.Title,
