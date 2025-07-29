@@ -40,6 +40,9 @@ builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>(
 // Story generation depends on IImageGeneratorService
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 
+// Register the BlobUploadService
+builder.Services.AddSingleton<BlobUploadService>();
+
 // Stripe config
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
 
