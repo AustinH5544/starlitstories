@@ -7,7 +7,7 @@ public class BlobUploadService
 
     public BlobUploadService(IConfiguration config)
     {
-        var connectionString = config["AzureBlobStorage"];
+        var connectionString = config["AzureBlobStorage:ConnectionString"];
         _containerClient = new BlobContainerClient(connectionString, "story-images"); // container name
         _containerClient.CreateIfNotExists(PublicAccessType.Blob);
     }
