@@ -24,4 +24,19 @@ public class BlobUploadService
 
         return blobClient.Uri.ToString();
     }
+    public async Task<string> UploadBase64ImageAsync(string base64Data, string fileName)
+    {
+        // Remove prefix if present
+        var base64 = base64Data.StartsWith("data:image")
+            ? base64Data.Substring(base64Data.IndexOf(",") + 1)
+            : base64Data;
+
+        byte[] imageBytes = Convert.FromBase64String(base64);
+        using var stream = new MemoryStream(imageBytes);
+
+        var blobClient = _containerClient.GetBlobClient(fileName);
+        await blobClient.UploadAsync(stream, new BlobHttpHeaders { ContentType = "image/png" });
+
+        return blobClient.Uri.ToString();
+    }
 }

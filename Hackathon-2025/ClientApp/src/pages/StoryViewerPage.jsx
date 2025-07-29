@@ -34,13 +34,13 @@ const StoryViewerPage = () => {
         }
     }, [state])
 
-    // Auto-hide controls after 10 seconds of inactivity (only when reading)
+    // Auto-hide controls after 1000 seconds of inactivity (only when reading)
     useEffect(() => {
         if (!isReading || !showControls) return
 
         const timer = setTimeout(() => {
             setShowControls(false)
-        }, 10000)
+        }, 1000000)
 
         return () => clearTimeout(timer)
     }, [isReading, showControls])
