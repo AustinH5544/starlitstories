@@ -90,51 +90,19 @@ Use simple, imaginative language and short, playful sentences. Each paragraph sh
 
         var uploadedImageUrls = new List<string>();
 
-        for (int i = 0; i < externalImageUrls.Count; i++)
-        {
-            var externalUrl = externalImageUrls[i];
-            var fileName = $"page-{i + 1}-{Guid.NewGuid()}.png";
-            string blobUrl;
-
-            if (externalUrl.StartsWith("data:image"))
-            {
-                blobUrl = await _blobUploader.UploadBase64ImageAsync(externalUrl, fileName);
-            }
-            else
-            {
-                blobUrl = await _blobUploader.UploadImageAsync(externalUrl, fileName);
-            }
-
-            uploadedImageUrls.Add(blobUrl);
-        }
-
-        for (int i = 0; i < storyPages.Count; i++)
-        {
-            storyPages[i].ImageUrl = uploadedImageUrls[i];
-        }
-
         var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
         var coverPrompt = PromptBuilder.BuildCoverPrompt(request.Characters, request.Theme);
         var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
-
-        var coverBlobName = $"cover-{Guid.NewGuid()}.png";
-
-        string coverBlobUrl;
-        if (coverExternalUrl.StartsWith("data:image"))
-        {
-            coverBlobUrl = await _blobUploader.UploadBase64ImageAsync(coverExternalUrl, coverBlobName);
-        }
-        else
-        {
-            coverBlobUrl = await _blobUploader.UploadImageAsync(coverExternalUrl, coverBlobName);
-        }
 
         return new StoryResult
         {
             Title = title,
             CoverImagePrompt = coverPrompt,
-            CoverImageUrl = coverBlobUrl,
-            Pages = storyPages
+            CoverImageUrl = coverExternalUrl,
+            Pages = storyPages.Select((p, i) => {
+                p.ImageUrl = externalImageUrls[i];
+                return p;
+            }).ToList()
         };
     }
 
