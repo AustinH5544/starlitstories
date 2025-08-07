@@ -17,7 +17,6 @@ const CreatePage = () => {
     const [profileLoading, setProfileLoading] = useState(true)
     const navigate = useNavigate()
 
-    // Fetch user profile to check story count
     useEffect(() => {
         const fetchUserProfile = async () => {
             if (!user?.email) {
@@ -46,7 +45,10 @@ const CreatePage = () => {
 
         try {
             // Append user email to form data
-            const fullRequest = { ...formData };
+            const fullRequest = {
+                ...formData,
+                email: user?.email || "",
+            }
 
             const res = await axios.post("/story/generate-full", fullRequest)
             setStory(res.data)
@@ -60,6 +62,32 @@ const CreatePage = () => {
         }
     }
 
+    //const generateStory = async (formData) => {
+    //    setIsLoading(true)
+    //    setStoryReady(false)
+    //    setError(null)
+    //    setStory(null)
+
+    //    try {
+    //        await new Promise((resolve) => setTimeout(resolve, 5000))
+
+    //        const mockStory = {
+    //            pages: [
+    //                { text: `Mock story for ${formData?.mainCharacterName || "Unnamed Hero"}` },
+    //                { text: "They embarked on a journey filled with wonders." },
+    //            ],
+    //        }
+
+    //        setStory(mockStory)
+    //        setStoryReady(true)
+    //    } catch (err) {
+    //        console.error("Mock Error:", err)
+    //        setError("Something went wrong during mock generation.")
+    //    } finally {
+    //        setIsLoading(false)
+    //    }
+    //}
+
     const isValidStory =
         story &&
         Array.isArray(story.pages) &&
@@ -67,10 +95,8 @@ const CreatePage = () => {
         story.pages[0].text?.toLowerCase().startsWith("oops") === false &&
         !error
 
-    // Check if free user has reached their limit
     const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1
 
-    // Show login prompt if user is not signed in
     if (!user) {
         return (
             <div className="create-page">
@@ -88,39 +114,20 @@ const CreatePage = () => {
                         </p>
 
                         <div className="auth-benefits">
-                            <div className="benefit-item">
-                                <span className="benefit-icon">✨</span>
-                                <span>Create personalized stories</span>
-                            </div>
-                            <div className="benefit-item">
-                                <span className="benefit-icon">🎨</span>
-                                <span>Beautiful custom illustrations</span>
-                            </div>
-                            <div className="benefit-item">
-                                <span className="benefit-icon">📚</span>
-                                <span>Save and revisit your stories</span>
-                            </div>
-                            <div className="benefit-item">
-                                <span className="benefit-icon">👨‍👩‍👧‍👦</span>
-                                <span>Share with family</span>
-                            </div>
+                            <div className="benefit-item"><span className="benefit-icon">✨</span><span>Create personalized stories</span></div>
+                            <div className="benefit-item"><span className="benefit-icon">🎨</span><span>Beautiful custom illustrations</span></div>
+                            <div className="benefit-item"><span className="benefit-icon">📚</span><span>Save and revisit your stories</span></div>
+                            <div className="benefit-item"><span className="benefit-icon">👨‍👩‍👧‍👦</span><span>Share with family</span></div>
                         </div>
 
                         <div className="auth-actions">
-                            <button onClick={() => navigate("/signup")} className="signup-cta-button">
-                                <span className="button-icon">🚀</span>
-                                <span>Create Free Account</span>
-                            </button>
-                            <button onClick={() => navigate("/login")} className="login-cta-button">
-                                <span className="button-icon">🔮</span>
-                                <span>Sign In</span>
-                            </button>
+                            <button onClick={() => navigate("/signup")} className="signup-cta-button"><span className="button-icon">🚀</span><span>Create Free Account</span></button>
+                            <button onClick={() => navigate("/login")} className="login-cta-button"><span className="button-icon">🔮</span><span>Sign In</span></button>
                         </div>
 
                         <div className="auth-footer">
                             <p>
-                                Already have an account? <a href="/login">Sign in here</a> | New to CozyPages?{" "}
-                                <a href="/signup">Join free</a>
+                                Already have an account? <a href="/login">Sign in here</a> | New to CozyPages? <a href="/signup">Join free</a>
                             </p>
                         </div>
                     </div>
@@ -175,33 +182,15 @@ const CreatePage = () => {
                         </p>
 
                         <div className="upgrade-benefits">
-                            <div className="benefit-item">
-                                <span className="benefit-icon">📚</span>
-                                <span>Create multiple stories per month</span>
-                            </div>
-                            <div className="benefit-item">
-                                <span className="benefit-icon">🎨</span>
-                                <span>Access to premium illustrations</span>
-                            </div>
-                            <div className="benefit-item">
-                                <span className="benefit-icon">👨‍👩‍👧‍👦</span>
-                                <span>Support for multiple characters</span>
-                            </div>
-                            <div className="benefit-item">
-                                <span className="benefit-icon">🖨️</span>
-                                <span>Download and print your stories</span>
-                            </div>
+                            <div className="benefit-item"><span className="benefit-icon">📚</span><span>Create multiple stories per month</span></div>
+                            <div className="benefit-item"><span className="benefit-icon">🎨</span><span>Access to premium illustrations</span></div>
+                            <div className="benefit-item"><span className="benefit-icon">👨‍👩‍👧‍👦</span><span>Support for multiple characters</span></div>
+                            <div className="benefit-item"><span className="benefit-icon">🖨️</span><span>Download and print your stories</span></div>
                         </div>
 
                         <div className="upgrade-actions">
-                            <button onClick={() => navigate("/upgrade")} className="upgrade-button">
-                                <span className="button-icon">⭐</span>
-                                <span>Upgrade Your Plan</span>
-                            </button>
-                            <button onClick={() => navigate("/profile")} className="back-to-profile-btn">
-                                <span className="button-icon">👤</span>
-                                <span>Back to Profile</span>
-                            </button>
+                            <button onClick={() => navigate("/upgrade")} className="upgrade-button"><span className="button-icon">⭐</span><span>Upgrade Your Plan</span></button>
+                            <button onClick={() => navigate("/profile")} className="back-to-profile-btn"><span className="button-icon">👤</span><span>Back to Profile</span></button>
                         </div>
 
                         <div className="upgrade-footer">
@@ -210,41 +199,37 @@ const CreatePage = () => {
                             </p>
                         </div>
                     </div>
-                ) : (
+                ) : isLoading ? (
+                    <div className="loading-container">
+                        <div className="loading-spinner">
+                            <div className="spinner"></div>
+                        </div>
+                        <p className="loading-text">
+                            <span className="loading-icon">✨</span>
+                            Creating your magical story...
+                        </p>
+                        <p className="loading-subtext">This may take a few moments while our storytellers work their magic</p>
+                    </div>
+                ) : !storyReady || !isValidStory ? (
                     <div className="create-form-wrapper">
                         <StoryForm onSubmit={generateStory} />
 
-                        {isLoading && (
-                            <div className="loading-container">
-                                <div className="loading-spinner">
-                                    <div className="spinner"></div>
-                                </div>
-                                <p className="loading-text">
-                                    <span className="loading-icon">✨</span>
-                                    Creating your magical story...
-                                </p>
-                                <p className="loading-subtext">This may take a few moments while our storytellers work their magic</p>
-                            </div>
-                        )}
-
-                        {!isLoading && error && (
+                        {error && (
                             <div className="error-container">
                                 <div className="error-icon">😔</div>
                                 <p className="create-error">{error}</p>
                                 <p className="error-subtext">Please try again or contact support if the problem persists</p>
                             </div>
                         )}
-
-                        {!isLoading && storyReady && isValidStory && (
-                            <div className="success-container">
-                                <div className="success-icon">🎉</div>
-                                <p className="success-text">Your story is ready!</p>
-                                <button className="view-story-button" onClick={() => navigate("/view", { state: { story } })}>
-                                    <span className="button-icon">📖</span>
-                                    <span>View Your Story</span>
-                                </button>
-                            </div>
-                        )}
+                    </div>
+                ) : (
+                    <div className="success-container">
+                        <div className="success-icon">🎉</div>
+                        <p className="success-text">Your story is ready!</p>
+                        <button className="view-story-button" onClick={() => navigate("/view", { state: { story } })}>
+                            <span className="button-icon">📖</span>
+                            <span>View Your Story</span>
+                        </button>
                     </div>
                 )}
             </div>
