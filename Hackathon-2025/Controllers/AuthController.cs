@@ -1,9 +1,12 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace Hackathon_2025.Controllers;
 
@@ -13,11 +16,13 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IPasswordHasher<User> _hasher;
+    private readonly IConfiguration _config;
 
-    public AuthController(AppDbContext db, IPasswordHasher<User> hasher)
+    public AuthController(AppDbContext db, IPasswordHasher<User> hasher, IConfiguration config)
     {
         _db = db;
         _hasher = hasher;
+        _config = config;
     }
 
     [HttpPost("signup")]
@@ -33,11 +38,11 @@ public class AuthController : ControllerBase
         };
 
         user.PasswordHash = _hasher.HashPassword(user, request.Password);
-
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        return Ok(new AuthResponse { Email = user.Email, Membership = user.Membership });
+        var token = GenerateJwtToken(user);
+        return Ok(new { token, email = user.Email, membership = user.Membership });
     }
 
     [HttpPost("login")]
@@ -51,7 +56,32 @@ public class AuthController : ControllerBase
         if (result != PasswordVerificationResult.Success)
             return Unauthorized("Invalid password.");
 
-        return Ok(new AuthResponse { Email = user.Email, Membership = user.Membership });
+        var token = GenerateJwtToken(user);
+        return Ok(new { token, email = user.Email, membership = user.Membership });
+    }
+
+    private string GenerateJwtToken(User user)
+    {
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim("membership", user.Membership ?? "free")
+        };
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_config["Jwt:ExpiresInMinutes"]!));
+
+        var token = new JwtSecurityToken(
+            issuer: _config["Jwt:Issuer"],
+            audience: _config["Jwt:Audience"],
+            claims: claims,
+            expires: expires,
+            signingCredentials: creds
+        );
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     [HttpPost("forgot-password")]
@@ -60,22 +90,14 @@ public class AuthController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
 
         // Always return success to prevent email enumeration attacks
-        // In a real app, send an email with a reset token here
-
         if (user != null)
         {
-            // Generate a password reset token (in production, store this in DB with expiration)
             var resetToken = Guid.NewGuid().ToString();
             user.PasswordResetToken = resetToken;
-            user.PasswordResetExpires = DateTime.UtcNow.AddHours(1); // Token expires in 1 hour
+            user.PasswordResetExpires = DateTime.UtcNow.AddHours(1);
 
             await _db.SaveChangesAsync();
 
-            // In production, send email with reset link:
-            // var resetLink = $"https://yourapp.com/reset-password?token={resetToken}&email={user.Email}";
-            // await _emailService.SendPasswordResetEmail(user.Email, resetLink);
-
-            // For demo purposes, we'll just log the token (remove in production!)
             Console.WriteLine($"Password reset token for {user.Email}: {resetToken}");
         }
 
@@ -93,7 +115,6 @@ public class AuthController : ControllerBase
         if (user == null)
             return BadRequest("Invalid or expired reset token.");
 
-        // Update password
         user.PasswordHash = _hasher.HashPassword(user, request.NewPassword);
         user.PasswordResetToken = null;
         user.PasswordResetExpires = null;

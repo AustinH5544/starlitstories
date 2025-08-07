@@ -46,10 +46,7 @@ const CreatePage = () => {
 
         try {
             // Append user email to form data
-            const fullRequest = {
-                ...formData,
-                email: user?.email || "",
-            }
+            const fullRequest = { ...formData };
 
             const res = await axios.post("/story/generate-full", fullRequest)
             setStory(res.data)

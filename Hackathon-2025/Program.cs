@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Services;
@@ -21,7 +24,7 @@ if (string.IsNullOrWhiteSpace(apiKey))
     throw new InvalidOperationException("OpenAI API key is missing.");
 }
 
-// EF Core (SQLite)
+// Database (SQL Server)
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -33,23 +36,36 @@ builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("Ope
 builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
 builder.Services.AddHttpClient();
 
-// Register the image generator (swap easily here)
-//builder.Services.AddScoped<IImageGeneratorService, LocalImageGeneratorService>();
+// Custom services
 builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
-
-// Story generation depends on IImageGeneratorService
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
-
-// Register the BlobUploadService
 builder.Services.AddSingleton<BlobUploadService>();
 
 // Stripe config
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
-
-// Register Stripe SessionService
 builder.Services.AddScoped<SessionService>();
 
-// Enable CORS for React dev server
+// JWT Authentication setup
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+            )
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// CORS for frontend dev servers
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
@@ -60,17 +76,21 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer(); // required for minimal APIs
+builder.Services.AddEndpointsApiExplorer(); // for Swagger or minimal APIs
 
 var app = builder.Build();
 
-// Middleware
+// Middleware pipeline
 app.UseCors("AllowFrontend");
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+app.UseAuthentication(); //  MUST come before UseAuthorization
+app.UseAuthorization();
+
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
 

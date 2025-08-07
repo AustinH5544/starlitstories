@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Hackathon_2025.Models;
 using Hackathon_2025.Services;
 using Hackathon_2025.Data;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Hackathon_2025.Controllers;
 
@@ -21,23 +23,26 @@ public class StoryController : ControllerBase
         _blobService = blobService;
     }
 
+    [Authorize]
     [HttpPost("generate-full")]
     public async Task<IActionResult> GenerateFullStory([FromBody] StoryRequest request)
     {
-        if (request is null || string.IsNullOrWhiteSpace(request.Email) || request.Characters.Count == 0)
+        if (request is null || request.Characters.Count == 0)
         {
-            return BadRequest("Invalid request: Email and at least one character are required.");
+            return BadRequest("Invalid request: At least one character is required.");
         }
 
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out int userId))
+            return Unauthorized("Invalid or missing user ID in token.");
+
+        var user = await _db.Users.FindAsync(userId);
         if (user == null)
-        {
             return Unauthorized("User not found.");
-        }
 
         var now = DateTime.UtcNow;
 
-        // Validation for free users
+        // Validate subscription limits
         if (user.Membership == "free" && user.BooksGenerated >= 1)
         {
             return StatusCode(403, "Free users can only generate one story.");
@@ -66,12 +71,12 @@ public class StoryController : ControllerBase
         // Generate the story
         var result = await _storyService.GenerateFullStoryAsync(request);
 
-        //  Upload cover image to Azure Blob Storage
+        // Upload cover image
         var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
         var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl, coverFileName);
         result.CoverImageUrl = coverBlobUrl;
 
-        //  Upload each page image to Azure Blob Storage
+        // Upload each page image
         for (int i = 0; i < result.Pages.Count; i++)
         {
             if (!string.IsNullOrEmpty(result.Pages[i].ImageUrl))
@@ -82,12 +87,12 @@ public class StoryController : ControllerBase
             }
         }
 
-        //  Save story to database with Blob URLs
-        Story story = new Story
+        // Save story to database
+        var story = new Story
         {
             Title = result.Title,
             CoverImageUrl = result.CoverImageUrl,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = now,
             UserId = user.Id,
             Pages = result.Pages.Select(p => new StoryPage
             {
