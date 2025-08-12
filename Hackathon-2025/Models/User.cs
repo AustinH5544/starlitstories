@@ -13,4 +13,9 @@ public class User
     // Password reset fields
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetExpires { get; set; }
+
+    // Email verification fields
+    public bool IsEmailVerified { get; set; } = false;
+    public string? EmailVerificationToken { get; set; }
+    public DateTime? EmailVerificationExpires { get; set; }
 }

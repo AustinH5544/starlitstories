@@ -12,36 +12,46 @@ const SignupPage = () => {
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
     const [membership, setMembership] = useState("")
+    const [status, setStatus] = useState("")
+    const [isLoading, setIsLoading] = useState(false)
 
     const { login } = useAuth()
     const navigate = useNavigate()
 
     const handleSubmit = async (e) => {
         e.preventDefault()
+        setStatus("")
 
         if (password !== confirm) {
-            alert("Passwords don't match")
+            setStatus("Passwords don't match")
             return
         }
 
         if (!membership) {
-            alert("Please select a membership plan.")
+            setStatus("Please select a membership plan.")
             return
         }
 
+        setIsLoading(true)
+
         if (membership === "free") {
-            // Free flow — signup immediately
+            // Free flow — signup and require email verification
             try {
                 const response = await axios.post("http://localhost:5275/api/auth/signup", {
                     email,
                     password,
                     membership,
                 })
-                login(response.data)
-                navigate("/profile")
+
+                setStatus("Account created successfully! Please check your email to verify your account.")
+
+                // Redirect to verification page after a short delay
+                setTimeout(() => {
+                    navigate(`/verify-email?email=${encodeURIComponent(email)}`)
+                }, 2000)
             } catch (err) {
                 console.error(err)
-                alert(err.response?.data || "Signup failed")
+                setStatus(err.response?.data || "Signup failed")
             }
         } else {
             // Paid flow — redirect to Stripe
@@ -53,9 +63,17 @@ const SignupPage = () => {
                 window.location.href = data.checkoutUrl
             } catch (err) {
                 console.error(err)
-                alert("Error starting payment session")
+                setStatus("Error starting payment session")
             }
         }
+
+        setIsLoading(false)
+    }
+
+    const getStatusClass = () => {
+        if (status.includes("successfully")) return "success"
+        if (status.includes("failed") || status.includes("Error") || status.includes("don't match")) return "error"
+        return "info"
     }
 
     return (
@@ -80,6 +98,7 @@ const SignupPage = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -92,6 +111,7 @@ const SignupPage = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -104,6 +124,7 @@ const SignupPage = () => {
                             value={confirm}
                             onChange={(e) => setConfirm(e.target.value)}
                             required
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -111,8 +132,8 @@ const SignupPage = () => {
                         <label htmlFor="membership">Choose Your Plan</label>
                         <div className="membership-options">
                             <div
-                                className={`membership-card ${membership === "free" ? "selected" : ""}`}
-                                onClick={() => setMembership("free")}
+                                className={`membership-card ${membership === "free" ? "selected" : ""} ${isLoading ? "disabled" : ""}`}
+                                onClick={() => !isLoading && setMembership("free")}
                             >
                                 <div className="plan-icon">📖</div>
                                 <h3>Free</h3>
@@ -130,12 +151,13 @@ const SignupPage = () => {
                                     checked={membership === "free"}
                                     onChange={(e) => setMembership(e.target.value)}
                                     style={{ display: "none" }}
+                                    disabled={isLoading}
                                 />
                             </div>
 
                             <div
-                                className={`membership-card ${membership === "pro" ? "selected" : ""}`}
-                                onClick={() => setMembership("pro")}
+                                className={`membership-card ${membership === "pro" ? "selected" : ""} ${isLoading ? "disabled" : ""}`}
+                                onClick={() => !isLoading && setMembership("pro")}
                             >
                                 <div className="plan-icon">✨</div>
                                 <h3>Pro</h3>
@@ -154,12 +176,13 @@ const SignupPage = () => {
                                     checked={membership === "pro"}
                                     onChange={(e) => setMembership(e.target.value)}
                                     style={{ display: "none" }}
+                                    disabled={isLoading}
                                 />
                             </div>
 
                             <div
-                                className={`membership-card premium ${membership === "premium" ? "selected" : ""}`}
-                                onClick={() => setMembership("premium")}
+                                className={`membership-card premium ${membership === "premium" ? "selected" : ""} ${isLoading ? "disabled" : ""}`}
+                                onClick={() => !isLoading && setMembership("premium")}
                             >
                                 <div className="plan-badge">Most Popular</div>
                                 <div className="plan-icon">🌟</div>
@@ -180,14 +203,17 @@ const SignupPage = () => {
                                     checked={membership === "premium"}
                                     onChange={(e) => setMembership(e.target.value)}
                                     style={{ display: "none" }}
+                                    disabled={isLoading}
                                 />
                             </div>
                         </div>
                     </div>
 
-                    <button type="submit" className="signup-button">
-                        <span className="button-icon">🚀</span>
-                        <span>Start My Journey</span>
+                    {status && <div className={`signup-status ${getStatusClass()}`}>{status}</div>}
+
+                    <button type="submit" className="signup-button" disabled={isLoading}>
+                        <span className="button-icon">{isLoading ? "⏳" : "🚀"}</span>
+                        <span>{isLoading ? "Creating Account..." : "Start My Journey"}</span>
                     </button>
                 </form>
 

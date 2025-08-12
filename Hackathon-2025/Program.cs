@@ -40,6 +40,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 builder.Services.AddSingleton<BlobUploadService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Stripe config
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));

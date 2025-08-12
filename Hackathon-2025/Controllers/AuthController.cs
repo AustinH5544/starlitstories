@@ -1,5 +1,6 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
+using Hackathon_2025.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -17,12 +18,14 @@ public class AuthController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IPasswordHasher<User> _hasher;
     private readonly IConfiguration _config;
+    private readonly IEmailService _emailService;
 
-    public AuthController(AppDbContext db, IPasswordHasher<User> hasher, IConfiguration config)
+    public AuthController(AppDbContext db, IPasswordHasher<User> hasher, IConfiguration config, IEmailService emailService)
     {
         _db = db;
         _hasher = hasher;
         _config = config;
+        _emailService = emailService;
     }
 
     [HttpPost("signup")]
@@ -34,15 +37,73 @@ public class AuthController : ControllerBase
         var user = new User
         {
             Email = request.Email,
-            Membership = request.Membership ?? "free"
+            Membership = request.Membership ?? "free",
+            EmailVerificationToken = Guid.NewGuid().ToString(),
+            EmailVerificationExpires = DateTime.UtcNow.AddDays(1), // 24 hours to verify
+            IsEmailVerified = false
         };
 
         user.PasswordHash = _hasher.HashPassword(user, request.Password);
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        // Send verification email
+        await _emailService.SendVerificationEmailAsync(user.Email, user.EmailVerificationToken);
+
+        return Ok(new
+        {
+            message = "Account created successfully! Please check your email to verify your account.",
+            email = user.Email,
+            requiresVerification = true
+        });
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u =>
+            u.Email == request.Email &&
+            u.EmailVerificationToken == request.Token &&
+            u.EmailVerificationExpires > DateTime.UtcNow);
+
+        if (user == null)
+            return BadRequest("Invalid or expired verification token.");
+
+        user.IsEmailVerified = true;
+        user.EmailVerificationToken = null;
+        user.EmailVerificationExpires = null;
+
+        await _db.SaveChangesAsync();
+
         var token = GenerateJwtToken(user);
-        return Ok(new { token, email = user.Email, membership = user.Membership });
+        return Ok(new
+        {
+            message = "Email verified successfully!",
+            token,
+            email = user.Email,
+            membership = user.Membership
+        });
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification(ResendVerificationRequest request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
+        if (user == null)
+            return Ok(new { message = "If an account with that email exists, we've sent a verification email." });
+
+        if (user.IsEmailVerified)
+            return BadRequest("Email is already verified.");
+
+        // Generate new verification token
+        user.EmailVerificationToken = Guid.NewGuid().ToString();
+        user.EmailVerificationExpires = DateTime.UtcNow.AddDays(1);
+
+        await _db.SaveChangesAsync();
+        await _emailService.SendVerificationEmailAsync(user.Email, user.EmailVerificationToken);
+
+        return Ok(new { message = "Verification email sent successfully." });
     }
 
     [HttpPost("login")]
@@ -55,6 +116,14 @@ public class AuthController : ControllerBase
         var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         if (result != PasswordVerificationResult.Success)
             return Unauthorized("Invalid password.");
+
+        if (!user.IsEmailVerified)
+            return Unauthorized(new
+            {
+                message = "Please verify your email before logging in.",
+                requiresVerification = true,
+                email = user.Email
+            });
 
         var token = GenerateJwtToken(user);
         return Ok(new { token, email = user.Email, membership = user.Membership });
@@ -97,8 +166,7 @@ public class AuthController : ControllerBase
             user.PasswordResetExpires = DateTime.UtcNow.AddHours(1);
 
             await _db.SaveChangesAsync();
-
-            Console.WriteLine($"Password reset token for {user.Email}: {resetToken}");
+            await _emailService.SendPasswordResetEmailAsync(user.Email, resetToken);
         }
 
         return Ok(new { message = "If an account with that email exists, we've sent a password reset link." });

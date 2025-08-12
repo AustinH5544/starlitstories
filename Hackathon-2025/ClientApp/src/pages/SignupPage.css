@@ -145,6 +145,11 @@
             background: rgba(255, 255, 255, 0.15);
         }
 
+        .form-group input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
 /* Membership options */
 .membership-options {
     display: grid;
@@ -179,6 +184,12 @@
 
     .membership-card.premium {
         position: relative;
+    }
+
+    .membership-card.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
     }
 
 .plan-badge {
@@ -232,6 +243,33 @@
         color: rgba(255, 255, 255, 0.8);
     }
 
+/* Status message */
+.signup-status {
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+    .signup-status.success {
+        background: rgba(34, 197, 94, 0.2);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #86efac;
+    }
+
+    .signup-status.error {
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+    }
+
+    .signup-status.info {
+        background: rgba(59, 130, 246, 0.2);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #93c5fd;
+    }
+
 /* Submit button */
 .signup-button {
     display: flex;
@@ -251,13 +289,19 @@
     margin-top: 1rem;
 }
 
-    .signup-button:hover {
+    .signup-button:hover:not(:disabled) {
         transform: translateY(-3px);
         box-shadow: 0 7px 20px rgba(161, 140, 209, 0.7);
     }
 
     .signup-button:active {
         transform: translateY(-1px);
+    }
+
+    .signup-button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
     }
 
 .button-icon {

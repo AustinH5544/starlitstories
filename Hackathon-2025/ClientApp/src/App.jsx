@@ -13,6 +13,7 @@ import SignupComplete from "./pages/SignupComplete"
 import UpgradePage from "./pages/UpgradePage"
 import ForgotPasswordPage from "./pages/ForgotPasswordPage"
 import ResetPasswordPage from "./pages/ResetPasswordPage"
+import VerifyEmailPage from "./pages/VerifyEmailPage"
 
 function App() {
     return (
@@ -31,6 +32,7 @@ function App() {
                     <Route path="/upgrade" element={<UpgradePage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
+                    <Route path="/verify-email" element={<VerifyEmailPage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
