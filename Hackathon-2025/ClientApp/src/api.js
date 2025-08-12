@@ -15,16 +15,17 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
-//  Auto-logout on 401 response
+// Auto-logout on 401 response
 api.interceptors.response.use(
     res => res,
     err => {
         if (err.response?.status === 401) {
-            // Clear token
+            // Clear token and any persisted user data
             localStorage.removeItem("token");
-            // Optional: clear any persisted user data here
+            localStorage.removeItem("user");
+            sessionStorage.clear();
 
-            // Force redirect to login page
+            // Redirect to login page
             window.location.href = "/login";
         }
         return Promise.reject(err);

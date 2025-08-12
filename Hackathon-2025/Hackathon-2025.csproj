@@ -8,9 +8,9 @@
     <UserSecretsId>19037689-d894-4f80-8955-fdc3bf490948</UserSecretsId>
   </PropertyGroup>
 
-  <ItemGroup>
+<!--  <ItemGroup>
     <Compile Include="ClientApp\src\hooks\useUserProfile.js" />
-  </ItemGroup>
+  </ItemGroup>-->
 
   <ItemGroup>
     <PackageReference Include="Azure.Storage.Blobs" Version="12.25.0" />

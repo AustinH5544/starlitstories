@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import axios from "axios"
+import axios from "../api"
 import "./ResetPasswordPage.css"
 
 const ResetPasswordPage = () => {
