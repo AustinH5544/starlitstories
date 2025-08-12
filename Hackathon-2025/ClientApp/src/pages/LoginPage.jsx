@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import axios from "../api"
+import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import "./LoginPage.css"
 
@@ -23,7 +23,7 @@ const LoginPage = () => {
         setIsLoading(true)
 
         try {
-            const response = await axios.post("/auth/login", {
+            const response = await api.post("/auth/login", {
                 email,
                 password,
             })
@@ -53,7 +53,7 @@ const LoginPage = () => {
 
         setIsLoading(true)
         try {
-            await axios.post("/auth/resend-verification", {
+            await api.post("/auth/resend-verification", {
                 email,
             })
             setStatus("Verification email sent! Please check your inbox.")

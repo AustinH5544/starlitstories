@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import axios from "../api"
+import api from "../api"
 import "./ForgotPasswordPage.css"
 
 const ForgotPasswordPage = () => {
@@ -18,7 +18,7 @@ const ForgotPasswordPage = () => {
         setError("")
 
         try {
-            await axios.post("http://localhost:5275/api/auth/forgot-password", {
+            await api.post("http://localhost:5275/api/auth/forgot-password", {
                 email,
             })
             setIsSubmitted(true)

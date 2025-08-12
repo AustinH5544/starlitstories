@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import axios from "../api"
+import api from "../api"
 import "./ResetPasswordPage.css"
 
 const ResetPasswordPage = () => {
@@ -46,7 +46,7 @@ const ResetPasswordPage = () => {
         setIsLoading(true)
 
         try {
-            await axios.post("http://localhost:5275/api/auth/reset-password", {
+            await api.post("/auth/reset-password", {
                 email,
                 token,
                 newPassword,

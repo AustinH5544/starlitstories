@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useAuth } from "../context/AuthContext"
 import StoryForm from "../components/StoryForm"
-import axios from "../api"
+import api from "../api"
 import "./CreatePage.css"
 import { useNavigate } from "react-router-dom"
 import useUserProfile from "../hooks/useUserProfile"
@@ -24,7 +24,7 @@ const CreatePage = () => {
         setStory(null)
 
         try {
-            const res = await axios.post("/story/generate-full", formData)
+            const res = await api.post("/story/generate-full", formData)
             setStory(res.data)
             setStoryReady(true)
         } catch (err) {

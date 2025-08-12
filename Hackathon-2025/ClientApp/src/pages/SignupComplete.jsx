@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { useAuth } from '../context/AuthContext';
 import './SignupPage.css';
 
@@ -23,7 +23,7 @@ const SignupComplete = () => {
         }
 
         try {
-            const response = await axios.post('http://localhost:5275/api/auth/signup', {
+            const response = await api.post('/auth/signup', {
                 email,
                 password,
                 membership,
