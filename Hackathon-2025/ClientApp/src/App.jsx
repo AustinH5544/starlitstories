@@ -14,6 +14,8 @@ import UpgradePage from "./pages/UpgradePage"
 import ForgotPasswordPage from "./pages/ForgotPasswordPage"
 import ResetPasswordPage from "./pages/ResetPasswordPage"
 import VerifyEmailPage from "./pages/VerifyEmailPage"
+import FAQPage from "./pages/FAQPage"
+import SupportPage from "./pages/SupportPage"
 
 function App() {
     return (
@@ -33,6 +35,8 @@ function App() {
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/verify-email" element={<VerifyEmailPage />} />
+                    <Route path="/faq" element={<FAQPage />} />
+                    <Route path="/support" element={<SupportPage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
