@@ -1,11 +1,12 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useAuth } from "../context/AuthContext"
 import StoryForm from "../components/StoryForm"
 import axios from "../api"
 import "./CreatePage.css"
 import { useNavigate } from "react-router-dom"
+import useUserProfile from "../hooks/useUserProfile"
 
 const CreatePage = () => {
     const { user } = useAuth()
@@ -13,29 +14,8 @@ const CreatePage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [storyReady, setStoryReady] = useState(false)
     const [error, setError] = useState(null)
-    const [userProfile, setUserProfile] = useState(null)
-    const [profileLoading, setProfileLoading] = useState(true)
+    const { profile: userProfile, loading: profileLoading, error: profileError } = useUserProfile()
     const navigate = useNavigate()
-
-    useEffect(() => {
-        const fetchUserProfile = async () => {
-            if (!user?.email) {
-                setProfileLoading(false)
-                return
-            }
-
-            try {
-                const res = await axios.get(`/profile/${user.email}`)
-                setUserProfile(res.data)
-            } catch (err) {
-                console.error("Error loading user profile:", err)
-            } finally {
-                setProfileLoading(false)
-            }
-        }
-
-        fetchUserProfile()
-    }, [user])
 
     const generateStory = async (formData) => {
         setIsLoading(true)
@@ -44,13 +24,7 @@ const CreatePage = () => {
         setStory(null)
 
         try {
-            // Append user email to form data
-            const fullRequest = {
-                ...formData,
-                email: user?.email || "",
-            }
-
-            const res = await axios.post("/story/generate-full", fullRequest)
+            const res = await axios.post("/story/generate-full", formData)
             setStory(res.data)
             setStoryReady(true)
         } catch (err) {
@@ -62,32 +36,6 @@ const CreatePage = () => {
         }
     }
 
-    //const generateStory = async (formData) => {
-    //    setIsLoading(true)
-    //    setStoryReady(false)
-    //    setError(null)
-    //    setStory(null)
-
-    //    try {
-    //        await new Promise((resolve) => setTimeout(resolve, 5000))
-
-    //        const mockStory = {
-    //            pages: [
-    //                { text: `Mock story for ${formData?.mainCharacterName || "Unnamed Hero"}` },
-    //                { text: "They embarked on a journey filled with wonders." },
-    //            ],
-    //        }
-
-    //        setStory(mockStory)
-    //        setStoryReady(true)
-    //    } catch (err) {
-    //        console.error("Mock Error:", err)
-    //        setError("Something went wrong during mock generation.")
-    //    } finally {
-    //        setIsLoading(false)
-    //    }
-    //}
-
     const isValidStory =
         story &&
         Array.isArray(story.pages) &&
@@ -97,6 +45,7 @@ const CreatePage = () => {
 
     const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1
 
+    // Not logged in
     if (!user) {
         return (
             <div className="create-page">
@@ -136,6 +85,26 @@ const CreatePage = () => {
         )
     }
 
+    // Error loading profile
+    if (profileError) {
+        return (
+            <div className="create-page">
+                <div className="stars"></div>
+                <div className="twinkling"></div>
+                <div className="clouds"></div>
+
+                <div className="create-container">
+                    <div className="error-container">
+                        <div className="error-icon">😞</div>
+                        <p className="create-error">We couldn’t load your profile.</p>
+                        <p className="error-subtext">Please refresh the page or try signing out and in again.</p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    // Still loading profile
     if (profileLoading) {
         return (
             <div className="create-page">
@@ -194,26 +163,18 @@ const CreatePage = () => {
                         </div>
 
                         <div className="upgrade-footer">
-                            <p>
-                                Questions? <a href="mailto:support@cozypages.com">Contact our support team</a>
-                            </p>
+                            <p>Questions? <a href="mailto:support@cozypages.com">Contact our support team</a></p>
                         </div>
                     </div>
                 ) : isLoading ? (
                     <div className="loading-container">
-                        <div className="loading-spinner">
-                            <div className="spinner"></div>
-                        </div>
-                        <p className="loading-text">
-                            <span className="loading-icon">✨</span>
-                            Creating your magical story...
-                        </p>
+                        <div className="loading-spinner"><div className="spinner"></div></div>
+                        <p className="loading-text"><span className="loading-icon">✨</span>Creating your magical story...</p>
                         <p className="loading-subtext">This may take a few moments while our storytellers work their magic</p>
                     </div>
                 ) : !storyReady || !isValidStory ? (
                     <div className="create-form-wrapper">
                         <StoryForm onSubmit={generateStory} />
-
                         {error && (
                             <div className="error-container">
                                 <div className="error-icon">😔</div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import axios from "axios"
+import axios from "../api"
 import "./ForgotPasswordPage.css"
 
 const ForgotPasswordPage = () => {
@@ -24,7 +24,7 @@ const ForgotPasswordPage = () => {
             setIsSubmitted(true)
         } catch (err) {
             console.error("Forgot password error:", err)
-            setError("Something went wrong. Please try again.")
+            setError(err?.response?.data || "Something went wrong. Please try again.")
         } finally {
             setIsLoading(false)
         }
