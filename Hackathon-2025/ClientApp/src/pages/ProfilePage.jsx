@@ -15,7 +15,7 @@ const ProfilePage = () => {
     useEffect(() => {
         const fetchStories = async () => {
             try {
-                const res = await axios.get(`/profile/${user.email}/stories`)
+                const res = await axios.get("/profile/me/stories")
                 setStories(res.data)
             } catch (err) {
                 console.error("Error loading stories:", err)
