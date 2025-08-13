@@ -1,140 +1,131 @@
 ﻿"use client"
 
-import { useState, useMemo } from "react"
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import "./FAQPage.css"
 
 const FAQPage = () => {
     const [searchTerm, setSearchTerm] = useState("")
-    const [activeCategory, setActiveCategory] = useState("all")
+    const [activeFilter, setActiveFilter] = useState("All")
     const [openItems, setOpenItems] = useState(new Set())
 
     const faqData = [
         {
             id: 1,
-            category: "general",
+            category: "General",
             question: "What is CozyPages?",
             answer:
-                "CozyPages is an AI-powered platform that creates personalized children's stories with beautiful illustrations. Simply provide some details about your child, and our AI will generate a unique, engaging story tailored just for them.",
+                "CozyPages is an AI-powered storytelling platform that creates personalized children's stories with beautiful illustrations. Simply provide character details, themes, and preferences, and our AI will generate a unique story just for you.",
         },
         {
             id: 2,
-            category: "general",
-            question: "How does the story generation work?",
+            category: "General",
+            question: "How does the AI story generation work?",
             answer:
-                "Our advanced AI analyzes the information you provide about your child (name, age, interests, etc.) and creates a custom story. The process includes generating both the narrative text and accompanying illustrations to bring the story to life.",
+                "Our AI uses advanced language models to create engaging narratives based on your inputs. You can specify characters, settings, themes, and story length. The AI then crafts a coherent, age-appropriate story with accompanying illustrations.",
         },
         {
             id: 3,
-            category: "account",
-            question: "Do I need to create an account?",
+            category: "Account",
+            question: "Do I need to create an account to use CozyPages?",
             answer:
-                "Yes, creating an account allows you to save your stories, access them anytime, and manage your preferences. It also enables us to provide a more personalized experience and keep track of your story library.",
+                "Yes, you need to create a free account to save your stories, access your story library, and use our story generation features. Registration is quick and only requires an email address.",
         },
         {
             id: 4,
-            category: "account",
+            category: "Account",
             question: "How do I verify my email address?",
             answer:
-                "After signing up, you'll receive a verification email. Click the verification link in the email to activate your account. If you don't see the email, check your spam folder or request a new verification email from your profile page.",
+                "After signing up, check your email for a verification link from CozyPages. Click the link to verify your account. If you don't see the email, check your spam folder or request a new verification email from your profile page.",
         },
         {
             id: 5,
-            category: "stories",
+            category: "Stories",
             question: "How long does it take to generate a story?",
             answer:
-                "Story generation typically takes 2-5 minutes, depending on the complexity and current system load. You'll see a progress indicator while your story is being created, and you'll be notified when it's ready.",
+                "Story generation typically takes 30-60 seconds, depending on the complexity and length requested. Image generation may take an additional 15-30 seconds per illustration.",
         },
         {
             id: 6,
-            category: "stories",
-            question: "Can I customize the stories?",
+            category: "Stories",
+            question: "Can I edit or customize my generated stories?",
             answer:
-                "Yes! You can specify your child's name, age, favorite activities, pets, and other preferences. You can also choose themes, story length, and even include family members or friends as characters in the story.",
+                "Currently, stories are generated as complete works. However, you can create new variations by adjusting your character descriptions, themes, or story prompts and generating a new story.",
         },
         {
             id: 7,
-            category: "stories",
+            category: "Stories",
             question: "What age groups are the stories suitable for?",
             answer:
-                "Our stories are designed for children aged 2-12 years. The AI automatically adjusts the vocabulary, story complexity, and themes based on the age you specify to ensure age-appropriate content.",
+                "Our stories are primarily designed for children ages 3-12. You can specify the target age range when creating a story, and our AI will adjust the vocabulary, themes, and complexity accordingly.",
         },
         {
             id: 8,
-            category: "billing",
-            question: "How much does CozyPages cost?",
+            category: "Billing",
+            question: "What's included in the free plan?",
             answer:
-                "We offer both free and premium plans. Free users can generate a limited number of stories per month, while premium subscribers get unlimited story generation, priority processing, and access to premium themes and features.",
+                "The free plan includes 3 story generations per month, basic character customization, and access to your story library. Stories include simple illustrations and are perfect for trying out the platform.",
         },
         {
             id: 9,
-            category: "billing",
-            question: "Can I cancel my subscription anytime?",
+            category: "Billing",
+            question: "What are the premium plan benefits?",
             answer:
-                "Yes, you can cancel your subscription at any time from your account settings. Your premium features will remain active until the end of your current billing period, and you can still access all previously generated stories.",
+                "Premium plans offer unlimited story generation, advanced character customization, high-quality illustrations, priority generation speed, and the ability to download stories as PDFs.",
         },
         {
             id: 10,
-            category: "technical",
-            question: "What file formats are the stories available in?",
+            category: "Billing",
+            question: "Can I cancel my subscription anytime?",
             answer:
-                "Stories can be viewed online in our interactive reader, downloaded as PDF files for printing, or saved as digital books. Premium users also get access to additional formats like EPUB for e-readers.",
+                "Yes, you can cancel your subscription at any time from your account settings. You'll continue to have premium access until the end of your current billing period.",
         },
         {
             id: 11,
-            category: "technical",
-            question: "Can I print the stories?",
+            category: "Technical",
+            question: "What browsers are supported?",
             answer:
-                "All stories are optimized for printing. You can download them as high-quality PDF files that are perfect for home printing or professional printing services.",
+                "CozyPages works best on modern browsers including Chrome, Firefox, Safari, and Edge. We recommend keeping your browser updated for the best experience.",
         },
         {
             id: 12,
-            category: "technical",
-            question: "Is my data safe and private?",
+            category: "Technical",
+            question: "Can I download my stories?",
             answer:
-                "Yes, we take privacy seriously. All personal information is encrypted and stored securely. We never share your data with third parties, and you can delete your account and all associated data at any time.",
+                "Premium subscribers can download their stories as high-quality PDF files, perfect for printing or sharing. Free users can view and share stories online through our platform.",
         },
         {
             id: 13,
-            category: "stories",
-            question: "Can I edit the generated stories?",
+            category: "Technical",
+            question: "Is my data secure and private?",
             answer:
-                "Currently, stories are generated as complete works. However, we're working on editing features that will allow you to make minor adjustments to character names, settings, and other story elements.",
+                "Yes, we take privacy seriously. Your stories and personal information are encrypted and stored securely. We never share your content with third parties, and you maintain full ownership of your generated stories.",
         },
         {
             id: 14,
-            category: "technical",
-            question: "What browsers are supported?",
+            category: "Stories",
+            question: "Can I create stories in different languages?",
             answer:
-                "CozyPages works on all modern browsers including Chrome, Firefox, Safari, and Edge. For the best experience, we recommend using the latest version of your preferred browser.",
+                "Currently, CozyPages generates stories in English. We're working on adding support for additional languages in future updates.",
         },
         {
             id: 15,
-            category: "billing",
-            question: "Do you offer refunds?",
+            category: "General",
+            question: "How can I share my stories with others?",
             answer:
-                "We offer a 30-day money-back guarantee for premium subscriptions. If you're not satisfied with the service, contact our support team within 30 days of your purchase for a full refund.",
+                "You can share your stories by sending a direct link to family and friends. Premium users can also download PDFs to share via email or print physical copies.",
         },
     ]
 
-    const categories = [
-        { id: "all", name: "All Questions" },
-        { id: "general", name: "General" },
-        { id: "account", name: "Account" },
-        { id: "stories", name: "Stories" },
-        { id: "billing", name: "Billing" },
-        { id: "technical", name: "Technical" },
-    ]
+    const categories = ["All", "General", "Account", "Stories", "Billing", "Technical"]
 
-    const filteredFAQs = useMemo(() => {
-        return faqData.filter((faq) => {
-            const matchesSearch =
-                faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
-            const matchesCategory = activeCategory === "all" || faq.category === activeCategory
-            return matchesSearch && matchesCategory
-        })
-    }, [searchTerm, activeCategory])
+    const filteredFAQs = faqData.filter((faq) => {
+        const matchesSearch =
+            faq.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            faq.answer.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesFilter = activeFilter === "All" || faq.category === activeFilter
+        return matchesSearch && matchesFilter
+    })
 
     const toggleItem = (id) => {
         const newOpenItems = new Set(openItems)
@@ -148,67 +139,71 @@ const FAQPage = () => {
 
     return (
         <div className="faq-page">
+            <div className="stars"></div>
+            <div className="twinkling"></div>
+            <div className="clouds"></div>
+
             <div className="faq-container">
                 <div className="faq-header">
-                    <h1>Frequently Asked Questions</h1>
-                    <p>Find answers to common questions about CozyPages and our AI-powered story generation platform.</p>
-                </div>
+                    <h1 className="faq-title">Frequently Asked Questions</h1>
+                    <p className="faq-subtitle">
+                        Find answers to common questions about CozyPages and our AI storytelling platform
+                    </p>
 
-                <div className="faq-content">
                     <div className="faq-search">
+                        <span className="search-icon">🔍</span>
                         <input
                             type="text"
-                            placeholder="Search for questions..."
+                            className="search-input"
+                            placeholder="Search questions..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
 
-                    <div className="faq-categories">
+                    <div className="faq-filters">
                         {categories.map((category) => (
                             <button
-                                key={category.id}
-                                className={`category-filter ${activeCategory === category.id ? "active" : ""}`}
-                                onClick={() => setActiveCategory(category.id)}
+                                key={category}
+                                className={`filter-btn ${activeFilter === category ? "active" : ""}`}
+                                onClick={() => setActiveFilter(category)}
                             >
-                                {category.name}
+                                {category}
                             </button>
                         ))}
                     </div>
+                </div>
 
-                    <div className="faq-list">
-                        {filteredFAQs.length > 0 ? (
-                            filteredFAQs.map((faq) => (
-                                <div key={faq.id} className="faq-item">
-                                    <button
-                                        className={`faq-question ${openItems.has(faq.id) ? "active" : ""}`}
-                                        onClick={() => toggleItem(faq.id)}
-                                    >
-                                        <span>{faq.question}</span>
-                                        <span className={`faq-icon ${openItems.has(faq.id) ? "rotated" : ""}`}>▼</span>
-                                    </button>
-                                    <div className={`faq-answer ${openItems.has(faq.id) ? "open" : ""}`}>
-                                        <div className="faq-answer-content">
-                                            <p>{faq.answer}</p>
-                                        </div>
+                <div className="faq-list">
+                    {filteredFAQs.length > 0 ? (
+                        filteredFAQs.map((faq) => (
+                            <div key={faq.id} className={`faq-item ${openItems.has(faq.id) ? "open" : ""}`}>
+                                <button className="faq-question" onClick={() => toggleItem(faq.id)}>
+                                    <div>
+                                        <div className="faq-category">{faq.category}</div>
+                                        <div>{faq.question}</div>
                                     </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="no-results">
-                                <h3>No questions found</h3>
-                                <p>Try adjusting your search terms or browse different categories.</p>
+                                    <span className="faq-icon">▼</span>
+                                </button>
+                                <div className="faq-answer">{faq.answer}</div>
                             </div>
-                        )}
-                    </div>
+                        ))
+                    ) : (
+                        <div className="no-results">
+                            <div className="no-results-icon">🔍</div>
+                            <h3>No questions found</h3>
+                            <p>Try adjusting your search terms or filter selection.</p>
+                        </div>
+                    )}
+                </div>
 
-                    <div className="contact-support">
-                        <h3>Still have questions?</h3>
-                        <p>Can't find what you're looking for? Our support team is here to help!</p>
-                        <Link to="/support" className="support-button">
-                            Contact Support
-                        </Link>
-                    </div>
+                <div className="support-link">
+                    <h3>Still need help?</h3>
+                    <p>Can't find what you're looking for? Our support team is here to help!</p>
+                    <Link to="/support" className="support-btn">
+                        <span>💬</span>
+                        <span>Contact Support</span>
+                    </Link>
                 </div>
             </div>
         </div>

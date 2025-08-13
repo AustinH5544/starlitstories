@@ -84,6 +84,12 @@
     margin-bottom: 2.5rem;
 }
 
+/* Profile Avatar Styles */
+.profile-avatar-container {
+    position: relative;
+    display: inline-block;
+}
+
 .user-avatar-large {
     width: 80px;
     height: 80px;
@@ -97,7 +103,191 @@
     color: white;
     margin: 0 auto 1rem;
     box-shadow: 0 8px 20px rgba(161, 140, 209, 0.3);
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.3s ease;
 }
+
+    .user-avatar-large:hover {
+        transform: scale(1.05);
+    }
+
+.avatar-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.avatar-fallback {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #a18cd1, #fbc2eb);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.avatar-edit-overlay {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: rgba(161, 140, 209, 0.9);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    border: 2px solid white;
+    transition: all 0.3s ease;
+}
+
+    .avatar-edit-overlay:hover {
+        background: #a18cd1;
+        transform: scale(1.1);
+    }
+
+/* Image Selection Modal */
+.image-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.image-modal {
+    background: rgba(16, 24, 64, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        background: linear-gradient(45deg, #f5b8ff, #a18cd1);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+.close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+    .close-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        transform: rotate(90deg);
+    }
+
+.image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+}
+
+.image-option {
+    position: relative;
+    cursor: pointer;
+    border-radius: 15px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 3px solid transparent;
+}
+
+    .image-option:hover {
+        transform: scale(1.05);
+        border-color: rgba(161, 140, 209, 0.5);
+    }
+
+    .image-option.selected {
+        border-color: #a18cd1;
+        box-shadow: 0 0 20px rgba(161, 140, 209, 0.5);
+    }
+
+    .image-option img {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .image-option.selected::after {
+        content: "✓";
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: #a18cd1;
+        color: white;
+        border-radius: 50%;
+        width: 25px;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
 
 .profile-title {
     font-size: 2.5rem;
@@ -495,6 +685,20 @@
     .section-title {
         font-size: 1.8rem;
     }
+
+    .image-modal {
+        padding: 1.5rem;
+        width: 95%;
+    }
+
+    .image-grid {
+        grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .image-option img {
+        height: 80px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -511,5 +715,11 @@
     .create-first-story-btn {
         padding: 0.8rem 1.5rem;
         font-size: 1rem;
+    }
+
+    .avatar-edit-overlay {
+        width: 24px;
+        height: 24px;
+        font-size: 0.8rem;
     }
 }

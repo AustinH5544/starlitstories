@@ -12,10 +12,43 @@ const ProfilePage = () => {
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
 
+    const [showImageModal, setShowImageModal] = useState(false)
+    const [selectedImage, setSelectedImage] = useState(user?.profileImage || "/default-avatar.png")
+
+    const profileImages = [
+        "avatars/wizard-avatar.png",
+        "avatars/princess-avatar.png",
+        "avatars/knight-avatar.png",
+        "avatars/whimsical-fairy-avatar.png",
+        "avatars/dragon-avatar.png",
+        "avatars/unicorn-avatar.png",
+        "avatars/pirate-avatar.png",
+        "avatars/astronaut-avatar.png",
+        "avatars/whimsical-mermaid-avatar.png",
+        "avatars/superhero-avatar.png",
+        "avatars/cat-avatar.png",
+        "placeholder.svg?height=100&width=100",
+    ]
+
+    const handleImageSelect = (imageUrl) => {
+        setSelectedImage(imageUrl)
+        // Here you would typically save to backend
+        // await api.put('/profile/image', { profileImage: imageUrl })
+        setShowImageModal(false)
+    }
+
+    const openImageModal = () => {
+        setShowImageModal(true)
+    }
+
+    const closeImageModal = () => {
+        setShowImageModal(false)
+    }
+
     useEffect(() => {
         const fetchStories = async () => {
             try {
-                const res = await axios.get("/profile/me/stories")
+                const res = await axios.get(`/profile/${user.email}/stories`)
                 setStories(res.data)
             } catch (err) {
                 console.error("Error loading stories:", err)
@@ -55,8 +88,24 @@ const ProfilePage = () => {
 
             <div className="profile-container">
                 <div className="profile-header">
-                    <div className="user-avatar-large">
-                        {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                    <div className="profile-avatar-container">
+                        <div className="user-avatar-large" onClick={openImageModal}>
+                            <img
+                                src={selectedImage || "/placeholder.svg"}
+                                alt="Profile"
+                                className="avatar-image"
+                                onError={(e) => {
+                                    e.target.style.display = "none"
+                                    e.target.nextSibling.style.display = "flex"
+                                }}
+                            />
+                            <div className="avatar-fallback">
+                                {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="avatar-edit-overlay">
+                                <span>✏️</span>
+                            </div>
+                        </div>
                     </div>
                     <h1 className="profile-title">Welcome back, {user.name || user.email.split("@")[0]}!</h1>
                     <p className="profile-subtitle">Your magical storytelling dashboard</p>
@@ -151,6 +200,29 @@ const ProfilePage = () => {
                         </div>
                     )}
                 </div>
+                {showImageModal && (
+                    <div className="image-modal-overlay" onClick={closeImageModal}>
+                        <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3>Choose Your Avatar</h3>
+                                <button className="close-btn" onClick={closeImageModal}>
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="image-grid">
+                                {profileImages.map((imageUrl, index) => (
+                                    <div
+                                        key={index}
+                                        className={`image-option ${selectedImage === imageUrl ? "selected" : ""}`}
+                                        onClick={() => handleImageSelect(imageUrl)}
+                                    >
+                                        <img src={imageUrl || "/placeholder.svg"} alt={`Avatar option ${index + 1}`} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )

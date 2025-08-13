@@ -8,13 +8,13 @@ const SupportPage = () => {
     const [formData, setFormData] = useState({
         name: "",
         email: "",
-        subject: "",
         category: "",
-        message: "",
         priority: "medium",
+        subject: "",
+        message: "",
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [submitSuccess, setSubmitSuccess] = useState(false)
+    const [showSuccess, setShowSuccess] = useState(false)
 
     const handleInputChange = (e) => {
         const { name, value } = e.target
@@ -28,213 +28,257 @@ const SupportPage = () => {
         e.preventDefault()
         setIsSubmitting(true)
 
-        try {
-            // Simulate API call
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-            setSubmitSuccess(true)
+        // Simulate form submission
+        setTimeout(() => {
+            setIsSubmitting(false)
+            setShowSuccess(true)
             setFormData({
                 name: "",
                 email: "",
-                subject: "",
                 category: "",
-                message: "",
                 priority: "medium",
+                subject: "",
+                message: "",
             })
-        } catch (error) {
-            console.error("Error submitting support request:", error)
-        } finally {
-            setIsSubmitting(false)
-        }
+
+            // Hide success message after 5 seconds
+            setTimeout(() => setShowSuccess(false), 5000)
+        }, 1000)
     }
 
     return (
         <div className="support-page">
+            <div className="stars"></div>
+            <div className="twinkling"></div>
+            <div className="clouds"></div>
+
             <div className="support-container">
                 <div className="support-header">
-                    <h1>Support Center</h1>
-                    <p>We're here to help! Get in touch with our support team or find answers to your questions.</p>
-                </div>
+                    <h1 className="support-title">Support Center</h1>
+                    <p className="support-subtitle">
+                        We're here to help! Get in touch with our support team or find answers to your questions.
+                    </p>
 
-                <div className="status-banner">
-                    <strong>🟢 All Systems Operational</strong> - Our services are running smoothly
+                    <div className="status-banner">
+                        <span className="status-icon">✅</span>
+                        <strong>All systems operational</strong> - Our services are running smoothly
+                    </div>
                 </div>
 
                 <div className="support-content">
-                    <div className="support-card">
-                        <h2>
-                            <span className="support-icon">📧</span>
-                            Contact Support
+                    <div className="contact-form-section">
+                        <h2 className="section-title">
+                            <span>📝</span>
+                            Send us a Message
                         </h2>
 
-                        {submitSuccess && (
-                            <div className="success-message">
-                                <strong>Thank you!</strong> Your support request has been submitted. We'll get back to you within 24
-                                hours.
-                            </div>
-                        )}
-
                         <form className="contact-form" onSubmit={handleSubmit}>
-                            <div className="form-group">
-                                <label htmlFor="name">Full Name *</label>
-                                <input type="text" id="name" name="name" value={formData.name} onChange={handleInputChange} required />
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Name *</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        className="form-input"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                        required
+                                        placeholder="Your full name"
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Email *</label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        className="form-input"
+                                        value={formData.email}
+                                        onChange={handleInputChange}
+                                        required
+                                        placeholder="your@email.com"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Category</label>
+                                    <select
+                                        name="category"
+                                        className="form-select"
+                                        value={formData.category}
+                                        onChange={handleInputChange}
+                                    >
+                                        <option value="">Select a category</option>
+                                        <option value="technical">Technical Issue</option>
+                                        <option value="billing">Billing & Payments</option>
+                                        <option value="account">Account Management</option>
+                                        <option value="stories">Story Generation</option>
+                                        <option value="feature">Feature Request</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Priority</label>
+                                    <select
+                                        name="priority"
+                                        className="form-select"
+                                        value={formData.priority}
+                                        onChange={handleInputChange}
+                                    >
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="urgent">Urgent</option>
+                                    </select>
+                                </div>
                             </div>
 
                             <div className="form-group">
-                                <label htmlFor="email">Email Address *</label>
-                                <input
-                                    type="email"
-                                    id="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleInputChange}
-                                    required
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="category">Category *</label>
-                                <select id="category" name="category" value={formData.category} onChange={handleInputChange} required>
-                                    <option value="">Select a category</option>
-                                    <option value="account">Account Issues</option>
-                                    <option value="billing">Billing & Payments</option>
-                                    <option value="technical">Technical Problems</option>
-                                    <option value="stories">Story Generation</option>
-                                    <option value="feature">Feature Request</option>
-                                    <option value="other">Other</option>
-                                </select>
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="priority">Priority</label>
-                                <select id="priority" name="priority" value={formData.priority} onChange={handleInputChange}>
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                </select>
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="subject">Subject *</label>
+                                <label className="form-label">Subject *</label>
                                 <input
                                     type="text"
-                                    id="subject"
                                     name="subject"
+                                    className="form-input"
                                     value={formData.subject}
                                     onChange={handleInputChange}
-                                    placeholder="Brief description of your issue"
                                     required
+                                    placeholder="Brief description of your issue"
                                 />
                             </div>
 
                             <div className="form-group">
-                                <label htmlFor="message">Message *</label>
+                                <label className="form-label">Message *</label>
                                 <textarea
-                                    id="message"
                                     name="message"
+                                    className="form-textarea"
                                     value={formData.message}
                                     onChange={handleInputChange}
-                                    placeholder="Please provide as much detail as possible about your issue or question..."
                                     required
+                                    placeholder="Please provide as much detail as possible about your issue or question..."
                                 />
                             </div>
 
-                            <button type="submit" className="submit-button" disabled={isSubmitting}>
-                                {isSubmitting ? "Submitting..." : "Submit Request"}
+                            <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                    <>
+                                        <span>⏳</span>
+                                        <span>Sending...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>📤</span>
+                                        <span>Send Message</span>
+                                    </>
+                                )}
                             </button>
+
+                            {showSuccess && (
+                                <div className="success-message">
+                                    <span>✅</span>
+                                    <strong>Message sent successfully!</strong>
+                                    <p>We'll get back to you within 24 hours.</p>
+                                </div>
+                            )}
                         </form>
                     </div>
 
-                    <div className="support-card">
-                        <h2>
-                            <span className="support-icon">📞</span>
-                            Get in Touch
+                    <div className="contact-methods-section">
+                        <h2 className="section-title">
+                            <span>📞</span>
+                            Other Ways to Reach Us
                         </h2>
 
-                        <div className="contact-info">
+                        <div className="contact-methods">
+                            <a href="mailto:support@cozypages.com" className="contact-method">
+                                <div className="contact-icon">📧</div>
+                                <div className="contact-info">
+                                    <h4>Email Support</h4>
+                                    <p>support@cozypages.com</p>
+                                </div>
+                            </a>
+
                             <div className="contact-method">
-                                <div className="contact-method-icon">📧</div>
-                                <div className="contact-method-info">
-                                    <h3>Email Support</h3>
-                                    <p>
-                                        <a href="mailto:support@cozypages.com">support@cozypages.com</a>
-                                    </p>
-                                    <p>Response within 24 hours</p>
+                                <div className="contact-icon">💬</div>
+                                <div className="contact-info">
+                                    <h4>Live Chat</h4>
+                                    <p>Available 9 AM - 6 PM EST</p>
                                 </div>
                             </div>
 
                             <div className="contact-method">
-                                <div className="contact-method-icon">💬</div>
-                                <div className="contact-method-info">
-                                    <h3>Live Chat</h3>
-                                    <p>Available Mon-Fri, 9 AM - 6 PM EST</p>
-                                    <p>Click the chat bubble in the bottom right</p>
+                                <div className="contact-icon">📱</div>
+                                <div className="contact-info">
+                                    <h4>Phone Support</h4>
+                                    <p>1-800-COZY-PAGES</p>
                                 </div>
                             </div>
 
-                            <div className="contact-method">
-                                <div className="contact-method-icon">📱</div>
-                                <div className="contact-method-info">
-                                    <h3>Phone Support</h3>
-                                    <p>+1 (555) 123-4567</p>
-                                    <p>Premium subscribers only</p>
+                            <a
+                                href="https://twitter.com/cozypages"
+                                className="contact-method"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <div className="contact-icon">🐦</div>
+                                <div className="contact-info">
+                                    <h4>Twitter</h4>
+                                    <p>@cozypages</p>
                                 </div>
-                            </div>
+                            </a>
 
-                            <div className="contact-method">
-                                <div className="contact-method-icon">🐦</div>
-                                <div className="contact-method-info">
-                                    <h3>Social Media</h3>
-                                    <p>
-                                        <a href="https://twitter.com/cozypages" target="_blank" rel="noopener noreferrer">
-                                            @CozyPages
-                                        </a>
-                                    </p>
-                                    <p>Follow us for updates</p>
+                            <a
+                                href="https://facebook.com/cozypages"
+                                className="contact-method"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <div className="contact-icon">📘</div>
+                                <div className="contact-info">
+                                    <h4>Facebook</h4>
+                                    <p>CozyPages Official</p>
                                 </div>
-                            </div>
+                            </a>
                         </div>
                     </div>
+                </div>
 
-                    <div className="quick-help">
-                        <h2>Quick Help</h2>
-                        <div className="help-categories">
-                            <Link to="/faq" className="help-category">
-                                <div className="help-category-icon">❓</div>
-                                <h3>FAQ</h3>
-                                <p>Find answers to frequently asked questions</p>
-                            </Link>
+                <div className="quick-help">
+                    <h2 className="section-title">
+                        <span>🚀</span>
+                        Quick Help & Resources
+                    </h2>
 
-                            <div className="help-category">
-                                <div className="help-category-icon">📚</div>
-                                <h3>User Guide</h3>
-                                <p>Learn how to use CozyPages effectively</p>
-                            </div>
+                    <div className="help-links">
+                        <Link to="/faq" className="help-link">
+                            <span className="help-icon">❓</span>
+                            <span>FAQ</span>
+                        </Link>
 
-                            <div className="help-category">
-                                <div className="help-category-icon">🎥</div>
-                                <h3>Video Tutorials</h3>
-                                <p>Watch step-by-step video guides</p>
-                            </div>
+                        <a href="/user-guide" className="help-link">
+                            <span className="help-icon">📖</span>
+                            <span>User Guide</span>
+                        </a>
 
-                            <div className="help-category">
-                                <div className="help-category-icon">🔧</div>
-                                <h3>Troubleshooting</h3>
-                                <p>Solve common technical issues</p>
-                            </div>
+                        <a href="/video-tutorials" className="help-link">
+                            <span className="help-icon">🎥</span>
+                            <span>Video Tutorials</span>
+                        </a>
 
-                            <div className="help-category">
-                                <div className="help-category-icon">💡</div>
-                                <h3>Tips & Tricks</h3>
-                                <p>Get the most out of your stories</p>
-                            </div>
+                        <a href="/community" className="help-link">
+                            <span className="help-icon">👥</span>
+                            <span>Community Forum</span>
+                        </a>
 
-                            <div className="help-category">
-                                <div className="help-category-icon">🔒</div>
-                                <h3>Privacy & Security</h3>
-                                <p>Learn about data protection</p>
-                            </div>
-                        </div>
+                        <a href="/status" className="help-link">
+                            <span className="help-icon">📊</span>
+                            <span>System Status</span>
+                        </a>
+
+                        <a href="/api-docs" className="help-link">
+                            <span className="help-icon">⚙️</span>
+                            <span>API Documentation</span>
+                        </a>
                     </div>
                 </div>
             </div>
