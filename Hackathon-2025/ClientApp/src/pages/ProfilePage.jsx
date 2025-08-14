@@ -147,11 +147,6 @@ const ProfilePage = () => {
                         <span className="button-icon">🚀</span>
                         <span>Upgrade Plan</span>
                     </button>
-
-                    <button onClick={logout} className="logout-button">
-                        <span className="button-icon">🚪</span>
-                        <span>Log Out</span>
-                    </button>
                 </div>
 
                 <div className="stories-section">
