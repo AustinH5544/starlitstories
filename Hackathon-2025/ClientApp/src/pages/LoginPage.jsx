@@ -47,7 +47,6 @@ const LoginPage = () => {
             } else {
                 setStatus(errorData?.message || "Login failed. Please check your credentials.")
             }
-
         } finally {
             setIsLoading(false)
         }
@@ -75,7 +74,7 @@ const LoginPage = () => {
     }
 
     const getStatusClass = () => {
-        if (status.includes("sent") || status.includes("Check your inbox")) return "success"
+        if (status.toLowerCase().includes("sent") || status.toLowerCase().includes("check your inbox")) return "success"
         if (status.includes("failed") || status.includes("Failed") || status.includes("verify your email")) return "error"
         return "info"
     }
@@ -100,7 +99,7 @@ const LoginPage = () => {
                             type="email"
                             placeholder="Enter your email"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            onChange={(e) => setEmail(e.target.value.trim())}
                             required
                             disabled={isLoading}
                         />
@@ -123,7 +122,12 @@ const LoginPage = () => {
 
                     {needsVerification && (
                         <div className="verification-actions">
-                            <button type="button" onClick={resendVerification} disabled={isLoading} className="resend-button">
+                            <button
+                                type="button"
+                                onClick={resendVerification}
+                                disabled={isLoading || !email}
+                                className="resend-button"
+                            >
                                 {isLoading ? "Sending..." : "📤 Resend Verification Email"}
                             </button>
                         </div>
