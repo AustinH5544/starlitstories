@@ -726,3 +726,130 @@
         width: auto;
     }
 }
+
+/* ===== Reading level controls ===== */
+.options-row {
+    display: grid;
+    grid-template-columns: auto 220px 1fr;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.25rem;
+}
+
+.options-label {
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.options-select {
+    appearance: none;
+    background: rgba(255,255,255,0.08);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    outline: none;
+}
+
+    .options-select:focus {
+        border-color: rgba(161,140,209,0.8);
+        box-shadow: 0 0 0 3px rgba(161,140,209,0.3);
+    }
+
+.options-hint {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.75);
+}
+
+/* ===== Progress bar ===== */
+.progress-wrap {
+    width: 100%;
+    height: 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    transition: width 200ms ease-out;
+}
+
+    .progress-bar.upload {
+        /* first phase – slightly animated shimmer could be added later */
+    }
+
+    .progress-bar.generating {
+        /* we let JS bump width to ~70% while server is thinking */
+    }
+
+    .progress-bar.download {
+        /* final stretch to 100% while response bytes arrive */
+    }
+
+    .progress-bar.done {
+        /* snap to 100% and hold briefly; handled in JS */
+    }
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+    .options-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        text-align: left;
+    }
+
+    .options-hint {
+        margin-top: -0.25rem;
+    }
+}
+
+/* Age input styled like the select */
+.options-input {
+    appearance: none;
+    background: rgba(255,255,255,0.08);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 0.6rem 0.8rem;
+    outline: none;
+    width: 140px;
+}
+
+    .options-input:focus {
+        border-color: rgba(161,140,209,0.8);
+        box-shadow: 0 0 0 3px rgba(161,140,209,0.3);
+    }
+
+/* Make the options row fit: label | select | age | hint */
+.options-row {
+    grid-template-columns: auto 220px 160px 1fr; /* added a column for age field */
+}
+
+@media (max-width: 900px) {
+    .options-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .options-hint {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 640px) {
+    .options-row {
+        grid-template-columns: 1fr;
+    }
+
+    .options-input {
+        width: 100%;
+    }
+}

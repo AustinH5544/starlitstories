@@ -41,6 +41,7 @@ builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>(
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 builder.Services.AddSingleton<BlobUploadService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 
 // Stripe config
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
