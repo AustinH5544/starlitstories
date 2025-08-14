@@ -32,7 +32,7 @@ const SignupPage = () => {
         if (membership === "free") {
             // Free flow — signup immediately
             try {
-                const response = await api.post("http://localhost:5275/api/auth/signup", {
+                const response = await api.post("/auth/signup", {
                     email,
                     password,
                     membership,
@@ -46,7 +46,7 @@ const SignupPage = () => {
         } else {
             // Paid flow — redirect to Stripe
             try {
-                const { data } = await api.post("http://localhost:5275/api/payments/create-checkout-session", {
+                const { data } = await api.post("/payments/create-checkout-session", {
                     email,
                     membership,
                 })

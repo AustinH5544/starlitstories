@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useEffect, useState } from "react"
-import axios from "../api"
+import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
@@ -48,7 +48,7 @@ const ProfilePage = () => {
     useEffect(() => {
         const fetchStories = async () => {
             try {
-                const res = await axios.get(`/profile/${user.email}/stories`)
+                const res = await api.get("/profile/me/stories")
                 setStories(res.data)
             } catch (err) {
                 console.error("Error loading stories:", err)
