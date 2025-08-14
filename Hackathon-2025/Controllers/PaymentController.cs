@@ -47,8 +47,8 @@ public class PaymentsController : ControllerBase
             PaymentMethodTypes = new List<string> { "card" },
             LineItems = new List<SessionLineItemOptions> { lineItem },
             Mode = "subscription",
-            CustomerEmail = request.Email,
-            SuccessUrl = $"{domain}/signup/complete?email={request.Email}&plan={request.Membership}",
+            CustomerEmail = User.FindFirst("email")?.Value,
+            SuccessUrl = $"{domain}/signup/complete?plan={request.Membership}",
             CancelUrl = $"{domain}/signup?cancelled=true"
         };
 

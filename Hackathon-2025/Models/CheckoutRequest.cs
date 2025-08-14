@@ -2,6 +2,5 @@
 
 public class CheckoutRequest
 {
-    public string Email { get; set; } = "";
     public string Membership { get; set; } = "";
 }

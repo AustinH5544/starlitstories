@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useNavigate, Link } from "react-router-dom"
-import axios from "axios"
+import api from "axios"
 import { useAuth } from "../context/AuthContext"
 import "./VerifyEmailPage.css"
 
@@ -28,7 +28,7 @@ const VerifyEmailPage = () => {
     const verifyEmail = async () => {
         setIsVerifying(true)
         try {
-            const response = await axios.post("http://localhost:5275/api/auth/verify-email", {
+            const response = await api.post("http://localhost:5275/api/auth/verify-email", {
                 email,
                 token,
             })
@@ -59,7 +59,7 @@ const VerifyEmailPage = () => {
 
         setIsResending(true)
         try {
-            await axios.post("http://localhost:5275/api/auth/resend-verification", {
+            await api.post("http://localhost:5275/api/auth/resend-verification", {
                 email,
             })
             setStatus("Verification email sent! Please check your inbox.")

@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
             Email = request.Email,
             Membership = request.Membership ?? "free",
             EmailVerificationToken = Guid.NewGuid().ToString(),
-            EmailVerificationExpires = DateTime.UtcNow.AddDays(1), // 24 hours to verify
+            EmailVerificationExpires = DateTime.UtcNow.AddDays(1),
             IsEmailVerified = false
         };
 
@@ -47,7 +47,6 @@ public class AuthController : ControllerBase
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        // Send verification email
         await _emailService.SendVerificationEmailAsync(user.Email, user.EmailVerificationToken);
 
         return Ok(new
@@ -62,11 +61,10 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u =>
-            u.Email == request.Email &&
-            u.EmailVerificationToken == request.Token &&
+            u.EmailVerificationToken != null &&
             u.EmailVerificationExpires > DateTime.UtcNow);
 
-        if (user == null)
+        if (user == null || !SlowEquals(user.EmailVerificationToken!, request.Token))
             return BadRequest("Invalid or expired verification token.");
 
         user.IsEmailVerified = true;
@@ -96,7 +94,6 @@ public class AuthController : ControllerBase
         if (user.IsEmailVerified)
             return BadRequest("Email is already verified.");
 
-        // Generate new verification token
         user.EmailVerificationToken = Guid.NewGuid().ToString();
         user.EmailVerificationExpires = DateTime.UtcNow.AddDays(1);
 
@@ -129,6 +126,43 @@ public class AuthController : ControllerBase
         return Ok(new { token, email = user.Email, membership = user.Membership });
     }
 
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+
+        if (user != null)
+        {
+            var resetToken = Guid.NewGuid().ToString();
+            user.PasswordResetToken = resetToken;
+            user.PasswordResetExpires = DateTime.UtcNow.AddHours(1);
+
+            await _db.SaveChangesAsync();
+            await _emailService.SendPasswordResetEmailAsync(user.Email, resetToken);
+        }
+
+        return Ok(new { message = "If an account with that email exists, we've sent a password reset link." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u =>
+            u.Email == request.Email &&
+            u.PasswordResetExpires > DateTime.UtcNow);
+
+        if (user == null || !SlowEquals(user.PasswordResetToken, request.Token))
+            return BadRequest("Invalid or expired reset token.");
+
+        user.PasswordHash = _hasher.HashPassword(user, request.NewPassword);
+        user.PasswordResetToken = null;
+        user.PasswordResetExpires = null;
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "Password has been reset successfully." });
+    }
+
     private string GenerateJwtToken(User user)
     {
         var claims = new List<Claim>
@@ -153,42 +187,17 @@ public class AuthController : ControllerBase
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword(Models.ForgotPasswordRequest request)
+    private bool SlowEquals(string? a, string? b)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        if (a == null || b == null || a.Length != b.Length)
+            return false;
 
-        // Always return success to prevent email enumeration attacks
-        if (user != null)
+        var diff = 0;
+        for (int i = 0; i < a.Length; i++)
         {
-            var resetToken = Guid.NewGuid().ToString();
-            user.PasswordResetToken = resetToken;
-            user.PasswordResetExpires = DateTime.UtcNow.AddHours(1);
-
-            await _db.SaveChangesAsync();
-            await _emailService.SendPasswordResetEmailAsync(user.Email, resetToken);
+            diff |= a[i] ^ b[i];
         }
 
-        return Ok(new { message = "If an account with that email exists, we've sent a password reset link." });
-    }
-
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword(Models.ResetPasswordRequest request)
-    {
-        var user = await _db.Users.FirstOrDefaultAsync(u =>
-            u.Email == request.Email &&
-            u.PasswordResetToken == request.Token &&
-            u.PasswordResetExpires > DateTime.UtcNow);
-
-        if (user == null)
-            return BadRequest("Invalid or expired reset token.");
-
-        user.PasswordHash = _hasher.HashPassword(user, request.NewPassword);
-        user.PasswordResetToken = null;
-        user.PasswordResetExpires = null;
-
-        await _db.SaveChangesAsync();
-
-        return Ok(new { message = "Password has been reset successfully." });
+        return diff == 0;
     }
 }

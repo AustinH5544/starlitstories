@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
-import axios from "axios"
+import api from "../api"
 import "./UpgradePage.css"
 
 const UpgradePage = () => {
@@ -57,8 +57,7 @@ const UpgradePage = () => {
         setIsProcessing(true)
 
         try {
-            const { data } = await axios.post("http://localhost:5275/api/payments/create-checkout-session", {
-                email: user.email,
+            const { data } = await api.post("/payments/create-checkout-session", {
                 membership: selectedPlan,
             })
             window.location.href = data.checkoutUrl

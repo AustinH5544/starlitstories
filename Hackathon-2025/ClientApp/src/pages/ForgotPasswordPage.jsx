@@ -18,7 +18,7 @@ const ForgotPasswordPage = () => {
         setError("")
 
         try {
-            await api.post("http://localhost:5275/api/auth/forgot-password", {
+            await api.post("/auth/forgot-password", {
                 email,
             })
             setIsSubmitted(true)
