@@ -32,14 +32,22 @@ const LoginPage = () => {
             navigate("/profile")
         } catch (err) {
             console.error(err)
-            const errorData = err.response?.data
+
+            if (!err.response) {
+                // Covers cold starts, server down, network errors, etc.
+                setStatus("Unable to reach the server. Please try again in a moment.")
+                return
+            }
+
+            const errorData = err.response.data
 
             if (errorData?.requiresVerification) {
                 setNeedsVerification(true)
                 setStatus("Please verify your email before logging in. Check your inbox for a verification link.")
             } else {
-                setStatus(errorData?.message || errorData || "Login failed. Please check your credentials.")
+                setStatus(errorData?.message || "Login failed. Please check your credentials.")
             }
+
         } finally {
             setIsLoading(false)
         }
