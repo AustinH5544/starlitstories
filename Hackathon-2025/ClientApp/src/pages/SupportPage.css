@@ -75,7 +75,7 @@
     flex-direction: column;
 }
 
-    .form-group label {
+    .support-page .form-group label {
         margin-bottom: 0.5rem;
         font-weight: 600;
         color: #333;
