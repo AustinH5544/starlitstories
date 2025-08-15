@@ -28,8 +28,8 @@ public class StoryGenerator : IStoryGeneratorService
     {
         var characterList = string.Join(", ", request.Characters.Select(c => $"{c.Name} the {c.Role}"));
 
-        // --- NEW: derive friendly style guidance from readingLevel/readerAge
-        var style = BuildReadingStyle(request.ReadingLevel, request.ReaderAge);
+        // --- NEW: derive friendly style guidance from readingLevel only
+        var style = BuildReadingStyle(request.ReadingLevel);
 
         var prompt = $"""
 Write a complete children's story in 8 paragraphs featuring these characters: {characterList}.
@@ -97,14 +97,13 @@ Each paragraph should represent a different scene in the story.
 
         var externalImageUrls = await _imageService.GenerateImagesAsync(imagePrompts.ToList());
 
-        // Title + Cover (cover prompt now uses readingLevel/readerAge)
+        // Title + Cover (cover prompt now uses readingLevel only)
         var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
 
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
             request.Characters,
             request.Theme,
-            request.ReadingLevel,
-            request.ReaderAge
+            request.ReadingLevel
         );
 
         var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
@@ -150,16 +149,14 @@ Suggest a creative and whimsical children's book title based on a character name
         return json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString()!;
     }
 
-    // --- NEW: small helper that maps reading level + age to text style guidance
-    private static ReadingStyle BuildReadingStyle(string? readingLevel, int? readerAge)
+    // --- Simplified: map reading level to text style guidance (no readerAge)
+    private static ReadingStyle BuildReadingStyle(string? readingLevel)
     {
         // Defaults
         var tone = "warm and imaginative";
         var sentenceRule = "short sentences (about 10 words on average)";
         var vocabHint = "simple, common words and clear phrasing";
-        var audienceLine = readerAge.HasValue
-            ? $"Aim for a {readerAge}-year-old reader."
-            : "Aim for the selected reading level.";
+        var audienceLine = "Aim for the selected reading level.";
 
         switch ((readingLevel ?? "").Trim().ToLowerInvariant())
         {
@@ -167,31 +164,18 @@ Suggest a creative and whimsical children's book title based on a character name
                 tone = "soothing, playful, and rhythmic";
                 sentenceRule = "very short sentences (around 6–8 words)";
                 vocabHint = "very common sight words and familiar phrases";
-                if (readerAge.HasValue && readerAge <= 4)
-                {
-                    sentenceRule = "very short sentences (about 5–7 words)";
-                    vocabHint = "repetitive patterns and very common words";
-                }
                 break;
 
             case "early":
                 tone = "friendly and engaging";
                 sentenceRule = "short sentences (about 8–12 words)";
                 vocabHint = "age-appropriate vocabulary with simple connectors";
-                if (readerAge.HasValue && readerAge <= 6)
-                {
-                    sentenceRule = "short sentences (about 8–10 words)";
-                }
                 break;
 
             case "independent":
                 tone = "adventurous and lively";
                 sentenceRule = "mostly short sentences with occasional longer ones (10–14 words)";
                 vocabHint = "age-appropriate vocabulary with a few vivid verbs";
-                if (readerAge.HasValue && readerAge <= 8)
-                {
-                    sentenceRule = "short, lively sentences (about 10–12 words)";
-                }
                 break;
         }
 

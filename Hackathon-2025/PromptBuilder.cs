@@ -18,22 +18,20 @@ public static class PromptBuilder
     }
 
     /// <summary>
-    /// Image prompt that also considers reading level and optional reader age.
+    /// Image prompt that considers reading level (no reader age).
     /// </summary>
     public static string BuildImagePrompt(
         List<CharacterSpec> characters,
         string paragraph,
-        string? readingLevel,
-        int? readerAge = null)
+        string? readingLevel)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
 
-        var (visualMood, tone, agePhrase) = GetReadingProfile(readingLevel, readerAge);
+        var (visualMood, tone) = GetReadingProfile(readingLevel);
 
-        // Reuse existing ArtStyle and anchors, then add age/level guidance for the illustrator
-        // NOTE: We only influence the *style/mood* here—no character names/appearance beyond anchors.
-        return $"{ArtStyle} Use {visualMood}. Keep the tone {tone}. {agePhrase} {anchors} are {scene}.";
+        // We only influence the style/mood—no character names/appearance beyond anchors.
+        return $"{ArtStyle} Use {visualMood}. Keep the tone {tone}. {anchors} are {scene}.";
     }
 
     private static string GetCharacterAnchor(CharacterSpec character)
@@ -85,13 +83,10 @@ public static class PromptBuilder
     }
 
     /// <summary>
-    /// Maps readingLevel and optional readerAge to guidance we can inject into prompts.
+    /// Maps readingLevel to guidance we can inject into prompts.
     /// </summary>
-    private static (string VisualMood, string Tone, string AgePhrase) GetReadingProfile(string? readingLevel, int? readerAge)
+    private static (string VisualMood, string Tone) GetReadingProfile(string? readingLevel)
     {
-        // Age phrase for prompts (only when provided)
-        var agePhrase = readerAge.HasValue ? $"Make it age-appropriate for a {readerAge}-year-old child." : "Make it age-appropriate for the selected reading level.";
-
         // Defaults (covers null/unknown)
         string visualMood = "gentle, friendly, inviting visuals";
         string tone = "warm, comforting, imaginative";
@@ -115,7 +110,7 @@ public static class PromptBuilder
                 break;
         }
 
-        return (visualMood, tone, agePhrase);
+        return (visualMood, tone);
     }
 
     private static string BuildAnimalDescription(Dictionary<string, string> fields)
@@ -199,24 +194,23 @@ public static class PromptBuilder
         Depict: {anchors}, in a setting inspired by the theme: {theme}.
         """;
     }
+
     /// <summary>
-    /// Cover prompt that also considers reading level and optional reader age.
+    /// Cover prompt that considers reading level (no reader age).
     /// </summary>
     public static string BuildCoverPrompt(
         List<CharacterSpec> characters,
         string theme,
-        string? readingLevel,
-        int? readerAge = null)
+        string? readingLevel)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
-        var (visualMood, tone, agePhrase) = GetReadingProfile(readingLevel, readerAge);
+        var (visualMood, tone) = GetReadingProfile(readingLevel);
 
         return $"""
-    Children's book watercolor illustration in a consistent style. {agePhrase}
+    Children's book watercolor illustration in a consistent style.
     Use {visualMood}. Keep the tone {tone}.
     Show only the scene; no text, no logos, no book design elements.
     Depict: {anchors}, in a setting inspired by the theme: {theme}.
     """;
     }
-
 }

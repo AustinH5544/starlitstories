@@ -1,6 +1,4 @@
-﻿// "use client"
-
-import { useEffect, useRef, useState } from "react"
+﻿import { useEffect, useRef, useState } from "react"
 import { useAuth } from "../context/AuthContext"
 import StoryForm from "../components/StoryForm"
 import api from "../api"
@@ -16,7 +14,6 @@ const CreatePage = () => {
     const [error, setError] = useState(null)
 
     const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
-    const [readerAge, setReaderAge] = useState("")
     const [progress, setProgress] = useState(0)
     const [progressPhase, setProgressPhase] = useState("idle") // "idle" | "upload" | "generating" | "download" | "done"
     const [progressHint, setProgressHint] = useState("")
@@ -57,7 +54,7 @@ const CreatePage = () => {
         setStory(null)
         resetProgress()
 
-        const payload = { ...formData, readingLevel, readerAge: readerAge === "" ? null : Number(readerAge) }
+        const payload = { ...formData, readingLevel }
 
         try {
             // ---- Attempt SSE job flow ----
@@ -348,27 +345,10 @@ const CreatePage = () => {
                             value={readingLevel}
                             onChange={(e) => setReadingLevel(e.target.value)}
                         >
-                            <option value="pre">Pre-reader (ages 3–4)</option>
-                            <option value="early">Early reader (ages 5–6)</option>
-                            <option value="independent">Independent (ages 7–8)</option>
+                            <option value="pre">Pre-reader</option>
+                            <option value="early">Early reader</option>
+                            <option value="independent">Independent</option>
                         </select>
-                        <input
-                            type="number"
-                            inputMode="numeric"
-                            min={2}
-                            max={12}
-                            step={1}
-                            className="options-input"
-                            placeholder="Age (optional)"
-                            value={readerAge}
-                            onChange={(e) => {
-                                const v = e.target.value
-                                if (v === "") return setReaderAge("")
-                                const n = Math.max(2, Math.min(12, Number(v)))
-                                setReaderAge(Number.isNaN(n) ? "" : String(n))
-                            }}
-                            aria-label="Reader age (optional)"
-                        />
                         <span className="options-hint">Affects vocabulary and sentence length.</span>
                     </div>
                 )}
