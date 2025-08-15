@@ -10,6 +10,13 @@ const NavBar = () => {
     const location = useLocation()
     const [scrolled, setScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    const BASE = import.meta.env.BASE_URL;
+    const avatarFile = user?.profileImage || localStorage.getItem("avatar") || null;
+    const navAvatarSrc = avatarFile
+        ? (avatarFile.startsWith("http")
+            ? avatarFile
+            : `${BASE}avatars/${avatarFile}`)
+        : `${BASE}avatars/default-avatar.png`;
 
     // Handle scroll effect for navbar
     useEffect(() => {
@@ -60,26 +67,29 @@ const NavBar = () => {
                     </a>
                 </div>
 
-                <div className={`nav-right ${mobileMenuOpen ? "mobile-open" : ""}`}>
-                    {!user ? (
-                        <>
-                            <Link to="/login" className="login-button">
-                                Log In
-                            </Link>
-                            <Link to="/signup" className="signup-button">
-                                Sign Up
-                            </Link>
-                        </>
-                    ) : (
+                <div className="nav-right">
+                    {user ? (
                         <div className="user-menu">
-                            <Link to="/profile" className="profile-link">
-                                <div className="user-avatar">{user.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}</div>
-                                <span className="user-name">{user.displayName || "My Account"}</span>
-                            </Link>
-                            <button className="logout-button" onClick={logout}>
-                                Log Out
-                            </button>
+                            <a href="/profile" className="profile-link">
+                                <div className="user-avatar">
+                                    <img
+                                        src={navAvatarSrc}
+                                        alt="Profile"
+                                        style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+                                        onError={(e) => (e.currentTarget.style.display = "none")} // letter fallback shows if image fails
+                                    />
+                                </div>
+                                <span className="user-name">
+                                    {user.displayName || (user.email?.split("@")[0]) || "My Account"}
+                                </span>
+                            </a>
+                            <button className="logout-button" onClick={logout}>Logout</button>
                         </div>
+                    ) : (
+                        <>
+                            <a href="/login" className="login-button">Login</a>
+                            <a href="/signup" className="signup-button">Sign Up</a>
+                        </>
                     )}
                 </div>
 

@@ -9,6 +9,7 @@ public class User
     public string Membership { get; set; } = "free";
     public int BooksGenerated { get; set; } = 0;
     public DateTime LastReset { get; set; } = DateTime.UtcNow;
+    public string? ProfileImage { get; set; }
 
     // Password reset fields
     public string? PasswordResetToken { get; set; }

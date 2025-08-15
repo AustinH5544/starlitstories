@@ -36,9 +36,35 @@ public class ProfileController : ControllerBase
             user.Email,
             user.Membership,
             user.BooksGenerated,
-            user.LastReset
+            user.LastReset,
+            profileImage = user.ProfileImage
         });
     }
+
+    [Authorize]
+    [HttpPut("avatar")]
+    public async Task<IActionResult> UpdateAvatar([FromBody] AvatarDto dto)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var user = await _db.Users.FindAsync(int.Parse(userId));
+        if (user is null) return NotFound();
+
+        // If you only allow preset avatars, validate against a whitelist
+        var allowed = new HashSet<string>{
+        "wizard-avatar.png","princess-avatar.png","knight-avatar.png",
+        "whimsical-fairy-avatar.png","dragon-avatar.png","unicorn-avatar.png",
+        "pirate-avatar.png","astronaut-avatar.png","whimsical-mermaid-avatar.png",
+        "superhero-avatar.png","cat-avatar.png"
+    };
+        if (!allowed.Contains(dto.ProfileImage) && !Uri.IsWellFormedUriString(dto.ProfileImage, UriKind.Absolute))
+            return BadRequest("Invalid avatar");
+
+        user.ProfileImage = dto.ProfileImage;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    public record AvatarDto(string ProfileImage);
 
     // GET: api/profile/me/stories
     [Authorize]

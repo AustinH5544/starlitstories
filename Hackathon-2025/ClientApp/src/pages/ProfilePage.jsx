@@ -7,7 +7,8 @@ import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 
 const ProfilePage = () => {
-    const { user, logout } = useAuth()
+    //const { user, logout } = useAuth()
+    const { user, setUser } = useAuth();
     const [stories, setStories] = useState([])
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
@@ -18,34 +19,53 @@ const ProfilePage = () => {
 
     // ONE source of truth for the avatar (use public/avatars/default-avatar.png)
     const [selectedImage, setSelectedImage] = useState(
-        user?.profileImage || `${BASE}avatars/default-avatar.png`
-    )
+        user?.profileImage
+            ? `${BASE}avatars/${user.profileImage}`
+            : `${BASE}avatars/default-avatar.png`
+    );
+
     const [imgError, setImgError] = useState(false)
 
     const profileImages = [
-        `${BASE}avatars/wizard-avatar.png`,
-        `${BASE}avatars/princess-avatar.png`,
-        `${BASE}avatars/knight-avatar.png`,
-        `${BASE}avatars/whimsical-fairy-avatar.png`,
-        `${BASE}avatars/dragon-avatar.png`,
-        `${BASE}avatars/unicorn-avatar.png`,
-        `${BASE}avatars/pirate-avatar.png`,
-        `${BASE}avatars/astronaut-avatar.png`,
-        `${BASE}avatars/whimsical-mermaid-avatar.png`,
-        `${BASE}avatars/superhero-avatar.png`,
-        `${BASE}avatars/cat-avatar.png`,
+        "wizard-avatar.png",
+        "princess-avatar.png",
+        "knight-avatar.png",
+        "whimsical-fairy-avatar.png",
+        "dragon-avatar.png",
+        "unicorn-avatar.png",
+        "pirate-avatar.png",
+        "astronaut-avatar.png",
+        "whimsical-mermaid-avatar.png",
+        "superhero-avatar.png",
+        "cat-avatar.png",
     ]
 
-    const handleImageSelect = (imageUrl) => {
-        setSelectedImage(imageUrl)
-        setImgError(false)
-        setShowImageModal(false)
-    }
+    const handleImageSelect = async (fileName) => {
+        setSelectedImage(`${BASE}avatars/${fileName}`);
+        setImgError(false);
+        setShowImageModal(false);
+
+        try {
+            await api.put("profile/avatar", { profileImage: fileName }); // note: no leading slash if baseURL="/api"
+            localStorage.setItem("avatar", fileName);
+
+            setUser(u => (u ? { ...u, profileImage: fileName } : u));
+        } catch (e) {
+            console.error("Failed to save avatar", e);
+        }
+    };
+
+    useEffect(() => {
+        const file = user?.profileImage || localStorage.getItem("avatar") || "default-avatar.png";
+        const src = file.startsWith("http") ? file : `${BASE}avatars/${file}`;
+        setSelectedImage(src);
+        setImgError(false); // clear any previous error after switching image
+    }, [user?.profileImage, BASE]);
 
     useEffect(() => {
         const fetchStories = async () => {
             try {
-                const res = await api.get("/profile/me/stories")
+                const res = await api.get("profile/me/stories")
                 setStories(res.data)
             } catch (err) {
                 console.error("Error loading stories:", err)
@@ -86,7 +106,7 @@ const ProfilePage = () => {
                         <div className="user-avatar-large" onClick={() => setShowImageModal(true)}>
                             {!imgError ? (
                                 <img
-                                    src={selectedImage}
+                                    src={selectedImage || `${BASE}avatars/default-avatar.png`}
                                     alt="Profile"
                                     className="avatar-image"
                                     onError={() => setImgError(true)}
@@ -201,10 +221,10 @@ const ProfilePage = () => {
                                 {profileImages.map((imageUrl, i) => (
                                     <div
                                         key={i}
-                                        className={`image-option ${selectedImage === imageUrl ? "selected" : ""}`}
+                                        className={`image-option ${selectedImage.endsWith('/' + imageUrl) ? 'selected' : ''}`}
                                         onClick={() => handleImageSelect(imageUrl)}
                                     >
-                                        <img src={imageUrl} alt={`Avatar option ${i + 1}`} />
+                                        <img src={`${BASE}avatars/${imageUrl}`} alt={`Avatar option ${i + 1}`} />
                                     </div>
                                 ))}
                             </div>
