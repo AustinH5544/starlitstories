@@ -1,10 +1,12 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import "./LoginPage.css"
+
+const SESSION_KEY = "needsVerification"
 
 const LoginPage = () => {
     const [email, setEmail] = useState("")
@@ -16,36 +18,55 @@ const LoginPage = () => {
     const { login } = useAuth()
     const navigate = useNavigate()
 
+    // Restore "needs verification" on mount; clear it when leaving the page
+    useEffect(() => {
+        const persisted = sessionStorage.getItem(SESSION_KEY)
+        if (persisted === "true") setNeedsVerification(true)
+
+        return () => {
+            // Clear when navigating away so the banner doesn't stick across pages
+            sessionStorage.removeItem(SESSION_KEY)
+        }
+    }, [])
+
+    // Keep sessionStorage in sync while on this page
+    useEffect(() => {
+        sessionStorage.setItem(SESSION_KEY, needsVerification ? "true" : "false")
+    }, [needsVerification])
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setStatus("")
-        setNeedsVerification(false)
-        setIsLoading(true)
+        setIsLoading(true) // do NOT clear needsVerification here
 
         try {
-            const response = await api.post("/auth/login", {
-                email,
-                password,
-            })
+            const response = await api.post(
+                "/auth/login",
+                { email, password },
+                { skipAuth401Handler: true }
+            )
 
+            // successful login
             login(response.data)
+            // clear persisted flag on success
+            sessionStorage.removeItem(SESSION_KEY)
             navigate("/profile")
         } catch (err) {
             console.error(err)
 
             if (!err.response) {
-                // Covers cold starts, server down, network errors, etc.
                 setStatus("Unable to reach the server. Please try again in a moment.")
                 return
             }
 
-            const errorData = err.response.data
+            const data = err.response.data
 
-            if (errorData?.requiresVerification) {
+            if (data?.requiresVerification) {
                 setNeedsVerification(true)
                 setStatus("Please verify your email before logging in. Check your inbox for a verification link.")
             } else {
-                setStatus(errorData?.message || "Login failed. Please check your credentials.")
+                setNeedsVerification(false)
+                setStatus(data?.message || "Login failed. Please check your credentials.")
             }
         } finally {
             setIsLoading(false)
@@ -60,11 +81,13 @@ const LoginPage = () => {
 
         setIsLoading(true)
         try {
-            await api.post("/auth/resend-verification", {
-                email,
-            })
+            await api.post(
+                "/auth/resend-verification",
+                { email },
+                { skipAuth401Handler: true }
+            )
+            setNeedsVerification(true) // keep the banner/CTA visible
             setStatus("Verification email sent! Please check your inbox.")
-            setNeedsVerification(false)
         } catch (err) {
             console.error(err)
             setStatus("Failed to resend verification email. Please try again.")
@@ -74,8 +97,9 @@ const LoginPage = () => {
     }
 
     const getStatusClass = () => {
-        if (status.toLowerCase().includes("sent") || status.toLowerCase().includes("check your inbox")) return "success"
-        if (status.includes("failed") || status.includes("Failed") || status.includes("verify your email")) return "error"
+        const s = status.toLowerCase()
+        if (s.includes("sent") || s.includes("check your inbox")) return "success"
+        if (s.includes("failed") || s.includes("verify your email")) return "error"
         return "info"
     }
 

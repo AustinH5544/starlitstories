@@ -10,16 +10,42 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem("token");
     if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        // don't attach a stale token to auth endpoints that don't need it
+        const url = (config.url || '').toLowerCase();
+        const isAuthEndpoint =
+            url.includes('/auth/login') ||
+            url.includes('/auth/resend-verification') ||
+            url.includes('/auth/signup') ||
+            url.includes('/auth/verify-email') ||
+            url.includes('/auth/forgot-password') ||
+            url.includes('/auth/reset-password');
+
+        if (!isAuthEndpoint) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
     }
     return config;
 });
 
-// Auto-logout on 401 response
+// Auto-logout on 401 response, but skip for auth endpoints or when explicitly asked
 api.interceptors.response.use(
-    res => res,
-    err => {
-        if (err.response?.status === 401) {
+    (res) => res,
+    (err) => {
+        const status = err?.response?.status;
+        const cfg = err?.config || {};
+        const url = (cfg.url || '').toLowerCase();
+
+        const isAuthEndpoint =
+            url.includes('/auth/login') ||
+            url.includes('/auth/resend-verification') ||
+            url.includes('/auth/signup') ||
+            url.includes('/auth/verify-email') ||
+            url.includes('/auth/forgot-password') ||
+            url.includes('/auth/reset-password');
+
+        const skipRequested = Boolean(cfg.skipAuth401Handler);
+
+        if (status === 401 && !isAuthEndpoint && !skipRequested) {
             // Clear token and any persisted user data
             localStorage.removeItem("token");
             localStorage.removeItem("user");
