@@ -12,8 +12,6 @@ const CreatePage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [storyReady, setStoryReady] = useState(false)
     const [error, setError] = useState(null)
-
-    const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
     const [progress, setProgress] = useState(0)
     const [progressPhase, setProgressPhase] = useState("idle") // "idle" | "upload" | "generating" | "download" | "done"
     const [progressHint, setProgressHint] = useState("")
@@ -54,7 +52,7 @@ const CreatePage = () => {
         setStory(null)
         resetProgress()
 
-        const payload = { ...formData, readingLevel }
+        const payload = { ...formData }
 
         try {
             // ---- Attempt SSE job flow ----
@@ -334,24 +332,6 @@ const CreatePage = () => {
                         Tell us about your child and we'll craft a personalized bedtime adventure just for them
                     </p>
                 </div>
-
-                {/* Reading level control */}
-                {!isLoading && (
-                    <div className="options-row" role="group" aria-label="Story options">
-                        <label htmlFor="readingLevel" className="options-label">Reading level</label>
-                        <select
-                            id="readingLevel"
-                            className="options-select"
-                            value={readingLevel}
-                            onChange={(e) => setReadingLevel(e.target.value)}
-                        >
-                            <option value="pre">Pre-reader</option>
-                            <option value="early">Early reader</option>
-                            <option value="independent">Independent</option>
-                        </select>
-                        <span className="options-hint">Affects vocabulary and sentence length.</span>
-                    </div>
-                )}
 
                 {isFreeUserAtLimit ? (
                     <div className="upgrade-prompt">

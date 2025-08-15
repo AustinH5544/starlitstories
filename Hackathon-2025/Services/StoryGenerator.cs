@@ -78,9 +78,9 @@ Each paragraph should represent a different scene in the story.
 
         var paragraphs = storyText!.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
 
-        // Keep your existing async scene prompt builder as-is
         var imagePromptTasks = paragraphs
-            .Select(p => PromptBuilder.BuildImagePromptWithSceneAsync(request.Characters, p, _httpClient, _apiKey))
+            .Select(p => PromptBuilder.BuildImagePromptWithSceneAsync(
+                request.Characters, p, _httpClient, _apiKey, request.ArtStyle))
             .ToList();
 
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
@@ -103,7 +103,8 @@ Each paragraph should represent a different scene in the story.
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
             request.Characters,
             request.Theme,
-            request.ReadingLevel
+            request.ReadingLevel,
+            request.ArtStyle
         );
 
         var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];

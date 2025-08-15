@@ -34,6 +34,21 @@ public static class PromptBuilder
         return $"{ArtStyle} Use {visualMood}. Keep the tone {tone}. {anchors} are {scene}.";
     }
 
+    private static string GetArtStyle(string? key)
+    {
+        var k = (key ?? "watercolor").Trim().ToLowerInvariant();
+        return k switch
+        {
+            "comic" => "Children's comic style. Bold clean outlines. Flat bright colors. Exaggerated expressions. No text. No logos. No UI.",
+            "crayon" => "Crayon drawing style. Waxy texture. Child-like strokes. Soft colors. No text. No logos. No UI.",
+            "papercut" => "Paper cutout collage style. Flat layered shapes. Soft shadows. No outlines. No text. No logos. No UI.",
+            "toy3d" => "3D toy render style. Soft lighting. Plush/plastic look. Gentle colors. No text. No logos. No UI.",
+            "pixel" => "Pixel art style. Low resolution mosaic look. Clear silhouettes. No text. No logos. No UI.",
+            "inkwash" => "Ink and wash style. Minimal lines. Soft washes. Calming mood. No text. No logos. No UI.",
+            _ => "Children's book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI."
+        };
+    }
+
     private static string GetCharacterAnchor(CharacterSpec character)
     {
         var description = character.IsAnimal
@@ -141,13 +156,16 @@ public static class PromptBuilder
     }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
-        List<CharacterSpec> characters,
-        string paragraph,
-        HttpClient httpClient,
-        string apiKey)
+    List<CharacterSpec> characters,
+    string paragraph,
+    HttpClient httpClient,
+    string apiKey,
+    string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
+        var style = GetArtStyle(artStyleKey);
 
+        // (same scene summarization call as you have today):contentReference[oaicite:3]{index=3}
         var userPrompt = $"""
         Summarize the following story paragraph into a short visual scene that can be used in an illustration. 
         Describe only what the characters are doing and what the environment looks like. 
@@ -182,18 +200,26 @@ public static class PromptBuilder
         var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
         var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
 
-        return $"{ArtStyle} {anchors} are {scene}.";
+        return $"{style} {anchors} are {scene}.";
     }
 
-    public static string BuildCoverPrompt(List<CharacterSpec> characters, string theme)
+    public static string BuildCoverPrompt(
+    List<CharacterSpec> characters,
+    string theme,
+    string? readingLevel,
+    string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
-        return $"""
-        Children's book watercolor illustration in a consistent art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body characters. Centered. Front-facing. Flat background. No text. No logos. No UI elements. No titles. No visual aids. No swatches. No book elements. Do not include any design features. Only illustrate the scene.
+        var (visualMood, tone) = GetReadingProfile(readingLevel);
+        var style = GetArtStyle(artStyleKey);
 
-        Depict: {anchors}, in a setting inspired by the theme: {theme}.
-        """;
+        return $"""
+            {style} Use {visualMood}. Keep the tone {tone}.
+            Show only the scene; no text, no logos, no book design elements.
+            Depict: {anchors}, in a setting inspired by the theme: {theme}.
+            """;
     }
+
 
     /// <summary>
     /// Cover prompt that considers reading level (no reader age).

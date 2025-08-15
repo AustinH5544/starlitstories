@@ -6,6 +6,9 @@ import "./StoryForm.css"
 
 const StoryForm = ({ onSubmit }) => {
     const { user } = useAuth()
+    const isFree = user?.membership === "free"
+    const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
+    const [artStyle, setArtStyle] = useState("watercolor")
     const [theme, setTheme] = useState("")
     const [characters, setCharacters] = useState([
         {
@@ -148,7 +151,12 @@ const StoryForm = ({ onSubmit }) => {
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
         }))
-        onSubmit({ theme, characters: processedCharacters })
+        onSubmit({
+            theme,
+            readingLevel,
+            artStyle,
+            characters: processedCharacters,
+        })
     }
 
     const renderDropdownWithCustom = (index, field, label, options = []) => {
@@ -188,33 +196,82 @@ const StoryForm = ({ onSubmit }) => {
 
     return (
         <form onSubmit={handleSubmit} className="story-form">
+            {/* Reading/Art section */}
             <div className="form-section">
                 <h3 className="section-title">
-                    <span className="section-icon">🎭</span>
-                    Story Theme
+                    <span className="section-icon">📚</span>
+                    Reading Level & Art Style
                 </h3>
-                <div className="field-group">
-                    <label className="field-label">Choose your adventure</label>
-                    <div className="dual-input-container">
+
+                <div className="dual-input-container">
+                    <div className="field-group">
+                        <label className="field-label">Reading Level</label>
                         <select
-                            value={defaultThemes.includes(theme) ? theme : ""}
-                            onChange={(e) => setTheme(e.target.value)}
                             className="form-select"
-                            disabled={theme.trim() !== "" && !defaultThemes.includes(theme)}
+                            value={readingLevel}
+                            onChange={(e) => setReadingLevel(e.target.value)}
                         >
-                            <option value="">Select Theme</option>
-                            {defaultThemes.map((t) => (
-                                <option key={t} value={t}>
-                                    {t}
-                                </option>
-                            ))}
+                            <option value="pre">Pre-reader</option>
+                            <option value="early">Early reader</option>
+                            <option value="independent">Independent</option>
                         </select>
-                        <input
-                            placeholder="Or create your own theme"
-                            value={!defaultThemes.includes(theme) ? theme : ""}
-                            onChange={(e) => setTheme(e.target.value)}
-                            className="form-input"
-                        />
+                    </div>
+
+                    <div className="field-group">
+                        <label className="field-label">
+                            Art Style{" "}
+                            {isFree && (
+                                <span className="badge-locked" aria-hidden="true">
+                                    🔒 Members only
+                                </span>
+                            )}
+                        </label>
+
+                        <select
+                            className={`form-select ${isFree ? "art-style-locked" : ""}`}
+                            value={artStyle}
+                            onChange={(e) => {
+                                const v = e.target.value
+                                if (isFree && v !== "watercolor") {
+                                    setArtStyle("watercolor")
+                                    return
+                                }
+                                setArtStyle(v)
+                            }}
+                            title={isFree ? "Upgrade to unlock more art styles" : undefined}
+                        >
+                            <option value="watercolor">
+                                Watercolor {isFree ? "(included)" : ""}
+                            </option>
+
+                            <option value="comic" disabled={isFree}>
+                                {isFree ? "🔒 Comic (bold lines)" : "Comic (bold lines)"}
+                            </option>
+                            <option value="crayon" disabled={isFree}>
+                                {isFree ? "🔒 Crayon (kid-like)" : "Crayon (kid-like)"}
+                            </option>
+                            <option value="papercut" disabled={isFree}>
+                                {isFree ? "🔒 Paper cutout (flat)" : "Paper cutout (flat)"}
+                            </option>
+                            <option value="toy3d" disabled={isFree}>
+                                {isFree ? "🔒 3D toy render" : "3D toy render"}
+                            </option>
+                            <option value="pixel" disabled={isFree}>
+                                {isFree ? "🔒 Pixel art (retro)" : "Pixel art (retro)"}
+                            </option>
+                            <option value="inkwash" disabled={isFree}>
+                                {isFree ? "🔒 Ink & wash (minimal)" : "Ink & wash (minimal)"}
+                            </option>
+                        </select>
+
+                        {isFree && (
+                            <>
+                                <p className="style-lock-hint">
+                                    Watercolor is included on the Free plan.{" "}
+                                    <a href="/upgrade">Upgrade</a> to unlock every style.
+                                </p>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
