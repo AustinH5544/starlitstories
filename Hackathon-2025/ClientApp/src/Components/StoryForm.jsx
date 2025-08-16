@@ -275,6 +275,36 @@ const StoryForm = ({ onSubmit }) => {
                     </div>
                 </div>
             </div>
+            <div className="form-section">
+                <h3 className="section-title">
+                    <span className="section-icon">🎭</span>
+                    Story Theme
+                </h3>
+
+                <div className="field-group">
+                    <label className="field-label">Choose your adventure</label>
+                    <div className="dual-input-container">
+                        <select
+                            value={defaultThemes.includes(theme) ? theme : ""}
+                            onChange={(e) => setTheme(e.target.value)}
+                            className="form-select"
+                            disabled={theme.trim() !== "" && !defaultThemes.includes(theme)}
+                        >
+                            <option value="">Select Theme</option>
+                            {defaultThemes.map((t) => (
+                                <option key={t} value={t}>{t}</option>
+                            ))}
+                        </select>
+
+                        <input
+                            placeholder="Or create your own theme"
+                            value={!defaultThemes.includes(theme) ? theme : ""}
+                            onChange={(e) => setTheme(e.target.value)}
+                            className="form-input"
+                        />
+                    </div>
+                </div>
+            </div>
 
             {characters.map((char, i) => (
                 <div key={i} className="character-card">
