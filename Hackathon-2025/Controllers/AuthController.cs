@@ -31,8 +31,8 @@ public class AuthController : ControllerBase
     [HttpPost("signup")]
     public async Task<IActionResult> Signup(AuthRequest request)
     {
-        if (_db.Users.Any(u => u.Email == request.Email))
-            return BadRequest("Email already in use.");
+        if (await _db.Users.AnyAsync(u => u.Email == request.Email))
+            return BadRequest(new { message = "Email already in use." });
 
         var user = new User
         {
@@ -61,11 +61,11 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> VerifyEmail(VerifyEmailRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u =>
-            u.EmailVerificationToken != null &&
+            u.EmailVerificationToken == request.Token &&
             u.EmailVerificationExpires > DateTime.UtcNow);
 
-        if (user == null || !SlowEquals(user.EmailVerificationToken!, request.Token))
-            return BadRequest("Invalid or expired verification token.");
+        if (user == null)
+            return BadRequest(new { message = "Invalid or expired verification token." });
 
         user.IsEmailVerified = true;
         user.EmailVerificationToken = null;
@@ -74,13 +74,7 @@ public class AuthController : ControllerBase
         await _db.SaveChangesAsync();
 
         var token = GenerateJwtToken(user);
-        return Ok(new
-        {
-            message = "Email verified successfully!",
-            token,
-            email = user.Email,
-            membership = user.Membership
-        });
+        return Ok(new { message = "Email verified successfully!", token, email = user.Email, membership = user.Membership });
     }
 
     [HttpPost("resend-verification")]
@@ -92,7 +86,7 @@ public class AuthController : ControllerBase
             return Ok(new { message = "If an account with that email exists, we've sent a verification email." });
 
         if (user.IsEmailVerified)
-            return BadRequest("Email is already verified.");
+            return BadRequest(new { message = "Email is already verified." });
 
         user.EmailVerificationToken = Guid.NewGuid().ToString();
         user.EmailVerificationExpires = DateTime.UtcNow.AddDays(1);
@@ -152,7 +146,7 @@ public class AuthController : ControllerBase
             u.PasswordResetExpires > DateTime.UtcNow);
 
         if (user == null || !SlowEquals(user.PasswordResetToken, request.Token))
-            return BadRequest("Invalid or expired reset token.");
+            return BadRequest(new { message = "Invalid or expired reset token." });
 
         user.PasswordHash = _hasher.HashPassword(user, request.NewPassword);
         user.PasswordResetToken = null;

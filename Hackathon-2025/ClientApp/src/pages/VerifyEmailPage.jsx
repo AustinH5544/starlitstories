@@ -23,28 +23,32 @@ const VerifyEmailPage = () => {
         if (email && token) {
             verifyEmail()
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [email, token])
 
     const verifyEmail = async () => {
         setIsVerifying(true)
         try {
-            const response = await api.post("/auth/verify-email", {
-                token
-            })
+            // Backend currently validates by token; sending email is harmless and future-proof
+            const response = await api.post(
+                "/auth/verify-email",
+                { email, token },
+                { skipAuth401Handler: true }
+            )
 
             setStatus("Email verified successfully! Redirecting to your dashboard...")
             setVerificationComplete(true)
 
-            // Log the user in automatically
+            // Log the user in automatically (your VerifyEmail returns token/email/membership)
             login(response.data)
 
-            // Redirect after a short delay
             setTimeout(() => {
-                navigate("/profile")
-            }, 2000)
+                navigate("/profile", { replace: true })
+            }, 1500)
         } catch (err) {
             console.error(err)
-            setStatus(err.response?.data?.message || "Verification failed. The link may be invalid or expired.")
+            const msg = err?.response?.data?.message || "Verification failed. The link may be invalid or expired."
+            setStatus(msg)
         } finally {
             setIsVerifying(false)
         }
@@ -58,21 +62,25 @@ const VerifyEmailPage = () => {
 
         setIsResending(true)
         try {
-            await api.post("http://localhost:5275/api/auth/resend-verification", {
-                email,
-            })
+            await api.post(
+                "/auth/resend-verification",
+                { email },
+                { skipAuth401Handler: true }
+            )
             setStatus("Verification email sent! Please check your inbox.")
         } catch (err) {
             console.error(err)
-            setStatus(err.response?.data?.message || "Failed to resend verification email.")
+            const msg = err?.response?.data?.message || "Failed to resend verification email."
+            setStatus(msg)
         } finally {
             setIsResending(false)
         }
     }
 
     const getStatusClass = () => {
+        const s = status.toLowerCase()
         if (verificationComplete) return "success"
-        if (status.includes("failed") || status.includes("invalid") || status.includes("expired")) return "error"
+        if (s.includes("failed") || s.includes("invalid") || s.includes("expired")) return "error"
         return "info"
     }
 

@@ -18,7 +18,8 @@ public class EmailService : IEmailService
     public async Task SendVerificationEmailAsync(string email, string verificationToken)
     {
         var subject = "Verify Your Email - Bedtime Stories";
-        var verificationUrl = $"{_config["App:BaseUrl"]}/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(verificationToken)}";
+        var baseUrl = (_config["App:BaseUrl"] ?? "").TrimEnd('/');
+        var verificationUrl = $"{baseUrl}/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(verificationToken)}";
 
         var body = $@"
             <html>
@@ -27,7 +28,7 @@ public class EmailService : IEmailService
                     <h1 style='color: #4f46e5; margin-bottom: 10px;'>Welcome to Bedtime Stories! 📚</h1>
                     <p style='color: #6b7280; font-size: 16px;'>Please verify your email address to get started</p>
                 </div>
-                
+
                 <div style='background: #f9fafb; padding: 30px; border-radius: 10px; margin-bottom: 30px;'>
                     <p style='color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 20px;'>
                         Hi there! 👋
@@ -35,20 +36,20 @@ public class EmailService : IEmailService
                     <p style='color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 20px;'>
                         Thank you for signing up for Bedtime Stories! To complete your registration and start creating magical stories for your little ones, please verify your email address by clicking the button below.
                     </p>
-                    
+
                     <div style='text-align: center; margin: 30px 0;'>
-                        <a href='{verificationUrl}' 
+                        <a href='{verificationUrl}'
                            style='background: #4f46e5; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;'>
                             ✨ Verify My Email
                         </a>
                     </div>
-                    
+
                     <p style='color: #6b7280; font-size: 14px; line-height: 1.6;'>
                         If the button doesn't work, you can copy and paste this link into your browser:<br>
                         <a href='{verificationUrl}' style='color: #4f46e5; word-break: break-all;'>{verificationUrl}</a>
                     </p>
                 </div>
-                
+
                 <div style='text-align: center; color: #6b7280; font-size: 14px;'>
                     <p>This verification link will expire in 24 hours.</p>
                     <p>If you didn't create an account with us, please ignore this email.</p>
@@ -62,7 +63,8 @@ public class EmailService : IEmailService
     public async Task SendPasswordResetEmailAsync(string email, string resetToken)
     {
         var subject = "Reset Your Password - Bedtime Stories";
-        var resetUrl = $"{_config["App:BaseUrl"]}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(resetToken)}";
+        var baseUrl = (_config["App:BaseUrl"] ?? "").TrimEnd('/');
+        var resetUrl = $"{baseUrl}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(resetToken)}";
 
         var body = $@"
             <html>
@@ -71,7 +73,7 @@ public class EmailService : IEmailService
                     <h1 style='color: #4f46e5; margin-bottom: 10px;'>Password Reset Request 🔐</h1>
                     <p style='color: #6b7280; font-size: 16px;'>Reset your Bedtime Stories password</p>
                 </div>
-                
+
                 <div style='background: #f9fafb; padding: 30px; border-radius: 10px; margin-bottom: 30px;'>
                     <p style='color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 20px;'>
                         Hi there! 👋
@@ -79,20 +81,20 @@ public class EmailService : IEmailService
                     <p style='color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 20px;'>
                         We received a request to reset your password for your Bedtime Stories account. Click the button below to create a new password.
                     </p>
-                    
+
                     <div style='text-align: center; margin: 30px 0;'>
-                        <a href='{resetUrl}' 
+                        <a href='{resetUrl}'
                            style='background: #dc2626; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;'>
                             🔑 Reset My Password
                         </a>
                     </div>
-                    
+
                     <p style='color: #6b7280; font-size: 14px; line-height: 1.6;'>
                         If the button doesn't work, you can copy and paste this link into your browser:<br>
                         <a href='{resetUrl}' style='color: #4f46e5; word-break: break-all;'>{resetUrl}</a>
                     </p>
                 </div>
-                
+
                 <div style='text-align: center; color: #6b7280; font-size: 14px;'>
                     <p>This reset link will expire in 1 hour.</p>
                     <p>If you didn't request a password reset, please ignore this email.</p>
