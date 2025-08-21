@@ -54,20 +54,48 @@ const LoginPage = () => {
         } catch (err) {
             console.error(err)
 
+            // --- Network / cold start / gateway errors ---
+            // Axios "no response" (e.g., DNS fail, CORS block, server cold start)
             if (!err.response) {
-                setStatus("Unable to reach the server. Please try again in a moment.")
+                // Axios may set code to ECONNABORTED on timeout
+                if (err.code === "ECONNABORTED") {
+                    setStatus("Our servers are waking up. Please try again in a few seconds.")
+                } else {
+                    setStatus("We couldn’t reach the server. It may be starting up—please try again shortly.")
+                }
                 return
             }
 
-            const data = err.response.data
+            const { status, data } = err.response
 
+            // Gateway / server warming / transient backend errors
+            if ([502, 503, 504, 522, 523, 524].includes(status)) {
+                setStatus("Server is starting up or temporarily unavailable. Please try again in a moment.")
+                return
+            }
+
+            // Email verification flow
             if (data?.requiresVerification) {
                 setNeedsVerification(true)
                 setStatus("Please verify your email before logging in. Check your inbox for a verification link.")
-            } else {
+                return
+            }
+
+            // Auth errors (bad credentials, 401/403) — fall back to API message if present
+            if (status === 401 || status === 403) {
                 setNeedsVerification(false)
                 setStatus(data?.message || "Login failed. Please check your credentials.")
+                return
             }
+
+            // Generic fallback for other 4xx
+            if (status >= 400 && status < 500) {
+                setStatus(data?.message || "Login failed. Please check your input and try again.")
+                return
+            }
+
+            // Any other unexpected status
+            setStatus("Unexpected error while signing in. Please try again.")
         } finally {
             setIsLoading(false)
         }
