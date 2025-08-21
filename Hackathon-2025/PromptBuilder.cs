@@ -7,31 +7,32 @@ namespace Hackathon_2025.Services;
 
 public static class PromptBuilder
 {
-    private static string ArtStyle =>
+    private static string GetDefaultArtStyle() =>
     "Children's book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene. The characters must appear visually consistent in every image.";
 
-    public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph)
+    public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph, string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
-        return $"{ArtStyle} {anchors} are {scene}.";
+        var style = GetArtStyle(artStyleKey);
+        return $"{style} {anchors} are {scene}.";
     }
 
     /// <summary>
     /// Image prompt that considers reading level (no reader age).
     /// </summary>
     public static string BuildImagePrompt(
-        List<CharacterSpec> characters,
-        string paragraph,
-        string? readingLevel)
+    List<CharacterSpec> characters,
+    string paragraph,
+    string? readingLevel,
+    string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
-
         var (visualMood, tone) = GetReadingProfile(readingLevel);
+        var style = GetArtStyle(artStyleKey);
 
-        // We only influence the style/mood—no character names/appearance beyond anchors.
-        return $"{ArtStyle} Use {visualMood}. Keep the tone {tone}. {anchors} are {scene}.";
+        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} are {scene}.";
     }
 
     private static string GetArtStyle(string? key)
