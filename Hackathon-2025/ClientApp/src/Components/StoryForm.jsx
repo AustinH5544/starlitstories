@@ -151,10 +151,13 @@ const StoryForm = ({ onSubmit }) => {
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
         }))
+
+        const finalArtStyle = isFree ? "watercolor" : artStyle
+
         onSubmit({
             theme,
             readingLevel,
-            artStyle,
+            artStyle: finalArtStyle,
             characters: processedCharacters,
         })
     }
@@ -233,10 +236,11 @@ const StoryForm = ({ onSubmit }) => {
                             onChange={(e) => {
                                 const v = e.target.value
                                 if (isFree && v !== "watercolor") {
+                                    alert("Upgrade to unlock this style!")
                                     setArtStyle("watercolor")
-                                    return
+                                } else {
+                                    setArtStyle(v)
                                 }
-                                setArtStyle(v)
                             }}
                             title={isFree ? "Upgrade to unlock more art styles" : undefined}
                         >

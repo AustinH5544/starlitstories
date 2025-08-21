@@ -49,6 +49,52 @@ public static class PromptBuilder
         };
     }
 
+    public static async Task<string> BuildImagePromptAsync(
+    List<CharacterSpec> characters,
+    string paragraph,
+    HttpClient httpClient,
+    string apiKey,
+    string? artStyleKey)
+    {
+        // 1) Clean once up front (used by both primary & fallback paths)
+        paragraph = CleanForModel(paragraph);
+
+        // 2) Bounded retries for transient failures
+        const int maxAttempts = 2;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                // Preferred: AI scene summarization (your existing method)
+                // -> PromptBuilder.BuildImagePromptWithSceneAsync(...)
+                return await BuildImagePromptWithSceneAsync(
+                    characters, paragraph, httpClient, apiKey, artStyleKey); // :contentReference[oaicite:0]{index=0}
+            }
+            catch when (attempt < maxAttempts)
+            {
+                await Task.Delay(300 * attempt); // simple backoff
+            }
+        }
+
+        // 3) Fallback: keyword heuristic if API keeps failing
+        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor)); // :contentReference[oaicite:1]{index=1}
+        var style = GetArtStyle(artStyleKey);                                     // :contentReference[oaicite:2]{index=2}
+
+        var scene = string.IsNullOrWhiteSpace(paragraph)
+            ? "posing for a simple portrait in a calm setting"
+            : SummarizeScene(paragraph);                                          // :contentReference[oaicite:3]{index=3}
+
+        return $"{style} {anchors} are {scene}.";
+    }
+
+    private static string CleanForModel(string s, int maxLen = 800)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "";
+        s = s.Replace("\r", " ").Replace("\n", " ").Trim();
+        return s.Length > maxLen ? s[..maxLen] : s;
+    }
+
+
     private static string GetCharacterAnchor(CharacterSpec character)
     {
         var description = character.IsAnimal

@@ -78,11 +78,9 @@ Each paragraph should represent a different scene in the story.
 
         var paragraphs = storyText!.Split(new[] { "\n\n" }, StringSplitOptions.RemoveEmptyEntries);
 
-        var imagePromptTasks = paragraphs
-            .Select(p => PromptBuilder.BuildImagePromptWithSceneAsync(
-                request.Characters, p, _httpClient, _apiKey, request.ArtStyle))
-            .ToList();
-
+        var imagePromptTasks = paragraphs.Select(p =>
+            PromptBuilder.BuildImagePromptAsync(request.Characters, p, _httpClient, _apiKey, request.ArtStyle));
+        
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
         var storyPages = new List<StoryPage>();
