@@ -51,6 +51,15 @@ public class StoryController : ControllerBase
         if (limitExceeded?.exceeded == true)
             return StatusCode(403, limitExceeded.Value.message!);
 
+        // Enforce page count by membership
+        request.PageCount = (user.Membership ?? "").ToLowerInvariant() switch
+        {
+            "free" => 4,   // 4 story pages + 1 cover
+            "pro" => 8,   // 8 story pages + 1 cover
+            "premium" => 12,  // 12 story pages + 1 cover
+            _ => 4
+        };
+
         // Generate the story
         var result = await _storyService.GenerateFullStoryAsync(request);
 
@@ -106,12 +115,21 @@ public class StoryController : ControllerBase
 
         var now = DateTime.UtcNow;
 
-        // Check/Reset monthly limits up front (same as single-call)
+        // Check/Reset monthly limits up front
         var limitExceeded = await CheckAndMaybeResetLimitsAsync(user, now);
         if (limitExceeded?.exceeded == true)
             return StatusCode(403, limitExceeded.Value.message!);
 
-        // Create a job and run in background with a fresh DI scope (so DbContext isn't disposed)
+        // Enforce page count by membership
+        request.PageCount = (user.Membership ?? "").ToLowerInvariant() switch
+        {
+            "free" => 4,
+            "pro" => 8,
+            "premium" => 12,
+            _ => 4
+        };
+
+        // Create a job and run in background with a fresh DI scope
         var jobId = _progress.CreateJob();
 
         _ = Task.Run(async () =>
@@ -135,9 +153,9 @@ public class StoryController : ControllerBase
                     return;
                 }
 
-                // 1) Generate (coarse progress unless your service reports progress itself)
+                // 1) Generate
                 _progress.Publish(jobId, new ProgressUpdate { Stage = "text", Percent = 15, Message = "Writing your story…" });
-                var result = await scopedGenerator.GenerateFullStoryAsync(request); // if you add progress inside the service, the bar will be even smoother
+                var result = await scopedGenerator.GenerateFullStoryAsync(request);
 
                 // 2) Upload cover
                 _progress.Publish(jobId, new ProgressUpdate { Stage = "image", Percent = 30, Message = "Preparing images…", Index = 0, Total = result.Pages.Count });
@@ -145,7 +163,7 @@ public class StoryController : ControllerBase
                 var coverBlobUrl = await scopedBlob.UploadImageAsync(result.CoverImageUrl, coverFileName);
                 result.CoverImageUrl = coverBlobUrl;
 
-                // 3) Upload page images with incremental progress (30% → 95%)
+                // 3) Upload page images with incremental progress
                 var total = Math.Max(1, result.Pages.Count);
                 for (int i = 0; i < result.Pages.Count; i++)
                 {

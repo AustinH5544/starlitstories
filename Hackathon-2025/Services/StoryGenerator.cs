@@ -28,11 +28,12 @@ public class StoryGenerator : IStoryGeneratorService
     {
         var characterList = string.Join(", ", request.Characters.Select(c => $"{c.Name} the {c.Role}"));
 
-        // --- NEW: derive friendly style guidance from readingLevel only
         var style = BuildReadingStyle(request.ReadingLevel);
 
+        var pageCount = request.PageCount ?? 8;
+
         var prompt = $"""
-Write a complete children's story in 8 paragraphs featuring these characters: {characterList}.
+Write a complete children's story in {pageCount} paragraphs featuring these characters: {characterList}.
 They go on an adventure involving {request.Theme}. The reader already knows what the characters look like,
 so do not describe their appearance, clothing, or physical features.
 
