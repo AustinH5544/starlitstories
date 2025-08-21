@@ -15,6 +15,7 @@ const CreatePage = () => {
     const [progress, setProgress] = useState(0)
     const [progressPhase, setProgressPhase] = useState("idle") // "idle" | "upload" | "generating" | "download" | "done"
     const [progressHint, setProgressHint] = useState("")
+    const [lastFormData, setLastFormData] = useState(null)
 
     const { profile: userProfile, loading: profileLoading, error: profileError } = useUserProfile()
     const navigate = useNavigate()
@@ -46,6 +47,7 @@ const CreatePage = () => {
      * If any step fails (endpoint not found, SSE blocked, etc.), fall back to the single-call flow.
      */
     const generateStory = async (formData) => {
+        setLastFormData(formData);
         setIsLoading(true)
         setStoryReady(false)
         setError(null)
@@ -379,6 +381,15 @@ const CreatePage = () => {
                                 <div className="error-icon">😔</div>
                                 <p className="create-error">{error}</p>
                                 <p className="error-subtext">Please try again or contact support if the problem persists</p>
+                                <button
+                                    onClick={() => lastFormData && generateStory(lastFormData)}
+                                    disabled={!lastFormData}
+                                    className="retry-btn"
+                                    aria-disabled={!lastFormData}
+                                    title={!lastFormData ? "Submit the form once before retrying" : undefined}
+                                >
+                                    🔄 Retry
+                                </button>
                             </div>
                         )}
                     </div>

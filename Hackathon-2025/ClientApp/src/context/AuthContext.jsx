@@ -1,5 +1,5 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
-// import api from "../api" // <-- optional if you want auto-hydration shown below
+import api from "../api";
 
 const AuthContext = createContext();
 
@@ -19,23 +19,27 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("token");
     };
 
-    // OPTIONAL: hydrate user after refresh using the token
-    // useEffect(() => {
-    //   if (!token) return;
-    //   (async () => {
-    //     try {
-    //       const { data } = await api.get("profile/me");
-    //       setUser({
-    //         email: data.email,
-    //         membership: data.membership,
-    //         profileImage: data.profileImage,
-    //         name: data.name,
-    //       });
-    //     } catch (e) {
-    //       console.error("Failed to load profile", e);
-    //     }
-    //   })();
-    // }, [token]);
+    useEffect(() => {
+        if (!token) return;
+        (async () => {
+            try {
+                // Skip auto-logout redirect if this returns 401 so we can handle it gracefully here
+                const { data } = await api.get("profile/me", { skipAuth401Handler: true });
+                setUser({
+                    email: data.email,
+                    membership: data.membership,
+                    name: data.name,
+                    profileImage: data.profileImage,
+                });
+            } catch (e) {
+                console.error("Failed to load profile", e);
+                // Optional: if unauthorized, clear token and go to login
+                localStorage.removeItem("token");
+                setToken(null);
+                // window.location.href = "/login";
+            }
+        })();
+    }, [token]);
 
     return (
         <AuthContext.Provider value={{ user, setUser, token, login, logout }}>

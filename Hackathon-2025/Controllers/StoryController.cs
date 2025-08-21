@@ -60,15 +60,17 @@ public class StoryController : ControllerBase
         result.CoverImageUrl = coverBlobUrl;
 
         // Upload each page image
-        for (int i = 0; i < result.Pages.Count; i++)
+        var uploadTasks = result.Pages.Select(async (p, i) =>
         {
-            if (!string.IsNullOrEmpty(result.Pages[i].ImageUrl))
+            if (!string.IsNullOrEmpty(p.ImageUrl))
             {
                 var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
-                var blobUrl = await _blobService.UploadImageAsync(result.Pages[i].ImageUrl!, pageFileName);
-                result.Pages[i].ImageUrl = blobUrl;
+                var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
+                p.ImageUrl = blobUrl;
             }
-        }
+        }).ToList();
+
+        await Task.WhenAll(uploadTasks);
 
         // Save story to database
         var story = new Story

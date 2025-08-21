@@ -7,11 +7,11 @@ import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 
 const ProfilePage = () => {
-    //const { user, logout } = useAuth()
     const { user, setUser } = useAuth();
     const [stories, setStories] = useState([])
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
+    const [avatarVersion, setAvatarVersion] = useState(0);
 
     const BASE = import.meta.env.BASE_URL
 
@@ -41,26 +41,22 @@ const ProfilePage = () => {
     ]
 
     const handleImageSelect = async (fileName) => {
-        setSelectedImage(`${BASE}avatars/${fileName}`);
-        setImgError(false);
         setShowImageModal(false);
-
         try {
-            await api.put("profile/avatar", { profileImage: fileName }); // note: no leading slash if baseURL="/api"
-            localStorage.setItem("avatar", fileName);
-
+            await api.put("profile/avatar", { profileImage: fileName });
             setUser(u => (u ? { ...u, profileImage: fileName } : u));
+            setAvatarVersion(v => v + 1); // <- bust cache
         } catch (e) {
             console.error("Failed to save avatar", e);
         }
     };
 
     useEffect(() => {
-        const file = user?.profileImage || localStorage.getItem("avatar") || "default-avatar.png";
-        const src = file.startsWith("http") ? file : `${BASE}avatars/${file}`;
-        setSelectedImage(src);
-        setImgError(false); // clear any previous error after switching image
-    }, [user?.profileImage, BASE]);
+        const file = user?.profileImage || "default-avatar.png";
+        const baseSrc = file.startsWith("http") ? file : `${BASE}avatars/${file}`;
+        setSelectedImage(`${baseSrc}?v=${avatarVersion}`);
+        setImgError(false);
+    }, [user?.profileImage, BASE, avatarVersion]);
 
     useEffect(() => {
         const fetchStories = async () => {
