@@ -291,3 +291,39 @@
         flex-direction: column;
     }
 }
+
+.mobile-user-avatar {
+    display: none;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.mobile-user-avatar img {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid white;
+}
+
+    .mobile-user-avatar a {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-decoration: none;
+    }
+
+.mobile-user-name {
+    color: white;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+/* Only show in mobile menu */
+@media (max-width: 768px) {
+    .mobile-user-avatar {
+        display: flex;
+    }
+}
