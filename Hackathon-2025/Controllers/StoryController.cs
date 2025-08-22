@@ -44,21 +44,37 @@ public class StoryController : ControllerBase
         var user = await GetAndValidateUserAsync();
         if (user is null) return Unauthorized("Invalid or missing user ID in token.");
 
+        var membership = (user.Membership ?? "").ToLowerInvariant();
         var now = DateTime.UtcNow;
+
+        // allowed lengths by membership
+        var allowed = membership switch
+        {
+            "free" => new[] { "short" },
+            "pro" => new[] { "short", "medium" },
+            "premium" => new[] { "short", "medium", "long" },
+            _ => new[] { "short" }
+        };
+
+        // normalize requested length
+        var requested = (request.StoryLength ?? "short").ToLowerInvariant();
+        if (!allowed.Contains(requested)) requested = allowed[0];
 
         // Subscription limit checks / monthly reset
         var limitExceeded = await CheckAndMaybeResetLimitsAsync(user, now);
         if (limitExceeded?.exceeded == true)
             return StatusCode(403, limitExceeded.Value.message!);
 
-        // Enforce page count by membership
-        request.PageCount = (user.Membership ?? "").ToLowerInvariant() switch
+        // map lengths to page targets (hint, not strict)
+        var lengthToCount = new Dictionary<string, int>
         {
-            "free" => 4,   // 4 story pages + 1 cover
-            "pro" => 8,   // 8 story pages + 1 cover
-            "premium" => 12,  // 12 story pages + 1 cover
-            _ => 4
+            ["short"] = 4,
+            ["medium"] = 8,
+            ["long"] = 12
         };
+
+        request.StoryLength = requested;
+        request.PageCount = lengthToCount[requested];
 
         // Generate the story
         var result = await _storyService.GenerateFullStoryAsync(request);
@@ -78,7 +94,6 @@ public class StoryController : ControllerBase
                 p.ImageUrl = blobUrl;
             }
         }).ToList();
-
         await Task.WhenAll(uploadTasks);
 
         // Save story to database
@@ -120,14 +135,29 @@ public class StoryController : ControllerBase
         if (limitExceeded?.exceeded == true)
             return StatusCode(403, limitExceeded.Value.message!);
 
-        // Enforce page count by membership
-        request.PageCount = (user.Membership ?? "").ToLowerInvariant() switch
+        // SAME length gating as /generate-full
+        var membership = (user.Membership ?? "").ToLowerInvariant();
+
+        var allowed = membership switch
         {
-            "free" => 4,
-            "pro" => 8,
-            "premium" => 12,
-            _ => 4
+            "free" => new[] { "short" },
+            "pro" => new[] { "short", "medium" },
+            "premium" => new[] { "short", "medium", "long" },
+            _ => new[] { "short" }
         };
+
+        var requested = (request.StoryLength ?? "short").ToLowerInvariant();
+        if (!allowed.Contains(requested)) requested = allowed[0];
+
+        var lengthToCount = new Dictionary<string, int>
+        {
+            ["short"] = 4,
+            ["medium"] = 8,
+            ["long"] = 12
+        };
+
+        request.StoryLength = requested;
+        request.PageCount = lengthToCount[requested]; // hint for generator/token budget
 
         // Create a job and run in background with a fresh DI scope
         var jobId = _progress.CreateJob();

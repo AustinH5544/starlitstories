@@ -51,6 +51,21 @@ const NavBar = () => {
                 </div>
 
                 <div className={`nav-center ${mobileMenuOpen ? "mobile-open" : ""}`}>
+                    {user && (
+                        <div className="mobile-user-avatar">
+                            <Link to="/profile">
+                                <img
+                                    src={navAvatarSrc}
+                                    alt="Profile"
+                                    onError={(e) => (e.currentTarget.src = `${BASE}avatars/default-avatar.png`)}
+                                />
+                                <div className="mobile-user-name">
+                                    {user.displayName || (user.email?.split("@")[0]) || "My Account"}
+                                </div>
+                            </Link>
+                        </div>
+                    )}
+
                     <Link to="/" className={location.pathname === "/" ? "active" : ""}>
                         Home
                     </Link>

@@ -3,6 +3,7 @@ using Hackathon_2025.Models;
 using Hackathon_2025.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -28,9 +29,18 @@ public class AuthController : ControllerBase
         _emailService = emailService;
     }
 
+    private static bool IsPasswordValid(string p) =>
+    !string.IsNullOrWhiteSpace(p) &&
+    p.Length >= 6 &&
+    p.Any(char.IsLetter) &&
+    p.Any(char.IsDigit);
+
     [HttpPost("signup")]
     public async Task<IActionResult> Signup(AuthRequest request)
     {
+        if (!IsPasswordValid(request.Password))
+            return BadRequest(new { message = "Password must be at least 6 characters and include letters and numbers." });
+
         if (await _db.Users.AnyAsync(u => u.Email == request.Email))
             return BadRequest(new { message = "Email already in use." });
 
@@ -98,23 +108,19 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("login-ip")]
     public async Task<IActionResult> Login(AuthRequest request)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null)
-            return Unauthorized("User not found.");
+            return Unauthorized("Email or password is incorrect.");
 
         var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         if (result != PasswordVerificationResult.Success)
-            return Unauthorized("Invalid password.");
+            return Unauthorized("Email or password is incorrect.");
 
         if (!user.IsEmailVerified)
-            return Unauthorized(new
-            {
-                message = "Please verify your email before logging in.",
-                requiresVerification = true,
-                email = user.Email
-            });
+            return Unauthorized(new { message = "Please verify your email before logging in.", requiresVerification = true, email = request.Email });
 
         var token = GenerateJwtToken(user);
         return Ok(new { token, email = user.Email, membership = user.Membership });
@@ -141,6 +147,9 @@ public class AuthController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
     {
+        if (!IsPasswordValid(request.NewPassword))
+            return BadRequest(new { message = "Password must be at least 6 characters and include letters and numbers." });
+
         var user = await _db.Users.FirstOrDefaultAsync(u =>
             u.Email == request.Email &&
             u.PasswordResetExpires > DateTime.UtcNow);

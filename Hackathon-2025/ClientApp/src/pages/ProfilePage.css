@@ -170,6 +170,18 @@
     animation: fadeIn 0.3s ease;
 }
 
+@media (max-width: 768px) {
+    .image-modal-overlay {
+        align-items: flex-start; /* push modal to top */
+        padding-top: 2rem; /* add breathing room under navbar */
+    }
+
+    .image-modal {
+        max-height: 90vh; /* keep it scrollable if long */
+        overflow-y: auto;
+    }
+}
+
 @keyframes fadeIn {
     from {
         opacity: 0;

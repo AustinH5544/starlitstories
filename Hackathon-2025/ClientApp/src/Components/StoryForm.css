@@ -139,6 +139,22 @@
         color: white;
     }
 
+    /* Style for optgroup headers inside selects */
+    .form-select optgroup {
+        background: #1a1a2e !important; /* match your dark dropdown background */
+        color: #ffd89b !important; /* golden text for categories */
+        font-weight: 700;
+        font-size: 0.95rem;
+        padding: 0.4rem 0.6rem;
+    }
+
+        /* Ensure options inside groups keep their dark background */
+        .form-select optgroup option {
+            background: #1a1a2e; /* dark background */
+            color: white;
+            font-weight: 400;
+        }
+
 /* Dual Input Container */
 .dual-input-container {
     display: grid;

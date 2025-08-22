@@ -1,13 +1,14 @@
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Services;
-using Stripe.Checkout;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using OpenAI;
+using Stripe.Checkout;
+using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
@@ -80,6 +81,28 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer(); // for Swagger or minimal APIs
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (ctx, token) =>
+    {
+        // Optional: dynamic backoff; here we just use 60s
+        ctx.HttpContext.Response.Headers.RetryAfter = "60";
+        await ctx.HttpContext.Response.WriteAsync("Too many login attempts. Please try again shortly.", token);
+    };
+
+    options.AddPolicy("login-ip", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
+    });
+});
+
 var app = builder.Build();
 
 // Middleware pipeline
@@ -90,7 +113,9 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-app.UseAuthentication(); //  MUST come before UseAuthorization
+app.UseRateLimiter();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -39,8 +39,14 @@ const ResetPasswordPage = () => {
         }
 
         if (newPassword.length < 6) {
-            setError("Password must be at least 6 characters long.")
-            return
+            alert("Password must be at least 6 characters.");
+            return;
+        }
+        // require at least letters and numbers (light-touch)
+        const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+        if (!basic.test(newPassword)) {
+            alert("Use letters and numbers for better security.");
+            return;
         }
 
         setIsLoading(true)
