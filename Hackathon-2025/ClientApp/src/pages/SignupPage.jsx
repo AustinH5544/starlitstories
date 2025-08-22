@@ -24,6 +24,17 @@ const SignupPage = () => {
             return
         }
 
+        if (password.length < 6) {
+            alert("Password must be at least 6 characters.");
+            return;
+        }
+
+        const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+        if (!basic.test(password)) {
+            alert("Password should include both letters and numbers.");
+            return;
+        }
+
         if (!membership) {
             alert("Please select a membership plan.")
             return
