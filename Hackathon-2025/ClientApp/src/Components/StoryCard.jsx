@@ -13,6 +13,7 @@ export default function StoryCard({
     const [menuOpen, setMenuOpen] = useState(false);
     const [downloading, setDownloading] = useState(false);
     const [format, setFormat] = useState("pdf");
+    const [deleting, setDeleting] = useState(false);
 
     const menuRef = useRef(null);
     const btnRef = useRef(null);
@@ -57,23 +58,34 @@ export default function StoryCard({
     };
 
     const handleDelete = async () => {
+        if (deleting) return;
         const ok = confirm(`Delete "${story?.title || "this story"}"? This cannot be undone.`);
         if (!ok) return;
         try {
+            setDeleting(true);
             await onDelete?.(story.id);
             setMenuOpen(false);
         } catch (e) {
             console.error(e);
             alert("Delete failed. Please try again.");
+        } finally {
+            setDeleting(false);
         }
     };
 
+    // guard open during delete
     const openStory = () => {
-        if (onOpen) onOpen(story);
+        if (deleting) return;
+        onOpen?.(story);
     };
 
     return (
-        <div className="scard" role="article" aria-label={story?.title}>
+        <div
+            className={`scard ${deleting ? "is-busy" : ""}`}
+            role="article"
+            aria-label={story?.title}
+            aria-busy={deleting ? "true" : "false"}
+        >
             <button className="scard-thumb" onClick={openStory} aria-label={`Open ${story?.title}`}>
                 <img
                     src={story?.coverImageUrl || "/placeholder.svg"}
@@ -98,6 +110,7 @@ export default function StoryCard({
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 aria-label={`Actions for ${story?.title || "story"}`}
+                disabled={deleting || downloading}
                 onClick={(e) => {
                     e.stopPropagation();
                     setMenuOpen((v) => !v);
@@ -149,8 +162,13 @@ export default function StoryCard({
 
                     <hr className="scard-sep" />
 
-                    <button role="menuitem" className="scard-menuItem is-danger" onClick={handleDelete}>
-                        🗑️ Delete
+                    <button
+                        role="menuitem"
+                        className="scard-menuItem is-danger"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                    >
+                        {deleting ? "Deleting…" : "🗑️ Delete"}
                     </button>
                 </div>
             )}

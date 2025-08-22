@@ -132,12 +132,15 @@ const ProfilePage = () => {
     }
 
     const onDelete = async (storyId) => {
-        // Adjust endpoint to match your API if different:
-        // e.g., await api.delete(`profile/me/stories/${storyId}`)
-        await api.delete(`stories/${storyId}`)
-        // Optimistic update
-        setStories(prev => prev.filter(s => s.id !== storyId))
-    }
+        const prev = stories;
+        setStories(prev.filter(s => s.id !== storyId)); // optimistic
+        try {
+            await api.delete(`story/${storyId}`); // /api/story/{id}
+        } catch (err) {
+            setStories(prev); // rollback
+            alert("Could not delete the story. Please try again.");
+        }
+    };
 
     // ---- Download helpers (reusing your StoryViewer logic, but scoped to a passed story) ----
     const loadImageAsBase64 = (url) => {

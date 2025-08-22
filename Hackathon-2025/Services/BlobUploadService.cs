@@ -24,6 +24,7 @@ public class BlobUploadService
 
         return blobClient.Uri.ToString();
     }
+
     public async Task<string> UploadBase64ImageAsync(string base64Data, string fileName)
     {
         // Remove prefix if present
@@ -38,5 +39,15 @@ public class BlobUploadService
         await blobClient.UploadAsync(stream, new BlobHttpHeaders { ContentType = "image/png" });
 
         return blobClient.Uri.ToString();
+    }
+
+    public async Task DeleteByUrlAsync(string blobUrl)
+    {
+        if (string.IsNullOrWhiteSpace(blobUrl)) return;
+
+        var uri = new Uri(blobUrl);
+        var blobName = Uri.UnescapeDataString(uri.Segments.Last()); // works with your generated names
+        var blobClient = _containerClient.GetBlobClient(blobName);
+        await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots);
     }
 }

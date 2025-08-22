@@ -12,11 +12,13 @@ public class StoryPage
 
     [Required]
     public string ImagePrompt { get; set; }
+
     public string? ImageUrl { get; set; }
 
     [ForeignKey("StoryId")]
-    public int? StoryId { get; set; }
-    public Story? Story { get; set; }
+    public int StoryId { get; set; }          // <-- non-nullable (required)
+
+    public Story Story { get; set; } = null!; // <-- required navigation
 
     // Constructor to enforce required properties
     public StoryPage(string text, string imagePrompt)
@@ -26,5 +28,6 @@ public class StoryPage
     }
 
     // Parameterless constructor for EF Core
-    public StoryPage() { }
+    public StoryPage()
+    { }
 }

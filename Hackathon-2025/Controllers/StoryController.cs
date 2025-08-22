@@ -333,4 +333,38 @@ public class StoryController : ControllerBase
 
         return (false, null);
     }
+
+    [Authorize]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var user = await GetAndValidateUserAsync();
+        if (user is null) return Unauthorized("Invalid or missing user.");
+
+        var story = await _db.Stories
+            .Include(s => s.Pages)
+            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == user.Id);
+
+        if (story is null) return NotFound("Story not found.");
+
+        // Collect blob URLs (cover + page images)
+        var urls = new List<string>();
+        if (!string.IsNullOrWhiteSpace(story.CoverImageUrl))
+            urls.Add(story.CoverImageUrl);
+
+        urls.AddRange(story.Pages
+            .Where(p => !string.IsNullOrWhiteSpace(p.ImageUrl))
+            .Select(p => p.ImageUrl!));
+
+        // Best-effort blob cleanup
+        foreach (var url in urls.Distinct())
+        {
+            try { await _blobService.DeleteByUrlAsync(url); } catch { /* log if desired */ }
+        }
+
+        _db.Stories.Remove(story); // pages will cascade
+        await _db.SaveChangesAsync();
+
+        return NoContent();
+    }
 }
