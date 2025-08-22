@@ -1,59 +1,77 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Stripe.Checkout;
-using Microsoft.Extensions.Options;
+﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
-
-namespace Hackathon_2025.Controllers;
+using Microsoft.AspNetCore.Mvc;
 
 [ApiController]
 [Route("api/[controller]")]
 public class PaymentsController : ControllerBase
 {
-    private readonly StripeSettings _stripe;
-    private readonly SessionService _sessionService;
+    private readonly IPaymentGateway _gateway;
+    private readonly AppDbContext _db;
 
-    public PaymentsController(IOptions<StripeSettings> stripeOptions, SessionService sessionService)
+    public PaymentsController(IPaymentGateway gateway, AppDbContext db)
     {
-        _stripe = stripeOptions.Value;
-        _sessionService = sessionService;
-        Stripe.StripeConfiguration.ApiKey = _stripe.SecretKey;
+        _gateway = gateway;
+        _db = db;
     }
 
     [HttpPost("create-checkout-session")]
-    public IActionResult CreateCheckoutSession([FromBody] CheckoutRequest request)
+    public async Task<IActionResult> CreateCheckoutSession([FromBody] CheckoutRequest request)
     {
-        var domain = "http://localhost:5173"; // replace in production
+        var domain = "http://localhost:5173"; // replace per env
+        var userId = int.Parse(User.FindFirst("sub")!.Value);
+        var email = User.FindFirst("email")!.Value;
 
-        var lineItem = request.Membership switch
-        {
-            "pro" => new SessionLineItemOptions
-            {
-                Price = "price_1RQDReBVRvvlCoea7xGvFFtt",
-                Quantity = 1
-            },
-            "premium" => new SessionLineItemOptions
-            {
-                Price = "price_1RQDSuBVRvvlCoea0OgsWr7C",
-                Quantity = 1
-            },
-            _ => null
-        };
-
-        if (lineItem == null)
-            return BadRequest("Invalid plan");
-
-        var options = new SessionCreateOptions
-        {
-            PaymentMethodTypes = new List<string> { "card" },
-            LineItems = new List<SessionLineItemOptions> { lineItem },
-            Mode = "subscription",
-            CustomerEmail = User.FindFirst("email")?.Value,
-            SuccessUrl = $"{domain}/signup/complete?plan={request.Membership}",
-            CancelUrl = $"{domain}/signup?cancelled=true"
-        };
-
-        var session = _sessionService.Create(options);
+        var session = await _gateway.CreateCheckoutSessionAsync(
+            userId, email, request.Membership,
+            $"{domain}/signup/complete?plan={request.Membership}",
+            $"{domain}/signup?cancelled=true"
+        );
 
         return Ok(new { checkoutUrl = session.Url });
+    }
+
+    [HttpGet("billing/portal")]
+    public async Task<IActionResult> BillingPortal()
+    {
+        var userId = int.Parse(User.FindFirst("sub")!.Value);
+        var portal = await _gateway.CreatePortalSessionAsync(userId);
+        return Ok(new { url = portal.Url });
+    }
+
+    [HttpPost("cancel")]
+    public async Task<IActionResult> Cancel()
+    {
+        var userId = int.Parse(User.FindFirst("sub")!.Value);
+        await _gateway.CancelAtPeriodEndAsync(userId);
+        return Ok(new { message = "Cancellation scheduled at period end." });
+    }
+
+    [HttpPost("webhook")]
+    public async Task<IActionResult> Webhook()
+    {
+        var (uid, custRef, subRef, planKey, status, periodEnd) =
+            await _gateway.HandleWebhookAsync(Request);
+
+        // Try to locate the user:
+        User? user = null;
+        if (uid.HasValue) user = await _db.Users.FindAsync(uid.Value);
+        if (user is null && !string.IsNullOrEmpty(custRef))
+            user = _db.Users.FirstOrDefault(u => u.BillingCustomerRef == custRef);
+        if (user is null && !string.IsNullOrEmpty(subRef))
+            user = _db.Users.FirstOrDefault(u => u.BillingSubscriptionRef == subRef);
+
+        if (user != null)
+        {
+            user.BillingProvider = "stripe";
+            if (!string.IsNullOrEmpty(custRef)) user.BillingCustomerRef = custRef;
+            if (!string.IsNullOrEmpty(subRef)) user.BillingSubscriptionRef = subRef;
+            if (!string.IsNullOrEmpty(planKey)) { user.PlanKey = planKey; user.Membership = planKey; } // keep in sync
+            if (!string.IsNullOrEmpty(status)) user.PlanStatus = status;
+            user.CurrentPeriodEndUtc = periodEnd;
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok();
     }
 }

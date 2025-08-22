@@ -19,4 +19,12 @@ public class User
     public bool IsEmailVerified { get; set; } = false;
     public string? EmailVerificationToken { get; set; }
     public DateTime? EmailVerificationExpires { get; set; }
+
+    // Billing / Subscription fields
+    public string? BillingProvider { get; set; }             // e.g., "stripe", "otherpay"
+    public string? BillingCustomerRef { get; set; }          // provider customer id
+    public string? BillingSubscriptionRef { get; set; }      // provider subscription id
+    public string PlanKey { get; set; } = "free";           // "free" | "pro" | "premium"
+    public string PlanStatus { get; set; } = "none";        // "active" | "trialing" | "canceled" | ...
+    public DateTime? CurrentPeriodEndUtc { get; set; }       // for display / gating features
 }

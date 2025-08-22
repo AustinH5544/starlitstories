@@ -746,3 +746,76 @@
         font-size: 0.8rem;
     }
 }
+
+.membership-actions {
+    display: flex;
+    gap: .75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+}
+
+.manage-plan-btn, .cancel-plan-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .9rem 1.6rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: .25s all;
+    border: 1px solid transparent;
+    box-shadow: 0 3px 12px rgba(0,0,0,.25);
+}
+
+.manage-plan-btn {
+    background: linear-gradient(45deg,#6ea8fe,#a18cd1);
+    color: #fff;
+}
+
+    .manage-plan-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(97,132,255,.45);
+    }
+
+.cancel-plan-btn {
+    background: rgba(255,87,87,.18);
+    color: #ffb3b3;
+    border-color: rgba(255,87,87,.4);
+}
+
+    .cancel-plan-btn:hover {
+        background: rgba(255,87,87,.28);
+        transform: translateY(-2px);
+        border-color: rgba(255,87,87,.6);
+    }
+
+.action-msg {
+    text-align: center;
+    margin: -.5rem 0 2rem;
+    color: #e7ddff;
+}
+
+.cancel-blurb {
+    color: rgba(255,255,255,.9);
+    line-height: 1.5;
+    margin: 0 0 1.25rem 0;
+}
+
+.cancel-actions {
+    display: flex;
+    gap: .75rem;
+    justify-content: flex-end;
+}
+
+@media (max-width:768px) {
+    .membership-actions {
+        flex-direction: column;
+    }
+
+    .cancel-actions {
+        justify-content: center;
+    }
+}

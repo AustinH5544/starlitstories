@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OpenAI;
-using Stripe.Checkout;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -16,39 +15,49 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
     Args = args
 });
 
-// Load OpenAI API Key
+// --- OpenAI ---
 var apiKey = builder.Configuration["OpenAI:ApiKey"]
            ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-
 if (string.IsNullOrWhiteSpace(apiKey))
-{
     throw new InvalidOperationException("OpenAI API key is missing.");
-}
 
-// Database (SQL Server)
+// --- Database ---
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Password hashing
+// --- Identity / hashing ---
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
-// OpenAI config
+// --- OpenAI DI ---
 builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
 builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
 builder.Services.AddHttpClient();
 
-// Custom services
+// --- App services ---
 builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 builder.Services.AddSingleton<BlobUploadService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 
-// Stripe config
-builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
-builder.Services.AddScoped<SessionService>();
+// --- Billing / Payments ---
+// Bind Stripe settings (now also includes WebhookSecret and plan price IDs)
+builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));  // keep this
 
-// JWT Authentication setup
+// Choose billing provider via config: "stripe" (default) or another later
+var billingProvider = builder.Configuration["Billing:Provider"] ?? "stripe";
+if (billingProvider.Equals("stripe", StringComparison.OrdinalIgnoreCase))
+{
+    // Our provider-agnostic gateway (Stripe implementation)
+    builder.Services.AddScoped<IPaymentGateway, StripeGateway>();
+}
+//else
+//{
+//    // Placeholder for future provider
+//    builder.Services.AddScoped<IPaymentGateway, OtherPayGateway>();
+//}
+
+// --- AuthN/Z ---
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -65,10 +74,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             )
         };
     });
-
 builder.Services.AddAuthorization();
 
-// CORS for frontend dev servers
+// --- CORS ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
@@ -79,14 +87,14 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer(); // for Swagger or minimal APIs
+builder.Services.AddEndpointsApiExplorer();
 
+// --- Rate limiting ---
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = async (ctx, token) =>
     {
-        // Optional: dynamic backoff; here we just use 60s
         ctx.HttpContext.Response.Headers.RetryAfter = "60";
         await ctx.HttpContext.Response.WriteAsync("Too many login attempts. Please try again shortly.", token);
     };
@@ -103,14 +111,12 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+// --- Build / Pipeline ---
 var app = builder.Build();
 
-// Middleware pipeline
 app.UseCors("AllowFrontend");
-
 app.UseDefaultFiles();
 app.UseStaticFiles();
-
 app.UseRouting();
 
 app.UseRateLimiter();

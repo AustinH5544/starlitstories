@@ -13,10 +13,43 @@ const ProfilePage = () => {
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
     const [avatarVersion, setAvatarVersion] = useState(0);
+    const [working, setWorking] = useState(false);
+    const [actionMsg, setActionMsg] = useState("");
+    const [showCancelModal, setShowCancelModal] = useState(false);
 
     const BASE = import.meta.env.BASE_URL
 
     const [showImageModal, setShowImageModal] = useState(false)
+
+    const openBillingPortal = async () => {
+        try {
+            setWorking(true); setActionMsg("");
+            const { data } = await api.get("payments/billing/portal"); // GET /api/payments/billing/portal
+            if (data?.url) window.location.href = data.url;
+            else setActionMsg("Could not open billing portal.");
+        } catch (e) {
+            console.error(e);
+            setActionMsg("Could not open billing portal.");
+        } finally {
+            setWorking(false);
+        }
+    };
+
+    const cancelMembership = async () => {
+        try {
+            setWorking(true); setActionMsg("");
+            await api.post("payments/cancel"); // POST /api/payments/cancel
+            // reflect locally; webhook is source of truth later
+            setUser(u => (u ? { ...u, membership: "free" } : u));
+            setShowCancelModal(false);
+            setActionMsg("Cancellation scheduled. You’ll keep access until the current period ends.");
+        } catch (e) {
+            console.error(e);
+            setActionMsg("We couldn't cancel your membership. Please try again.");
+        } finally {
+            setWorking(false);
+        }
+    };
 
     // ONE source of truth for the avatar (use public/avatars/default-avatar.png)
     const [selectedImage, setSelectedImage] = useState(
@@ -59,7 +92,6 @@ const ProfilePage = () => {
         setImgError(false);
     }, [user?.profileImage, BASE, avatarVersion]);
 
-    // ✅ SAME retrieval logic as your current page
     useEffect(() => {
         const fetchStories = async () => {
             try {
@@ -294,11 +326,26 @@ const ProfilePage = () => {
                         <span>Create New Story</span>
                     </button>
 
-                    <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
-                        <span className="button-icon">🚀</span>
-                        <span>Upgrade Plan</span>
-                    </button>
+                    {String(user.membership || "").toLowerCase() === "free" ? (
+                        <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
+                            <span className="button-icon">🚀</span>
+                            <span>Upgrade Plan</span>
+                        </button>
+                    ) : (
+                        <div className="membership-actions">
+                            <button className="manage-plan-btn" disabled={working} onClick={openBillingPortal}>
+                                <span className="button-icon">🛠️</span>
+                                <span>{working ? "Opening..." : "Change Plan"}</span>
+                            </button>
+                            <button className="cancel-plan-btn" disabled={working} onClick={() => setShowCancelModal(true)}>
+                                <span className="button-icon">🗑️</span>
+                                <span>Cancel Membership</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
+
+                {actionMsg && <p className="action-msg">{actionMsg}</p>}
 
                 <div className="stories-section">
                     <h2 className="section-title">
@@ -357,6 +404,28 @@ const ProfilePage = () => {
                                         <img src={`${BASE}avatars/${imageUrl}`} alt={`Avatar option ${i + 1}`} />
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showCancelModal && (
+                    <div className="image-modal-overlay" onClick={() => !working && setShowCancelModal(false)}>
+                        <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3>Cancel Membership?</h3>
+                                <button className="close-btn" onClick={() => !working && setShowCancelModal(false)}>✕</button>
+                            </div>
+                            <p className="cancel-blurb">
+                                This stops auto-renewal. You’ll keep access until the current period ends, then move to the Free plan.
+                            </p>
+                            <div className="cancel-actions">
+                                <button className="manage-plan-btn" disabled={working} onClick={() => setShowCancelModal(false)}>
+                                    Keep my plan
+                                </button>
+                                <button className="cancel-plan-btn" disabled={working} onClick={cancelMembership}>
+                                    {working ? "Cancelling..." : "Confirm Cancel"}
+                                </button>
                             </div>
                         </div>
                     </div>
