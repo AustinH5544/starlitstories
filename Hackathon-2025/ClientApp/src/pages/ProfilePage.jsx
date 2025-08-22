@@ -5,6 +5,7 @@ import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
+import StoryCard from "../components/StoryCard" // <-- NEW
 
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
@@ -58,6 +59,7 @@ const ProfilePage = () => {
         setImgError(false);
     }, [user?.profileImage, BASE, avatarVersion]);
 
+    // ✅ SAME retrieval logic as your current page
     useEffect(() => {
         const fetchStories = async () => {
             try {
@@ -71,6 +73,144 @@ const ProfilePage = () => {
         }
         if (user?.email) fetchStories()
     }, [user])
+
+    // ---- Handlers for StoryCard ----
+    const canDownload = user?.membership === "pro" || user?.membership === "premium"
+
+    const onOpen = (story) => {
+        // keep your viewer navigation using state
+        navigate("/view", { state: { story } })
+    }
+
+    const onShare = (story) => {
+        const url = `${window.location.origin}/view` // or deep link with id if you prefer
+        // You can open a modal instead; for now, copy link like your viewer did
+        navigator.clipboard
+            .writeText(url)
+            .then(() => alert("Link copied to clipboard!"))
+            .catch(() => alert("Could not copy link."));
+    }
+
+    const onDownload = async (story, format) => {
+        if (format === "pdf") {
+            await downloadAsPDF(story)
+        } else {
+            await downloadAsImages(story)
+        }
+    }
+
+    const onDelete = async (storyId) => {
+        // Adjust endpoint to match your API if different:
+        // e.g., await api.delete(`profile/me/stories/${storyId}`)
+        await api.delete(`stories/${storyId}`)
+        // Optimistic update
+        setStories(prev => prev.filter(s => s.id !== storyId))
+    }
+
+    // ---- Download helpers (reusing your StoryViewer logic, but scoped to a passed story) ----
+    const loadImageAsBase64 = (url) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image()
+            img.crossOrigin = "anonymous"
+            img.onload = () => {
+                const canvas = document.createElement("canvas")
+                canvas.width = img.width
+                canvas.height = img.height
+                const ctx = canvas.getContext("2d")
+                ctx.drawImage(img, 0, 0)
+                resolve(canvas.toDataURL("image/png"))
+            }
+            img.onerror = reject
+            img.src = url
+        })
+    }
+
+    const downloadAsPDF = async (story) => {
+        const { jsPDF } = await import("jspdf")
+        const pdf = new jsPDF()
+
+        // Title page
+        pdf.setFontSize(24)
+        pdf.text(story.title || "Untitled", 20, 30)
+        pdf.setFontSize(12)
+        if (story.createdAt) {
+            pdf.text(`Created on ${new Date(story.createdAt).toLocaleDateString()}`, 20, 50)
+        }
+
+        // Cover
+        if (story.coverImageUrl && !story.coverImageUrl.includes("placeholder")) {
+            try {
+                const coverImg = await loadImageAsBase64(story.coverImageUrl)
+                pdf.addImage(coverImg, "PNG", 20, 70, 170, 120)
+            } catch {
+                console.warn("Could not load cover image for PDF")
+            }
+        }
+
+        // Pages
+        for (let i = 0; i < (story.pages?.length ?? 0); i++) {
+            const page = story.pages[i]
+            pdf.addPage()
+
+            if (page.imageUrl && !page.imageUrl.includes("placeholder")) {
+                try {
+                    const pageImg = await loadImageAsBase64(page.imageUrl)
+                    pdf.addImage(pageImg, "PNG", 20, 20, 170, 120)
+                } catch {
+                    console.warn(`Could not load image for page ${i + 1}`)
+                }
+            }
+
+            pdf.setFontSize(12)
+            const splitText = pdf.splitTextToSize(page.text || "", 170)
+            pdf.text(splitText, 20, 160)
+
+            pdf.setFontSize(10)
+            pdf.text(`Page ${i + 1}`, 180, 280)
+        }
+
+        pdf.save(`${story.title || "story"}.pdf`)
+    }
+
+    const downloadAsImages = async (story) => {
+        const zip = await import("jszip")
+        const JSZip = zip.default
+        const zipFile = new JSZip()
+
+        if (story.coverImageUrl && !story.coverImageUrl.includes("placeholder")) {
+            try {
+                const coverBlob = await fetch(story.coverImageUrl).then(r => r.blob())
+                zipFile.file("00-cover.png", coverBlob)
+            } catch {
+                console.warn("Could not download cover image")
+            }
+        }
+
+        for (let i = 0; i < (story.pages?.length ?? 0); i++) {
+            const page = story.pages[i]
+            if (page.imageUrl && !page.imageUrl.includes("placeholder")) {
+                try {
+                    const pageBlob = await fetch(page.imageUrl).then(r => r.blob())
+                    zipFile.file(`${String(i + 1).padStart(2, "0")}-page-${i + 1}.png`, pageBlob)
+                } catch {
+                    console.warn(`Could not download image for page ${i + 1}`)
+                }
+            }
+        }
+
+        const storyText = `${story.title || "Untitled"}\n\n${(story.pages || [])
+            .map((p, i) => `Page ${i + 1}:\n${p.text || ""}`)
+            .join("\n\n")}`
+        zipFile.file("story-text.txt", storyText)
+
+        const content = await zipFile.generateAsync({ type: "blob" })
+        const url = window.URL.createObjectURL(content)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `${story.title || "story"}-images.zip`
+        a.click()
+        window.URL.revokeObjectURL(url)
+    }
 
     if (!user) {
         return (
@@ -122,90 +262,84 @@ const ProfilePage = () => {
                     <p className="profile-subtitle">Your magical storytelling dashboard</p>
                 </div>
 
-            <div className="profile-details">
-                <div className="detail-card">
-                    <div className="detail-icon">📧</div>
-                    <div className="detail-content">
-                        <span className="detail-label">Email</span>
-                        <span className="detail-value">{user.email}</span>
-                    </div>
-                </div>
-
-                <div className="detail-card">
-                    <div className="detail-icon">⭐</div>
-                    <div className="detail-content">
-                        <span className="detail-label">Membership</span>
-                        <span className="detail-value">{user.membership || "Free"}</span>
-                    </div>
-                </div>
-
-                <div className="detail-card">
-                    <div className="detail-icon">📚</div>
-                    <div className="detail-content">
-                        <span className="detail-label">Stories Created</span>
-                        <span className="detail-value">{stories.length}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div className="profile-actions">
-                <button onClick={() => navigate("/create")} className="create-story-btn">
-                    <span className="button-icon">✨</span>
-                    <span>Create New Story</span>
-                </button>
-
-                <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
-                    <span className="button-icon">🚀</span>
-                    <span>Upgrade Plan</span>
-                </button>
-            </div>
-
-            <div className="stories-section">
-                <h2 className="section-title">
-                    <span className="section-icon">📖</span>
-                    Your Story Collection
-                </h2>
-
-                {loading ? (
-                    <div className="loading-container">
-                        <div className="loading-spinner">
-                            <div className="spinner"></div>
+                <div className="profile-details">
+                    <div className="detail-card">
+                        <div className="detail-icon">📧</div>
+                        <div className="detail-content">
+                            <span className="detail-label">Email</span>
+                            <span className="detail-value">{user.email}</span>
                         </div>
-                        <p className="loading-text">Loading your magical stories...</p>
                     </div>
-                ) : stories.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-icon">📚</div>
-                        <h3>No stories yet!</h3>
-                        <p>Start your storytelling journey by creating your first magical adventure.</p>
-                        <button onClick={() => navigate("/create")} className="create-first-story-btn">
-                            <span className="button-icon">🌟</span>
-                            <span>Create Your First Story</span>
-                        </button>
+
+                    <div className="detail-card">
+                        <div className="detail-icon">⭐</div>
+                        <div className="detail-content">
+                            <span className="detail-label">Membership</span>
+                            <span className="detail-value">{user.membership || "Free"}</span>
+                        </div>
                     </div>
-                ) : (
-                    <div className="story-grid">
-                        {stories.map((story) => (
-                            <div key={story.id} className="story-card" onClick={() => navigate("/view", { state: { story } })}>
-                                <div className="story-image-container">
-                                    <img
-                                        src={story.coverImageUrl || "/placeholder.svg?height=200&width=200"}
-                                        alt={`Cover for ${story.title}`}
-                                        className="story-image"
-                                    />
-                                    <div className="story-overlay">
-                                        <span className="read-story-text">📖 Read Story</span>
-                                    </div>
-                                </div>
-                                <div className="story-info">
-                                    <h4 className="story-title">{story.title}</h4>
-                                    <p className="story-date">{new Date(story.createdAt).toLocaleDateString()}</p>
-                                </div>
+
+                    <div className="detail-card">
+                        <div className="detail-icon">📚</div>
+                        <div className="detail-content">
+                            <span className="detail-label">Stories Created</span>
+                            <span className="detail-value">{stories.length}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="profile-actions">
+                    <button onClick={() => navigate("/create")} className="create-story-btn">
+                        <span className="button-icon">✨</span>
+                        <span>Create New Story</span>
+                    </button>
+
+                    <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
+                        <span className="button-icon">🚀</span>
+                        <span>Upgrade Plan</span>
+                    </button>
+                </div>
+
+                <div className="stories-section">
+                    <h2 className="section-title">
+                        <span className="section-icon">📖</span>
+                        Your Story Collection
+                    </h2>
+
+                    {loading ? (
+                        <div className="loading-container">
+                            <div className="loading-spinner">
+                                <div className="spinner"></div>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                            <p className="loading-text">Loading your magical stories...</p>
+                        </div>
+                    ) : stories.length === 0 ? (
+                        <div className="empty-state">
+                            <div className="empty-icon">📚</div>
+                            <h3>No stories yet!</h3>
+                            <p>Start your storytelling journey by creating your first magical adventure.</p>
+                            <button onClick={() => navigate("/create")} className="create-first-story-btn">
+                                <span className="button-icon">🌟</span>
+                                <span>Create Your First Story</span>
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="story-grid">
+                            {stories.map((story) => (
+                                <StoryCard
+                                    key={story.id}
+                                    story={story}
+                                    canDownload={canDownload}
+                                    onShare={onShare}
+                                    onDownload={onDownload}
+                                    onDelete={onDelete}
+                                    onOpen={onOpen}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 {showImageModal && (
                     <div className="image-modal-overlay" onClick={() => setShowImageModal(false)}>
                         <div className="image-modal" onClick={(e) => e.stopPropagation()}>

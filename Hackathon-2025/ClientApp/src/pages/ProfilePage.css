@@ -584,10 +584,21 @@
     }
 
 /* Story Grid */
+/* Give the grid more breathing room and wider min card width */
 .story-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* was likely smaller */
+    gap: 24px; /* increase from e.g. 12/16 to 24 (or 32 if you want more) */
+    align-items: start; /* avoid stretch squishing content */
+    padding: 8px 4px; /* small inset so cards don’t hug the container edge */
+    overflow: visible; /* let the kebab menu float over neighbors cleanly */
+}
+
+@media (max-width: 480px) {
+    .story-grid {
+        grid-template-columns: 1fr;
+        gap: 16px; /* tighter but still comfy on phones */
+    }
 }
 
 .story-card {
