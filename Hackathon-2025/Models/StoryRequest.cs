@@ -7,4 +7,6 @@ public class StoryRequest
     public string Theme { get; set; } = "";
     public List<CharacterSpec> Characters { get; set; } = new(); // Can include main, pet, etc.
     public int? PageCount { get; set; }
+    public string? LessonLearned { get; set; }
+    public string? StoryLength { get; set; }
 }

@@ -10,6 +10,66 @@ const StoryForm = ({ onSubmit }) => {
     const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
     const [artStyle, setArtStyle] = useState("watercolor")
     const [theme, setTheme] = useState("")
+    const [lesson, setLesson] = useState("");
+    const membership = (user?.membership || "free").toLowerCase();
+    const [storyLength, setStoryLength] = useState("short");
+
+    const lengthOptionsByMembership = {
+        free: [{ value: "short", label: "Short (about 4 pages)" }],
+        pro: [{ value: "short", label: "Short (about 4 pages)" },
+        { value: "medium", label: "Medium (about 8 pages)" }],
+        premium: [{ value: "short", label: "Short (about 4 pages)" },
+        { value: "medium", label: "Medium (about 8 pages)" },
+        { value: "long", label: "Long (about 12 pages)" }],
+    };
+    const availableLengths = lengthOptionsByMembership[membership] || lengthOptionsByMembership.free;
+    const isLengthAllowed = (v) => availableLengths.some(o => o.value === v);
+    const defaultLessons = [
+        // Kindness & Social
+        "Always be kind to others",
+        "Sharing makes everyone happier",
+        "Honesty is the best policy",
+        "Friends help each other in good times and bad",
+        "Listening is as important as speaking",
+        "Being different makes you special",
+        "Teamwork makes us stronger",
+        "Helping others makes you feel good too",
+        "Generosity brings joy",
+        "Kind words can brighten someone’s day",
+
+        // Courage & Perseverance
+        "Bravery means doing the right thing even when it’s hard",
+        "It’s okay to make mistakes and learn from them",
+        "Perseverance helps you reach your goals",
+        "Courage comes in small steps",
+        "Believe in yourself",
+        "Always try your best",
+        "Patience brings good things",
+
+        // Respect & Gratitude
+        "Respect the world around you",
+        "Be grateful for what you have",
+        "Take care of animals and nature",
+
+        // Daily Habits & Routines
+        "Brush your teeth every morning and night",
+        "Wash your hands before eating and after playing",
+        "Always flush and wash after using the bathroom",
+        "Keeping your room tidy helps you find things",
+        "Washing your face keeps you fresh and healthy",
+        "Getting good sleep makes you strong and happy",
+        "Eating vegetables helps you grow healthy and strong",
+        "Drinking water keeps your body happy",
+        "Exercise and play keep you strong",
+        "Putting toys away keeps your space safe",
+
+        // Safety
+        "Look both ways before crossing the street",
+        "Stay close to a trusted adult in public",
+        "Always wear your seatbelt",
+        "Wear a helmet when riding a bike or scooter",
+        "Ask before talking to strangers",
+    ];
     const [characters, setCharacters] = useState([
         {
             role: "main",
@@ -146,21 +206,23 @@ const StoryForm = ({ onSubmit }) => {
     }
 
     const handleSubmit = (e) => {
-        e.preventDefault()
+        e.preventDefault();
         const processedCharacters = characters.map((c) => ({
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
-        }))
+        }));
 
-        const finalArtStyle = isFree ? "watercolor" : artStyle
+        const finalArtStyle = isFree ? "watercolor" : artStyle;
 
         onSubmit({
             theme,
             readingLevel,
             artStyle: finalArtStyle,
             characters: processedCharacters,
-        })
-    }
+            lessonLearned: lesson || null,
+            storyLength,
+        });
+    };
 
     const renderDropdownWithCustom = (index, field, label, options = []) => {
         const customValue = characters[index].descriptionFields[field + "Custom"] || ""
@@ -279,6 +341,103 @@ const StoryForm = ({ onSubmit }) => {
                     </div>
                 </div>
             </div>
+
+            <div className="field-group">
+                <label className="field-label">Story Length</label>
+                <select
+                    className="form-select"
+                    value={isLengthAllowed(storyLength) ? storyLength : "short"}
+                    onChange={(e) => setStoryLength(e.target.value)}
+                >
+                    {/* always show all tiers, lock ones above plan */}
+                    <option value="short">Short (about 4 pages)</option>
+                    <option value="medium" disabled={membership === "free"}>{membership === "free" ? "🔒 Medium (upgrade for 8 pages)" : "Medium (about 8 pages)"}</option>
+                    <option value="long" disabled={membership !== "premium"}>{membership === "premium" ? "Long (about 12 pages)" : "🔒 Long (premium only)"}</option>
+                </select>
+                {membership !== "premium" && (
+                    <p className="style-lock-hint">
+                        Choose longer stories by upgrading your plan.
+                    </p>
+                )}
+            </div>
+
+            <div className="form-section">
+                <h3 className="section-title">
+                    <span className="section-icon">🌟</span>
+                    Lesson Learned (Optional)
+                </h3>
+                <div className="field-group">
+                    <label className="field-label">What lesson should the story teach?</label>
+                    <div className="dual-input-container">
+                        <select
+                            value={defaultLessons.includes(lesson) ? lesson : ""}
+                            onChange={(e) => setLesson(e.target.value)}
+                            className="form-select"
+                            disabled={lesson.trim() !== "" && !defaultLessons.includes(lesson)}
+                        >
+                            <option value="">Select a Lesson</option>
+
+                            <optgroup label="🌸 Kindness & Social">
+                                <option value="Always be kind to others">Always be kind to others</option>
+                                <option value="Sharing makes everyone happier">Sharing makes everyone happier</option>
+                                <option value="Honesty is the best policy">Honesty is the best policy</option>
+                                <option value="Friends help each other in good times and bad">Friends help each other in good times and bad</option>
+                                <option value="Listening is as important as speaking">Listening is as important as speaking</option>
+                                <option value="Being different makes you special">Being different makes you special</option>
+                                <option value="Teamwork makes us stronger">Teamwork makes us stronger</option>
+                                <option value="Helping others makes you feel good too">Helping others makes you feel good too</option>
+                                <option value="Generosity brings joy">Generosity brings joy</option>
+                                <option value="Kind words can brighten someone’s day">Kind words can brighten someone’s day</option>
+                            </optgroup>
+
+                            <optgroup label="⚡ Courage & Perseverance">
+                                <option value="Bravery means doing the right thing even when it’s hard">Bravery means doing the right thing even when it’s hard</option>
+                                <option value="It’s okay to make mistakes and learn from them">It’s okay to make mistakes and learn from them</option>
+                                <option value="Perseverance helps you reach your goals">Perseverance helps you reach your goals</option>
+                                <option value="Courage comes in small steps">Courage comes in small steps</option>
+                                <option value="Believe in yourself">Believe in yourself</option>
+                                <option value="Always try your best">Always try your best</option>
+                                <option value="Patience brings good things">Patience brings good things</option>
+                            </optgroup>
+
+                            <optgroup label="🌍 Respect & Gratitude">
+                                <option value="Respect the world around you">Respect the world around you</option>
+                                <option value="Be grateful for what you have">Be grateful for what you have</option>
+                                <option value="Take care of animals and nature">Take care of animals and nature</option>
+                            </optgroup>
+
+                            <optgroup label="🛁 Daily Habits & Routines">
+                                <option value="Brush your teeth every morning and night">Brush your teeth every morning and night</option>
+                                <option value="Wash your hands before eating and after playing">Wash your hands before eating and after playing</option>
+                                <option value="Always flush and wash after using the bathroom">Always flush and wash after using the bathroom</option>
+                                <option value="Keeping your room tidy helps you find things">Keeping your room tidy helps you find things</option>
+                                <option value="Washing your face keeps you fresh and healthy">Washing your face keeps you fresh and healthy</option>
+                                <option value="Getting good sleep makes you strong and happy">Getting good sleep makes you strong and happy</option>
+                                <option value="Eating vegetables helps you grow healthy and strong">Eating vegetables helps you grow healthy and strong</option>
+                                <option value="Drinking water keeps your body happy">Drinking water keeps your body happy</option>
+                                <option value="Exercise and play keep you strong">Exercise and play keep you strong</option>
+                                <option value="Putting toys away keeps your space safe">Putting toys away keeps your space safe</option>
+                            </optgroup>
+
+                            <optgroup label="🚦 Safety">
+                                <option value="Look both ways before crossing the street">Look both ways before crossing the street</option>
+                                <option value="Stay close to a trusted adult in public">Stay close to a trusted adult in public</option>
+                                <option value="Always wear your seatbelt">Always wear your seatbelt</option>
+                                <option value="Wear a helmet when riding a bike or scooter">Wear a helmet when riding a bike or scooter</option>
+                                <option value="Ask before talking to strangers">Ask before talking to strangers</option>
+                            </optgroup>
+                        </select>
+
+                        <input
+                            placeholder="Or enter your own lesson"
+                            value={!defaultLessons.includes(lesson) ? lesson : ""}
+                            onChange={(e) => setLesson(e.target.value)}
+                            className="form-input"
+                        />
+                    </div>
+                </div>
+            </div>
+
             <div className="form-section">
                 <h3 className="section-title">
                     <span className="section-icon">🎭</span>
