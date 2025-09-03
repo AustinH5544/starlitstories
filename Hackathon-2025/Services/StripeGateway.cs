@@ -79,8 +79,8 @@ public class StripeGateway : IPaymentGateway
     }
 
     public async Task<(int? userId, string? customerRef, string? subscriptionRef,
-                       string? planKey, string status, DateTime? periodEndUtc)>
-        HandleWebhookAsync(HttpRequest request)
+                   string? planKey, string status, DateTime? periodEndUtc)>
+    HandleWebhookAsync(HttpRequest request)
     {
         var json = await new StreamReader(request.Body).ReadToEndAsync();
         var stripeEvent = EventUtility.ConstructEvent(
@@ -96,32 +96,52 @@ public class StripeGateway : IPaymentGateway
                     var session = (Checkout.Session)stripeEvent.Data.Object;
                     var uid = session.ClientReferenceId ?? session.Metadata.GetValueOrDefault("userId");
                     return (
-                        userId: int.TryParse(uid, out var id) ? id : null,
+                        userId: int.TryParse(uid, out var id) ? id : (int?)null,
                         customerRef: session.CustomerId,
                         subscriptionRef: session.SubscriptionId,
                         planKey: session.Metadata.GetValueOrDefault("plan") ?? "pro",
                         status: "active",
-                        periodEndUtc: null // not provided on this event; leave null
+                        periodEndUtc: null
                     );
                 }
 
             case "customer.subscription.updated":
-            case "customer.subscription.deleted":
+            case "customer.subscription.created": // in case portal creates/rewrites items
                 {
                     var sub = (Stripe.Subscription)stripeEvent.Data.Object;
 
-                    // If your Stripe.NET version exposes CurrentPeriodEnd, you can re-enable this:
+                    // Map current subscription item price to your internal plan key
+                    var priceId = sub.Items?.Data?.FirstOrDefault()?.Price?.Id;
+                    string? planKey =
+                        priceId == _cfg.PriceIdPremium ? "premium" :
+                        priceId == _cfg.PriceIdPro ? "pro" :
+                        null;
+
+                    // If your Stripe.NET exposes CurrentPeriodEnd (unix seconds), you can set it here:
                     // DateTime? end = sub.CurrentPeriodEnd.HasValue
                     //     ? DateTimeOffset.FromUnixTimeSeconds(sub.CurrentPeriodEnd.Value).UtcDateTime
                     //     : null;
 
                     return (
+                        userId: null, // we'll resolve the user by customer/subscription in the controller
+                        customerRef: sub.CustomerId,
+                        subscriptionRef: sub.Id,
+                        planKey: planKey,                 // flip plan immediately on portal change
+                        status: sub.Status,               // "active", "trialing", etc.
+                        periodEndUtc: null                // or `end` if available in your SDK
+                    );
+                }
+
+            case "customer.subscription.deleted":
+                {
+                    var sub = (Stripe.Subscription)stripeEvent.Data.Object;
+                    return (
                         userId: null,
                         customerRef: sub.CustomerId,
                         subscriptionRef: sub.Id,
-                        planKey: null,                 // you can infer from items[0].Price.LookupKey if needed
-                        status: sub.Status,            // "active", "canceled", "trialing", etc.
-                        periodEndUtc: null             // set to `end` if you enable the block above
+                        planKey: "free",                  // move user to free immediately
+                        status: "canceled",
+                        periodEndUtc: null
                     );
                 }
 
