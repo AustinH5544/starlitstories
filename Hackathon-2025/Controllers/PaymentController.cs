@@ -1,6 +1,7 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -18,14 +19,36 @@ public class PaymentsController : ControllerBase
     [HttpPost("create-checkout-session")]
     public async Task<IActionResult> CreateCheckoutSession([FromBody] CheckoutRequest request)
     {
-        var domain = "http://localhost:5173"; // replace per env
-        var userId = int.Parse(User.FindFirst("sub")!.Value);
-        var email = User.FindFirst("email")!.Value;
+        if (request is null || string.IsNullOrWhiteSpace(request.Membership))
+            return BadRequest("Membership is required.");
+
+        // Get user id from any of the usual claim names
+        var userIdStr =
+            User.FindFirst("sub")?.Value ??
+            User.FindFirst("id")?.Value ??
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!int.TryParse(userIdStr, out var userId))
+            return Unauthorized("No user id claim on the request.");
+
+        // Get an email (prefer claim, else DB)
+        var email = User.FindFirst("email")?.Value;
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            var userFromDb = await _db.Users.FindAsync(userId);
+            if (userFromDb == null) return Unauthorized("User not found.");
+            email = userFromDb.Email;
+        }
+
+        // Use your real frontend domain here when ready
+        var domain = "http://localhost:5173";
 
         var session = await _gateway.CreateCheckoutSessionAsync(
-            userId, email, request.Membership,
-            $"{domain}/signup/complete?plan={request.Membership}",
-            $"{domain}/signup?cancelled=true"
+            userId,
+            email,
+            request.Membership,                                      // "pro" or "premium"
+            $"{domain}/signup/complete?plan={request.Membership}",   // success
+            $"{domain}/upgrade?cancelled=true"                       // cancel
         );
 
         return Ok(new { checkoutUrl = session.Url });
