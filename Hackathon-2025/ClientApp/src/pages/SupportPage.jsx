@@ -190,11 +190,11 @@ const SupportPage = () => {
                         </h2>
 
                         <div className="contact-methods">
-                            <a href="mailto:support@cozypages.com" className="contact-method">
+                            <a href="mailto:support@StarlitStories.com" className="contact-method">
                                 <div className="contact-icon">📧</div>
                                 <div className="contact-info">
                                     <h4>Email Support</h4>
-                                    <p>support@cozypages.com</p>
+                                    <p>support@StarlitStories.com</p>
                                 </div>
                             </a>
 
@@ -215,7 +215,7 @@ const SupportPage = () => {
                             </div>
 
                             <a
-                                href="https://twitter.com/cozypages"
+                                href="https://twitter.com/StarlitStories"
                                 className="contact-method"
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -223,12 +223,12 @@ const SupportPage = () => {
                                 <div className="contact-icon">🐦</div>
                                 <div className="contact-info">
                                     <h4>Twitter</h4>
-                                    <p>@cozypages</p>
+                                    <p>@StarlitStories</p>
                                 </div>
                             </a>
 
                             <a
-                                href="https://facebook.com/cozypages"
+                                href="https://facebook.com/StarliStories"
                                 className="contact-method"
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -236,7 +236,7 @@ const SupportPage = () => {
                                 <div className="contact-icon">📘</div>
                                 <div className="contact-info">
                                     <h4>Facebook</h4>
-                                    <p>CozyPages Official</p>
+                                    <p>StarlitStories Official</p>
                                 </div>
                             </a>
                         </div>

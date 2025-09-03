@@ -131,7 +131,7 @@ const LandingPage = () => {
             {/* Parents Love It Section */}
             <section className="section parents-section">
                 <div className={`section-content ${isVisible.parents ? "fade-in" : ""}`}>
-                    <h2 className="section-title">Parents Love CozyPages</h2>
+                    <h2 className="section-title">Parents Love Starlit Stories</h2>
                     <div className="parents-grid">
                         <div className="parent-card">
                             <div className="parent-icon">⏰</div>
@@ -192,7 +192,7 @@ const LandingPage = () => {
                         <div className="testimonial">
                             <div className="testimonial-stars">★★★★★</div>
                             <p className="testimonial-text">
-                                "My son was never interested in bedtime stories until we found CozyPages. Now he's excited for bedtime!"
+                                "My son was never interested in bedtime stories until we found Starlit Stories. Now he's excited for bedtime!"
                             </p>
                             <div className="testimonial-author">
                                 <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
@@ -267,7 +267,7 @@ const LandingPage = () => {
             <footer className="footer">
                 <div className="footer-content">
                     <div className="footer-logo">
-                        <span className="logo">CozyPages</span>
+                        <span className="logo">Starlit Stories</span>
                         <p>Making bedtime magical, one story at a time</p>
                     </div>
 
@@ -308,7 +308,7 @@ const LandingPage = () => {
                 </div>
 
                 <div className="footer-bottom">
-                    <p>© 2025 CozyPages. All rights reserved.</p>
+                    <p>© 2025 Starlit Stories. All rights reserved.</p>
                 </div>
             </footer>
         </div>

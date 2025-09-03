@@ -186,7 +186,7 @@ const ResetPasswordPage = () => {
 
                     <div className="alternative-options">
                         <p>
-                            Need help? <a href="mailto:support@cozypages.com">Contact our support team</a>
+                            Need help? <a href="mailto:support@StarlitStories.com">Contact our support team</a>
                         </p>
                     </div>
                 </div>

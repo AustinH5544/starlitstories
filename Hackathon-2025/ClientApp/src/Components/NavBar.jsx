@@ -45,7 +45,7 @@ const NavBar = () => {
             <div className="nav-container">
                 <div className="nav-left">
                     <Link to="/" className="logo-link">
-                        <span className="logo">CozyPages</span>
+                        <span className="logo">Starlit Stories</span>
                         <span className="logo-icon">✨</span>
                     </Link>
                 </div>

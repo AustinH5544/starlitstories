@@ -81,12 +81,12 @@ const AboutPage = () => {
                     <div className="section-text">
                         <h2>Our Mission</h2>
                         <p>
-                            At CozyPages, we believe every child deserves to be the hero of their own story. We're on a mission to
+                            At Starlit Stories, we believe every child deserves to be the hero of their own story. We're on a mission to
                             transform bedtime reading by creating personalized, magical stories that capture children's imagination
                             and create lasting memories.
                         </p>
                         <p>
-                            We founded CozyPages because we saw how children light up when they recognize themselves in stories. By
+                            We founded Starlit Stories because we saw how children light up when they recognize themselves in stories. By
                             combining the power of AI with the timeless tradition of bedtime stories, we're making storytelling more
                             accessible, creative, and meaningful for families everywhere.
                         </p>
@@ -146,7 +146,7 @@ const AboutPage = () => {
             {/* Benefits Section */}
             <section className="about-section benefits-section">
                 <div className={`section-content ${isVisible.benefits ? "fade-in" : ""}`}>
-                    <h2>Why Families Love CozyPages</h2>
+                    <h2>Why Families Love Starlit Stories</h2>
                     <div className="benefits-grid">
                         <div className="benefit-card">
                             <div className="benefit-icon">💫</div>
@@ -187,7 +187,7 @@ const AboutPage = () => {
             {/* Team Section */}
             <section className="about-section team-section">
                 <div className={`section-content ${isVisible.team ? "slide-up" : ""}`}>
-                    <h2>Meet Our Storytellers</h2>
+                    <h2>Meet Our Team</h2>
                     <p className="team-intro">
                         We're a small team with a big passion for stories, technology, and creating magical experiences for
                         children.
@@ -259,17 +259,17 @@ const AboutPage = () => {
                     </p>
 
                     <div className="contact-methods">
-                        <a href="mailto:hello@cozypages.com" className="contact-method">
+                        <a href="mailto:hello@StarlitStories.com" className="contact-method">
                             <div className="contact-icon">✉️</div>
-                            <span>hello@cozypages.com</span>
+                            <span>hello@StarlitStories.com</span>
                         </a>
-                        <a href="https://twitter.com/cozypages" className="contact-method">
+                        <a href="https://twitter.com/StarlitStories" className="contact-method">
                             <div className="contact-icon">🐦</div>
-                            <span>@cozypages</span>
+                            <span>@StarlitStories</span>
                         </a>
-                        <a href="https://instagram.com/cozypages" className="contact-method">
+                        <a href="https://instagram.com/StarlitStories" className="contact-method">
                             <div className="contact-icon">📸</div>
-                            <span>@cozypages</span>
+                            <span>@StarlitStories</span>
                         </a>
                     </div>
 

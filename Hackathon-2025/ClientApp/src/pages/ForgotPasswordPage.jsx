@@ -68,7 +68,7 @@ const ForgotPasswordPage = () => {
                                 <li>Wait a few minutes for the email to arrive</li>
                             </ul>
                             <p className="contact-support">
-                                Still having trouble? <a href="mailto:support@cozypages.com">Contact our support team</a>
+                                Still having trouble? <a href="mailto:support@StarlitStories.com">Contact our support team</a>
                             </p>
                         </div>
                     </div>
@@ -140,7 +140,7 @@ const ForgotPasswordPage = () => {
                             <h4>Security Note</h4>
                             <p>
                                 For your security, we'll only send reset instructions to the email address associated with your
-                                CozyPages account.
+                                Starlit Stories account.
                             </p>
                         </div>
                     </div>

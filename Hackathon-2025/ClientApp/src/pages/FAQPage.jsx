@@ -13,9 +13,9 @@ const FAQPage = () => {
         {
             id: 1,
             category: "General",
-            question: "What is CozyPages?",
+            question: "What is Starlit Stories?",
             answer:
-                "CozyPages is an AI-powered storytelling platform that creates personalized children's stories with beautiful illustrations. Simply provide character details, themes, and preferences, and our AI will generate a unique story just for you.",
+                "Starlit Stories is an AI-powered storytelling platform that creates personalized children's stories with beautiful illustrations. Simply provide character details, themes, and preferences, and our AI will generate a unique story just for you.",
         },
         {
             id: 2,
@@ -27,7 +27,7 @@ const FAQPage = () => {
         {
             id: 3,
             category: "Account",
-            question: "Do I need to create an account to use CozyPages?",
+            question: "Do I need to create an account to use Starlit Stories?",
             answer:
                 "Yes, you need to create a free account to save your stories, access your story library, and use our story generation features. Registration is quick and only requires an email address.",
         },
@@ -36,7 +36,7 @@ const FAQPage = () => {
             category: "Account",
             question: "How do I verify my email address?",
             answer:
-                "After signing up, check your email for a verification link from CozyPages. Click the link to verify your account. If you don't see the email, check your spam folder or request a new verification email from your profile page.",
+                "After signing up, check your email for a verification link from Starlit Stories. Click the link to verify your account. If you don't see the email, check your spam folder or request a new verification email from your profile page.",
         },
         {
             id: 5,
@@ -85,7 +85,7 @@ const FAQPage = () => {
             category: "Technical",
             question: "What browsers are supported?",
             answer:
-                "CozyPages works best on modern browsers including Chrome, Firefox, Safari, and Edge. We recommend keeping your browser updated for the best experience.",
+                "Starlit Stories works best on modern browsers including Chrome, Firefox, Safari, and Edge. We recommend keeping your browser updated for the best experience.",
         },
         {
             id: 12,
@@ -106,7 +106,7 @@ const FAQPage = () => {
             category: "Stories",
             question: "Can I create stories in different languages?",
             answer:
-                "Currently, CozyPages generates stories in English. We're working on adding support for additional languages in future updates.",
+                "Currently, Starlit Stories generates stories in English. We're working on adding support for additional languages in future updates.",
         },
         {
             id: 15,
@@ -147,7 +147,7 @@ const FAQPage = () => {
                 <div className="faq-header">
                     <h1 className="faq-title">Frequently Asked Questions</h1>
                     <p className="faq-subtitle">
-                        Find answers to common questions about CozyPages and our AI storytelling platform
+                        Find answers to common questions about Starlit Stories and our AI storytelling platform
                     </p>
 
                     <div className="faq-search">
