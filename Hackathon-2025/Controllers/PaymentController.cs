@@ -1,5 +1,6 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
@@ -51,19 +52,61 @@ public class PaymentsController : ControllerBase
     }
 
     [HttpGet("billing/portal")]
+    [Authorize] // ensure only signed-in users hit this
     public async Task<IActionResult> BillingPortal()
     {
-        var userId = int.Parse(User.FindFirst("sub")!.Value);
-        var portal = await _gateway.CreatePortalSessionAsync(userId);
-        return Ok(new { url = portal.Url });
+        // Get user id from any of the common claim names
+        var userIdStr =
+            User.FindFirst("sub")?.Value ??
+            User.FindFirst("id")?.Value ??
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!int.TryParse(userIdStr, out var userId))
+            return Unauthorized("No user id claim on the request.");
+
+        try
+        {
+            var portal = await _gateway.CreatePortalSessionAsync(userId);
+            return Ok(new { url = portal.Url });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // e.g., no BillingCustomerRef yet
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            // log ex as needed
+            return Problem("Could not create billing portal session.");
+        }
     }
 
     [HttpPost("cancel")]
+    [Authorize]
     public async Task<IActionResult> Cancel()
     {
-        var userId = int.Parse(User.FindFirst("sub")!.Value);
-        await _gateway.CancelAtPeriodEndAsync(userId);
-        return Ok(new { message = "Cancellation scheduled at period end." });
+        var userIdStr =
+            User.FindFirst("sub")?.Value ??
+            User.FindFirst("id")?.Value ??
+            User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!int.TryParse(userIdStr, out var userId))
+            return Unauthorized("No user id claim on the request.");
+
+        try
+        {
+            await _gateway.CancelAtPeriodEndAsync(userId);
+            return Ok(new { message = "Cancellation scheduled. You'll retain access until the current period ends." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // e.g., no active subscription
+            return BadRequest(ex.Message);
+        }
+        catch (Exception)
+        {
+            return Problem("Could not schedule cancellation.");
+        }
     }
 
     [HttpPost("webhook")]
