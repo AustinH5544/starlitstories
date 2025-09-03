@@ -144,6 +144,9 @@
     color: transparent;
     display: inline-block;
     position: relative;
+
+    /* Outline */
+    -webkit-text-stroke: 0.5px white; /* thickness + color */
 }
 
     .magic-text::after {
