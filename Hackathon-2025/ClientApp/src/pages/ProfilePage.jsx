@@ -1,11 +1,12 @@
 ﻿"use client"
 
+import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react"
 import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
-import StoryCard from "../components/StoryCard" // <-- NEW
+import StoryCard from "../components/StoryCard"
 
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
@@ -16,6 +17,8 @@ const ProfilePage = () => {
     const [working, setWorking] = useState(false);
     const [actionMsg, setActionMsg] = useState("");
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const { search } = useLocation();
+    const [flash, setFlash] = useState("");
 
     const BASE = import.meta.env.BASE_URL
 
@@ -34,6 +37,18 @@ const ProfilePage = () => {
             setWorking(false);
         }
     };
+
+    useEffect(() => {
+        const q = new URLSearchParams(search);
+        if (q.get("upgraded") === "1") {
+            const plan = q.get("plan");
+            setFlash(`You're all set! Your ${plan} plan is active.`);
+            // optional: clean the url
+            window.history.replaceState({}, "", "/profile");
+        }
+    }, [search]);
+
+    { flash && <p className="action-msg">{flash}</p> }
 
     const cancelMembership = async () => {
         try {

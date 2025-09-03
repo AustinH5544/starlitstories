@@ -41,15 +41,11 @@ public class PaymentsController : ControllerBase
         }
 
         // Use your real frontend domain here when ready
-        var domain = "http://localhost:5173";
+        var domain = "http://localhost:5173"; // dev
+        var successUrl = $"{domain}/profile?upgraded=1&plan={request.Membership}";
+        var cancelUrl = $"{domain}/upgrade?cancelled=1";
 
-        var session = await _gateway.CreateCheckoutSessionAsync(
-            userId,
-            email,
-            request.Membership,                                      // "pro" or "premium"
-            $"{domain}/signup/complete?plan={request.Membership}",   // success
-            $"{domain}/upgrade?cancelled=true"                       // cancel
-        );
+        var session = await _gateway.CreateCheckoutSessionAsync(userId, email, request.Membership, successUrl, cancelUrl);
 
         return Ok(new { checkoutUrl = session.Url });
     }
