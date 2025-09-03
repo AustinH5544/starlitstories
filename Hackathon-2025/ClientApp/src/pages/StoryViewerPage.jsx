@@ -17,9 +17,6 @@ const StoryViewerPage = () => {
     const [showCompletion, setShowCompletion] = useState(false)
 
     const { user } = useAuth()
-    const [showShareModal, setShowShareModal] = useState(false)
-    const [shareUrl, setShareUrl] = useState("")
-    const [downloadFormat, setDownloadFormat] = useState("pdf") // pdf, images
 
     // Load story from state or localStorage
     useEffect(() => {
@@ -115,181 +112,6 @@ const StoryViewerPage = () => {
         }
     }
 
-    const canDownload = user?.membership === "pro" || user?.membership === "premium"
-
-    const handleDownload = async () => {
-        if (!canDownload) {
-            alert("Download feature is available for Pro and Premium users only!")
-            return
-        }
-
-        try {
-            if (downloadFormat === "pdf") {
-                await downloadAsPDF()
-            } else {
-                await downloadAsImages()
-            }
-        } catch (error) {
-            console.error("Download failed:", error)
-            alert("Download failed. Please try again.")
-        }
-    }
-
-    const downloadAsPDF = async () => {
-        // Import jsPDF dynamically to avoid bundle size issues
-        const { jsPDF } = await import("jspdf")
-        const pdf = new jsPDF()
-
-        // Add title page
-        pdf.setFontSize(24)
-        pdf.text(story.title, 20, 30)
-        pdf.setFontSize(12)
-        pdf.text(`Created on ${new Date(story.createdAt).toLocaleDateString()}`, 20, 50)
-
-        // Add cover image if available
-        if (story.coverImageUrl && !story.coverImageUrl.includes("placeholder")) {
-            try {
-                const coverImg = await loadImageAsBase64(story.coverImageUrl)
-                pdf.addImage(coverImg, "PNG", 20, 70, 170, 120)
-            } catch (err) {
-                console.warn("Could not load cover image for PDF")
-            }
-        }
-
-        // Add story pages
-        for (let i = 0; i < story.pages.length; i++) {
-            pdf.addPage()
-            const page = story.pages[i]
-
-            // Add page image
-            if (page.imageUrl && !page.imageUrl.includes("placeholder")) {
-                try {
-                    const pageImg = await loadImageAsBase64(page.imageUrl)
-                    pdf.addImage(pageImg, "PNG", 20, 20, 170, 120)
-                } catch (err) {
-                    console.warn(`Could not load image for page ${i + 1}`)
-                }
-            }
-
-            // Add page text
-            pdf.setFontSize(12)
-            const splitText = pdf.splitTextToSize(page.text, 170)
-            pdf.text(splitText, 20, 160)
-
-            // Add page number
-            pdf.setFontSize(10)
-            pdf.text(`Page ${i + 1}`, 180, 280)
-        }
-
-        pdf.save(`${story.title}.pdf`)
-    }
-
-    const downloadAsImages = async () => {
-        const zip = await import("jszip")
-        const JSZip = zip.default
-        const zipFile = new JSZip()
-
-        // Add cover image
-        if (story.coverImageUrl && !story.coverImageUrl.includes("placeholder")) {
-            try {
-                const coverBlob = await fetch(story.coverImageUrl).then((r) => r.blob())
-                zipFile.file("00-cover.png", coverBlob)
-            } catch (err) {
-                console.warn("Could not download cover image")
-            }
-        }
-
-        // Add page images
-        for (let i = 0; i < story.pages.length; i++) {
-            const page = story.pages[i]
-            if (page.imageUrl && !page.imageUrl.includes("placeholder")) {
-                try {
-                    const pageBlob = await fetch(page.imageUrl).then((r) => r.blob())
-                    zipFile.file(`${String(i + 1).padStart(2, "0")}-page-${i + 1}.png`, pageBlob)
-                } catch (err) {
-                    console.warn(`Could not download image for page ${i + 1}`)
-                }
-            }
-        }
-
-        // Add story text file
-        const storyText = `${story.title}\n\n${story.pages.map((page, i) => `Page ${i + 1}:\n${page.text}`).join("\n\n")}`
-        zipFile.file("story-text.txt", storyText)
-
-        const content = await zipFile.generateAsync({ type: "blob" })
-        const url = window.URL.createObjectURL(content)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = `${story.title}-images.zip`
-        a.click()
-        window.URL.revokeObjectURL(url)
-    }
-
-    const loadImageAsBase64 = (url) => {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            img.crossOrigin = "anonymous"
-            img.onload = () => {
-                const canvas = document.createElement("canvas")
-                canvas.width = img.width
-                canvas.height = img.height
-                const ctx = canvas.getContext("2d")
-                ctx.drawImage(img, 0, 0)
-                resolve(canvas.toDataURL("image/png"))
-            }
-            img.onerror = reject
-            img.src = url
-        })
-    }
-
-    const handleShare = () => {
-        // Generate a shareable URL (in a real app, you'd create a public story link)
-        const currentUrl = window.location.origin + window.location.pathname
-        setShareUrl(currentUrl)
-        setShowShareModal(true)
-    }
-
-    const copyToClipboard = async (text) => {
-        try {
-            await navigator.clipboard.writeText(text)
-            alert("Link copied to clipboard!")
-        } catch (err) {
-            // Fallback for older browsers
-            const textArea = document.createElement("textarea")
-            textArea.value = text
-            document.body.appendChild(textArea)
-            textArea.select()
-            document.execCommand("copy")
-            document.body.removeChild(textArea)
-            alert("Link copied to clipboard!")
-        }
-    }
-
-    const shareViaEmail = () => {
-        const subject = encodeURIComponent(`Check out this magical story: ${story.title}`)
-        const body = encodeURIComponent(
-            `I created this personalized story on CozyPages and wanted to share it with you!\n\nStory: ${story.title}\nView it here: ${shareUrl}\n\nCreate your own magical stories at CozyPages!`,
-        )
-        window.open(`mailto:?subject=${subject}&body=${body}`)
-    }
-
-    const shareViaSocial = (platform) => {
-        const text = encodeURIComponent(`Check out this magical story I created: ${story.title}`)
-        const url = encodeURIComponent(shareUrl)
-
-        switch (platform) {
-            case "twitter":
-                window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`)
-                break
-            case "facebook":
-                window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`)
-                break
-            case "whatsapp":
-                window.open(`https://wa.me/?text=${text}%20${url}`)
-                break
-        }
-    }
-
     if (!story || !Array.isArray(story.pages)) {
         return (
             <div className="story-viewer">
@@ -326,13 +148,8 @@ const StoryViewerPage = () => {
             <div className="twinkling"></div>
             <div className="clouds"></div>
 
-            {/* Header Controls */}
-            <div className={`story-header ${showControls ? "visible" : "hidden"}`}>
-                <div className="header-left">
-                    <button onClick={() => navigate("/profile")} className="back-button">
-                        <span>←</span> Back to Profile
-                    </button>
-                </div>
+            {/* Header Controls (progress only) */}
+            <div className={`story-header only-progress ${showControls ? "visible" : "hidden"}`}>
                 <div className="story-progress">
                     <span className="progress-text">
                         {isCover ? "Cover" : `Page ${currentPage + 1} of ${story.pages.length}`}
@@ -343,30 +160,8 @@ const StoryViewerPage = () => {
                             style={{
                                 width: isCover ? "0%" : `${((currentPage + 1) / story.pages.length) * 100}%`,
                             }}
-                        ></div>
+                        />
                     </div>
-                </div>
-                <div className="header-right">
-                    <button onClick={handleShare} className="share-button">
-                        <span className="button-icon">📤</span>
-                        <span className="button-text">Share</span>
-                    </button>
-                    {canDownload && (
-                        <div className="download-dropdown">
-                            <button onClick={handleDownload} className="download-button">
-                                <span className="button-icon">📥</span>
-                                <span className="button-text">Download</span>
-                            </button>
-                            <select
-                                value={downloadFormat}
-                                onChange={(e) => setDownloadFormat(e.target.value)}
-                                className="format-select"
-                            >
-                                <option value="pdf">PDF</option>
-                                <option value="images">Images (ZIP)</option>
-                            </select>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -508,76 +303,6 @@ const StoryViewerPage = () => {
             {!isReading && !isCover && (
                 <div className="reading-hint">
                     <p>💡 Tap anywhere to show/hide controls</p>
-                </div>
-            )}
-
-            {/* Share Modal */}
-            {showShareModal && (
-                <div className="share-modal" onClick={() => setShowShareModal(false)}>
-                    <div className="share-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="share-modal-header">
-                            <h3>Share Your Story</h3>
-                            <button className="close-modal-btn" onClick={() => setShowShareModal(false)}>
-                                <span>✕</span>
-                            </button>
-                        </div>
-
-                        <div className="share-modal-body">
-                            <div className="story-preview">
-                                <img src={story.coverImageUrl || "/placeholder.svg"} alt="Story cover" className="share-story-image" />
-                                <div className="share-story-info">
-                                    <h4>{story.title}</h4>
-                                    <p>A magical story created on CozyPages</p>
-                                </div>
-                            </div>
-
-                            <div className="share-url-section">
-                                <label>Share Link:</label>
-                                <div className="url-input-container">
-                                    <input type="text" value={shareUrl} readOnly className="share-url-input" />
-                                    <button onClick={() => copyToClipboard(shareUrl)} className="copy-button">
-                                        <span className="button-icon">📋</span>
-                                        Copy
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="share-options">
-                                <h4>Share via:</h4>
-                                <div className="share-buttons">
-                                    <button onClick={shareViaEmail} className="share-option-btn email">
-                                        <span className="share-icon">📧</span>
-                                        Email
-                                    </button>
-                                    <button onClick={() => shareViaSocial("twitter")} className="share-option-btn twitter">
-                                        <span className="share-icon">🐦</span>
-                                        Twitter
-                                    </button>
-                                    <button onClick={() => shareViaSocial("facebook")} className="share-option-btn facebook">
-                                        <span className="share-icon">📘</span>
-                                        Facebook
-                                    </button>
-                                    <button onClick={() => shareViaSocial("whatsapp")} className="share-option-btn whatsapp">
-                                        <span className="share-icon">💬</span>
-                                        WhatsApp
-                                    </button>
-                                </div>
-                            </div>
-
-                            {!canDownload && (
-                                <div className="upgrade-prompt-small">
-                                    <div className="upgrade-icon-small">⭐</div>
-                                    <div className="upgrade-text-small">
-                                        <strong>Want to download your stories?</strong>
-                                        <p>Upgrade to Pro or Premium to download as PDF or image files!</p>
-                                        <button onClick={() => navigate("/upgrade")} className="mini-upgrade-btn">
-                                            Upgrade Now
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </div>
             )}
         </div>
