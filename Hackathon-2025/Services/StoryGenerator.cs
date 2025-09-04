@@ -34,7 +34,9 @@ public class StoryGenerator : IStoryGeneratorService
         ));
 
         var style = BuildReadingStyle(request.ReadingLevel);
-        var pageCount = request.PageCount ?? 8; // length hint from controller ("short"=4, "medium"=8, "long"=12)
+
+        // If PageCount is null, we treat length as "open" and let the model decide.
+        int? pageCount = request.PageCount; // null => no enforced page length
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
 
         var systemContent =
@@ -42,19 +44,29 @@ public class StoryGenerator : IStoryGeneratorService
             "Never describe physical appearance. " +
             "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
 
-        // Ask for an extra Lesson line AFTER the story paragraphs (not a paragraph itself)
+        // Lesson line adapts to whether we enforce paragraph count
         var lessonLine = mustLesson
-            ? $"""
+            ? (pageCount.HasValue
+                ? $"""
 Ensure the story naturally reflects this moral: "{request.LessonLearned}".
-After you finish the {pageCount} paragraphs, write one extra line that begins with "Lesson:" and states this moral in simple words. Do not count this line as a paragraph.
+After you finish the {pageCount.Value} paragraphs, write one extra line that begins with "Lesson:" and states this moral in simple words. Do not count this line as a paragraph.
 """
+                : $"""
+Ensure the story naturally reflects this moral: "{request.LessonLearned}".
+After you finish the story, write one extra line that begins with "Lesson:" and state this moral in simple words. Do not treat this line as a paragraph.
+""")
             : "If a gentle lesson emerges naturally, keep it subtle.";
 
         // Prevent headings or Page labels
         var formatRule = "Write plain paragraphs only. Do NOT add any headings, numbers, or 'Page' labels.";
 
+        // Length line adapts to whether we enforce paragraph count
+        string lengthLine = pageCount.HasValue
+            ? $"Write a complete children's story of about {pageCount.Value} short paragraphs featuring these characters: {characterList}."
+            : $"Write a complete children's story in several short paragraphs featuring these characters: {characterList}.";
+
         var prompt = $"""
-Write a complete children's story of about {pageCount} short paragraphs featuring these characters: {characterList}.
+{lengthLine}
 They go on an adventure involving {request.Theme}. The reader already knows what the characters look like,
 so do not describe their appearance, clothing, or physical features.
 
@@ -74,8 +86,10 @@ Each paragraph should represent a different scene in the story.
 
         _logger?.LogInformation("=== STORY PROMPT ===\n{Prompt}\n====================", prompt);
 
-        // Token budget proportional to target length
-        var maxTokens = Math.Min(1500, pageCount * 90 + 200);
+        // Token budget: proportional if pageCount is set; conservative if open-length
+        var maxTokens = pageCount.HasValue
+            ? Math.Min(1500, pageCount.Value * 90 + 200)
+            : 900;
 
         var requestBody = new
         {
@@ -124,7 +138,8 @@ Each paragraph should represent a different scene in the story.
             .Where(p => p.Length > 0)
             .ToArray();
 
-        _logger?.LogInformation("Story paragraphs: got={Got}, targetHint={Target}", paragraphs.Length, pageCount);
+        _logger?.LogInformation("Story paragraphs: got={Got}, targetHint={Target}",
+            paragraphs.Length, pageCount.HasValue ? pageCount.Value.ToString() : "auto");
 
         // Use a copy WITHOUT the Lesson line for image prompts
         var paragraphsForImages = paragraphs.ToArray();
