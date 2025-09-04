@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import "./StoryForm.css"
 
@@ -12,6 +12,8 @@ const StoryForm = ({ onSubmit }) => {
     const [theme, setTheme] = useState("")
     const [lesson, setLesson] = useState("");
     const membership = (user?.membership || "free").toLowerCase();
+    const [lengthHintEnabled, setLengthHintEnabled] = useState(false);
+    const API_BASE = import.meta.env.VITE_API_BASE ?? "";
     const [storyLength, setStoryLength] = useState("short");
 
     const lengthOptionsByMembership = {
@@ -22,6 +24,21 @@ const StoryForm = ({ onSubmit }) => {
         { value: "medium", label: "Medium (about 8 pages)" },
         { value: "long", label: "Long (about 12 pages)" }],
     };
+
+    useEffect(() => {
+        const url = `${API_BASE}/api/config`;
+        fetch(url, { credentials: "omit" })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then(data => setLengthHintEnabled(!!data.lengthHintEnabled))
+            .catch(err => {
+                console.error("Failed to load /api/config:", err);
+                setLengthHintEnabled(false);
+            });
+    }, []);
+
     const availableLengths = lengthOptionsByMembership[membership] || lengthOptionsByMembership.free;
     const isLengthAllowed = (v) => availableLengths.some(o => o.value === v);
     const defaultLessons = [
@@ -206,23 +223,27 @@ const StoryForm = ({ onSubmit }) => {
     }
 
     const handleSubmit = (e) => {
-        e.preventDefault();
+        e.preventDefault()
         const processedCharacters = characters.map((c) => ({
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
-        }));
+        }))
+        const finalArtStyle = isFree ? "watercolor" : artStyle
 
-        const finalArtStyle = isFree ? "watercolor" : artStyle;
-
-        onSubmit({
+        const body = {
             theme,
             readingLevel,
             artStyle: finalArtStyle,
             characters: processedCharacters,
             lessonLearned: lesson || null,
-            storyLength,
-        });
-    };
+            lengthHintEnabled,
+        }
+        if (lengthHintEnabled) {
+            body.storyLength = storyLength
+        }
+
+        onSubmit(body)
+    }
 
     const renderDropdownWithCustom = (index, field, label, options = []) => {
         const customValue = characters[index].descriptionFields[field + "Custom"] || ""
@@ -342,24 +363,39 @@ const StoryForm = ({ onSubmit }) => {
                 </div>
             </div>
 
-            <div className="field-group">
-                <label className="field-label">Story Length</label>
-                <select
-                    className="form-select"
-                    value={isLengthAllowed(storyLength) ? storyLength : "short"}
-                    onChange={(e) => setStoryLength(e.target.value)}
-                >
-                    {/* always show all tiers, lock ones above plan */}
-                    <option value="short">Short (about 4 pages)</option>
-                    <option value="medium" disabled={membership === "free"}>{membership === "free" ? "🔒 Medium (upgrade for 8 pages)" : "Medium (about 8 pages)"}</option>
-                    <option value="long" disabled={membership !== "premium"}>{membership === "premium" ? "Long (about 12 pages)" : "🔒 Long (premium only)"}</option>
-                </select>
-                {membership !== "premium" && (
-                    <p className="style-lock-hint">
-                        Choose longer stories by upgrading your plan.
-                    </p>
-                )}
-            </div>
+            {lengthHintEnabled && (
+                <div className="field-group">
+                    <label className="field-label">Story Length</label>
+                    <select
+                        className="form-select"
+                        value={isLengthAllowed(storyLength) ? storyLength : "short"}
+                        onChange={(e) => setStoryLength(e.target.value)}
+                    >
+                        <option value="short">Short (about 4 pages)</option>
+                        <option
+                            value="medium"
+                            disabled={membership === "free"}
+                        >
+                            {membership === "free"
+                                ? "🔒 Medium (upgrade for 8 pages)"
+                                : "Medium (about 8 pages)"}
+                        </option>
+                        <option
+                            value="long"
+                            disabled={membership !== "premium"}
+                        >
+                            {membership === "premium"
+                                ? "Long (about 12 pages)"
+                                : "🔒 Long (premium only)"}
+                        </option>
+                    </select>
+                    {membership !== "premium" && (
+                        <p className="style-lock-hint">
+                            Choose longer stories by upgrading your plan.
+                        </p>
+                    )}
+                </div>
+            )}
 
             <div className="form-section">
                 <h3 className="section-title">

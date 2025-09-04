@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Services;
-using Hackathon_2025.Data;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text.Json;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Hackathon_2025.Controllers;
 
@@ -19,62 +20,77 @@ public class StoryController : ControllerBase
     private readonly BlobUploadService _blobService;
     private readonly IProgressBroker _progress;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IOptionsSnapshot<StoryOptions> _storyOpts;
 
     public StoryController(
-        IStoryGeneratorService storyService,
-        AppDbContext db,
-        BlobUploadService blobService,
-        IProgressBroker progress,
-        IServiceScopeFactory scopeFactory)
+    IStoryGeneratorService storyService,
+    AppDbContext db,
+    BlobUploadService blobService,
+    IProgressBroker progress,
+    IServiceScopeFactory scopeFactory,
+    IOptionsSnapshot<StoryOptions> storyOpts)
     {
         _storyService = storyService;
         _db = db;
         _blobService = blobService;
         _progress = progress;
         _scopeFactory = scopeFactory;
+        _storyOpts = storyOpts;
     }
 
     [Authorize]
     [HttpPost("generate-full")]
     public async Task<IActionResult> GenerateFullStory([FromBody] StoryRequest request)
     {
-        if (request is null || request.Characters.Count == 0)
+        if (request?.Characters == null || request.Characters.Count == 0)
             return BadRequest("Invalid request: At least one character is required.");
 
         var user = await GetAndValidateUserAsync();
         if (user is null) return Unauthorized("Invalid or missing user ID in token.");
 
-        var membership = (user.Membership ?? "").ToLowerInvariant();
         var now = DateTime.UtcNow;
-
-        // allowed lengths by membership
-        var allowed = membership switch
-        {
-            "free" => new[] { "short" },
-            "pro" => new[] { "short", "medium" },
-            "premium" => new[] { "short", "medium", "long" },
-            _ => new[] { "short" }
-        };
-
-        // normalize requested length
-        var requested = (request.StoryLength ?? "short").ToLowerInvariant();
-        if (!allowed.Contains(requested)) requested = allowed[0];
 
         // Subscription limit checks / monthly reset
         var limitExceeded = await CheckAndMaybeResetLimitsAsync(user, now);
         if (limitExceeded?.exceeded == true)
             return StatusCode(403, limitExceeded.Value.message!);
 
-        // map lengths to page targets (hint, not strict)
-        var lengthToCount = new Dictionary<string, int>
-        {
-            ["short"] = 4,
-            ["medium"] = 8,
-            ["long"] = 12
-        };
+        // BACKEND SWITCH: enable/disable enforcing page length hints
+        var enforceLength = _storyOpts.Value.LengthHintEnabled;
 
-        request.StoryLength = requested;
-        request.PageCount = lengthToCount[requested];
+        if (enforceLength)
+        {
+            // allowed lengths by membership
+            var membership = (user.Membership ?? "").ToLowerInvariant();
+            var allowed = membership switch
+            {
+                "free" => new[] { "short" },
+                "pro" => new[] { "short", "medium" },
+                "premium" => new[] { "short", "medium", "long" },
+                _ => new[] { "short" }
+            };
+
+            // normalize requested length
+            var requested = (request.StoryLength ?? "short").ToLowerInvariant();
+            if (!allowed.Contains(requested)) requested = allowed[0];
+
+            // map lengths to page targets (hint, not strict)
+            var lengthToCount = new Dictionary<string, int>
+            {
+                ["short"] = 4,
+                ["medium"] = 8,
+                ["long"] = 12
+            };
+
+            request.StoryLength = requested;
+            request.PageCount = lengthToCount[requested];
+        }
+        else
+        {
+            // Hints OFF: ignore any client-provided length/page count
+            request.StoryLength = null;
+            request.PageCount = null;
+        }
 
         // Generate the story
         var result = await _storyService.GenerateFullStoryAsync(request);
@@ -122,7 +138,7 @@ public class StoryController : ControllerBase
     [HttpPost("generate-full/start")]
     public async Task<IActionResult> Start([FromBody] StoryRequest request, CancellationToken ct)
     {
-        if (request is null || request.Characters.Count == 0)
+        if (request?.Characters == null || request.Characters.Count == 0)
             return BadRequest("Invalid request: At least one character is required.");
 
         var user = await GetAndValidateUserAsync();
@@ -135,29 +151,41 @@ public class StoryController : ControllerBase
         if (limitExceeded?.exceeded == true)
             return StatusCode(403, limitExceeded.Value.message!);
 
-        // SAME length gating as /generate-full
-        var membership = (user.Membership ?? "").ToLowerInvariant();
+        // BACKEND SWITCH: enable/disable enforcing page length hints
+        var enforceLength = _storyOpts.Value.LengthHintEnabled;
 
-        var allowed = membership switch
+        if (enforceLength)
         {
-            "free" => new[] { "short" },
-            "pro" => new[] { "short", "medium" },
-            "premium" => new[] { "short", "medium", "long" },
-            _ => new[] { "short" }
-        };
+            // SAME length gating as /generate-full
+            var membership = (user.Membership ?? "").ToLowerInvariant();
 
-        var requested = (request.StoryLength ?? "short").ToLowerInvariant();
-        if (!allowed.Contains(requested)) requested = allowed[0];
+            var allowed = membership switch
+            {
+                "free" => new[] { "short" },
+                "pro" => new[] { "short", "medium" },
+                "premium" => new[] { "short", "medium", "long" },
+                _ => new[] { "short" }
+            };
 
-        var lengthToCount = new Dictionary<string, int>
+            var requested = (request.StoryLength ?? "short").ToLowerInvariant();
+            if (!allowed.Contains(requested)) requested = allowed[0];
+
+            var lengthToCount = new Dictionary<string, int>
+            {
+                ["short"] = 4,
+                ["medium"] = 8,
+                ["long"] = 12
+            };
+
+            request.StoryLength = requested;
+            request.PageCount = lengthToCount[requested]; // hint for generator/token budget
+        }
+        else
         {
-            ["short"] = 4,
-            ["medium"] = 8,
-            ["long"] = 12
-        };
-
-        request.StoryLength = requested;
-        request.PageCount = lengthToCount[requested]; // hint for generator/token budget
+            // Hints OFF: ignore any client-provided length/page count
+            request.StoryLength = null;
+            request.PageCount = null;
+        }
 
         // Create a job and run in background with a fresh DI scope
         var jobId = _progress.CreateJob();
@@ -314,8 +342,8 @@ public class StoryController : ControllerBase
         // Monthly limits for paid
         int monthlyLimit = user.Membership switch
         {
-            "pro" => 10,
-            "premium" => 50,
+            "pro" => 5,
+            "premium" => 11,
             _ => 1
         };
 

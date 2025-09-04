@@ -111,6 +111,9 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+// --- App config / options ---
+builder.Services.Configure<StoryOptions>(builder.Configuration.GetSection("Story"));
+
 // --- Build / Pipeline ---
 var app = builder.Build();
 
