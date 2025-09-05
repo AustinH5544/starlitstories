@@ -48,8 +48,6 @@ const ProfilePage = () => {
         }
     }, [search]);
 
-    { flash && <p className="action-msg">{flash}</p> }
-
     const cancelMembership = async () => {
         try {
             setWorking(true); setActionMsg("");
@@ -265,6 +263,7 @@ const ProfilePage = () => {
     if (!user) {
         return (
             <div className="profile-page">
+                {flash && <p className="action-msg">{flash}</p>}
                 <div className="stars" />
                 <div className="twinkling" />
                 <div className="clouds" />
@@ -394,11 +393,13 @@ const ProfilePage = () => {
                                 <StoryCard
                                     key={story.id}
                                     story={story}
+                                    canCustomize={true}
                                     canDownload={canDownload}
                                     onShare={onShare}
                                     onDownload={onDownload}
                                     onDelete={onDelete}
                                     onOpen={onOpen}
+                                    onCustomize={(s) => navigate("/customize", { state: { story: s } })}
                                 />
                             ))}
                         </div>

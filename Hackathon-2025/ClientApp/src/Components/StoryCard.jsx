@@ -1,4 +1,5 @@
 ﻿import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import "./StoryCard.css";
 
@@ -9,6 +10,8 @@ export default function StoryCard({
     onDownload,                  // (story, format) => Promise<void>
     onDelete,                    // (storyId) => Promise<void>
     onOpen,                      // optional: open viewer (story) => void
+    canCustomize,
+    onCustomize,
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [downloading, setDownloading] = useState(false);
@@ -121,6 +124,15 @@ export default function StoryCard({
 
             {menuOpen && (
                 <div ref={menuRef} className="scard-menu" role="menu">
+                    {canCustomize && (
+                        <button
+                            role="menuitem"
+                            className="scard-menuItem"
+                            onClick={() => { onCustomize?.(story); setMenuOpen(false); }}
+                        >
+                            ✏️ Customize
+                        </button>
+                    )}
                     <button
                         role="menuitem"
                         className="scard-menuItem"
@@ -194,6 +206,8 @@ StoryCard.propTypes = {
     onDownload: PropTypes.func,
     onDelete: PropTypes.func,
     onOpen: PropTypes.func,
+    canCustomize: PropTypes.bool,
+    onCustomize: PropTypes.func,
 };
 
 StoryCard.defaultProps = {
@@ -202,4 +216,6 @@ StoryCard.defaultProps = {
     onDownload: undefined,
     onDelete: undefined,
     onOpen: undefined,
+    canCustomize: false,
+    onCustomize: undefined,
 };

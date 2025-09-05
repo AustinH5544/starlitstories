@@ -16,6 +16,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage"
 import VerifyEmailPage from "./pages/VerifyEmailPage"
 import FAQPage from "./pages/FAQPage"
 import SupportPage from "./pages/SupportPage"
+import StoryCustomizePage from "./pages/StoryCustomizePage"
 
 function App() {
     return (
@@ -37,6 +38,7 @@ function App() {
                     <Route path="/verify-email" element={<VerifyEmailPage />} />
                     <Route path="/faq" element={<FAQPage />} />
                     <Route path="/support" element={<SupportPage />} />
+                    <Route path="/customize" element={<StoryCustomizePage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>
