@@ -163,20 +163,59 @@ export default function StoryCustomizePage() {
         });
     }
 
-    function onResize(id, dw, dh) {
+    function onResize(id, dw, dh, anchor = 'se') {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
+
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
                 if (b.id !== id) return b;
-                let w = Math.max(120, b.w + dw);
-                let h = Math.max(80, b.h + dh);
-                if (bounds) {
-                    w = Math.min(w, bounds.width - b.x - 2);
-                    h = Math.min(h, bounds.height - b.y - 2);
+
+                let x = b.x, y = b.y, w = b.w, h = b.h;
+                const minW = 120, minH = 80;
+
+                // Keep right/bottom edges to compute west/north adjustments
+                const right = b.x + b.w;
+                const bottom = b.y + b.h;
+
+                // Horizontal (E/W)
+                if (anchor.includes('e')) {
+                    w = w + dw;
                 }
-                return { ...b, w, h };
+                if (anchor.includes('w')) {
+                    // dw is negative when dragging right (because we pass -dx). Move x and recompute width from the fixed right edge.
+                    x = b.x - dw;           // since dw = -dx → x += dx → x = b.x - dw
+                    w = right - x;
+                }
+
+                // Vertical (N/S)
+                if (anchor.includes('s')) {
+                    h = h + dh;
+                }
+                if (anchor.includes('n')) {
+                    y = b.y - dh;           // since dh = -dy → y += dy → y = b.y - dh
+                    h = bottom - y;
+                }
+
+                // Min size
+                w = Math.max(minW, w);
+                h = Math.max(minH, h);
+
+                // Stay within the stage
+                if (bounds) {
+                    const pad = 2;
+                    const maxX = bounds.width - minW - pad;
+                    const maxY = bounds.height - minH - pad;
+
+                    x = Math.max(pad, Math.min(x, maxX));
+                    y = Math.max(pad, Math.min(y, maxY));
+
+                    w = Math.min(w, bounds.width - x - pad);
+                    h = Math.min(h, bounds.height - y - pad);
+                }
+
+                return { ...b, x, y, w, h };
             });
             return next;
         });
@@ -513,56 +552,113 @@ function colorToRgba(hexOrRgb, alpha = 0.8) {
 /** Draggable, resizable text box */
 function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange }) {
     const ref = useRef(null);
-    const handleRef = useRef(null);
     const dragState = useRef(null);
 
-    // Always point to the latest callbacks without retriggering the effect
+    // Keep latest callbacks
     const onDragRef = useRef(onDrag);
     const onSelectRef = useRef(onSelect);
+    const onResizeRef = useRef(onResize);
     useEffect(() => { onDragRef.current = onDrag; }, [onDrag]);
     useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+    useEffect(() => { onResizeRef.current = onResize; }, [onResize]);
+
+    // Helper (define once)
+    const pointer = (e) => ({ x: e.clientX, y: e.clientY });
 
     useEffect(() => {
-        const handle = handleRef.current;
-        if (!handle) return;
-
-        function pointer(e) { return { x: e.clientX, y: e.clientY }; }
+        const el = ref.current;
+        if (!el) return;
 
         function down(e) {
+            // Don’t hijack resize starts
+            if (e.target.closest?.('.edge-handle, .corner-handle')) return;
+
+            // If you add inline editing later, guard here:
+            // if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
+
             e.stopPropagation();
             e.preventDefault();
             onSelectRef.current?.();
 
             const p = pointer(e);
-            dragState.current = { prevX: p.x, prevY: p.y };
+            dragState.current = { prevX: p.x, prevY: p.y, started: false };
 
-            try { handle.setPointerCapture?.(e.pointerId); } catch { }
-            window.addEventListener("pointermove", move, { passive: false });
-            window.addEventListener("pointerup", up, { once: true });
+            try { el.setPointerCapture?.(e.pointerId); } catch { }
+            window.addEventListener('pointermove', move, { passive: false });
+            window.addEventListener('pointerup', up, { once: true });
+            el.classList.add('dragging');
         }
 
         function move(e) {
             const s = dragState.current; if (!s) return;
             e.preventDefault();
-            const p = { x: e.clientX, y: e.clientY };
+
+            const p = pointer(e);
             const dx = p.x - s.prevX;
             const dy = p.y - s.prevY;
+
+            if (!s.started) {
+                if (Math.abs(dx) + Math.abs(dy) < 3) return; // small threshold
+                s.started = true;
+            }
+
             onDragRef.current?.(box.id, dx, dy);
-            s.prevX = p.x; s.prevY = p.y;
+            s.prevX = p.x;
+            s.prevY = p.y;
         }
 
         function up(e) {
+            try { el.releasePointerCapture?.(e.pointerId); } catch { }
+            window.removeEventListener('pointermove', move);
             dragState.current = null;
-            try { handle.releasePointerCapture?.(e.pointerId); } catch { }
-            window.removeEventListener("pointermove", move);
+            el.classList.remove('dragging');
         }
 
-        handle.addEventListener("pointerdown", down);
+        el.addEventListener('pointerdown', down);
         return () => {
-            handle.removeEventListener("pointerdown", down);
-            window.removeEventListener("pointermove", move);
+            el.removeEventListener('pointerdown', down);
+            window.removeEventListener('pointermove', move);
         };
     }, [box.id]);
+
+    // --- Resize support ---
+    const rs = useRef(null);
+
+    function startResize(e, anchor) {
+        e.stopPropagation();
+        e.preventDefault();
+        onSelectRef.current?.();
+
+        const p = pointer(e);
+        rs.current = { prevX: p.x, prevY: p.y, anchor };
+
+        try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { }
+        window.addEventListener('pointermove', onResizeMove, { passive: false });
+        window.addEventListener('pointerup', onResizeUp, { once: true });
+    }
+
+    function onResizeMove(e) {
+        const s = rs.current; if (!s) return;
+        e.preventDefault();
+        const p = pointer(e);
+        const dx = p.x - s.prevX;
+        const dy = p.y - s.prevY;
+
+        let dw = 0, dh = 0;
+        if (s.anchor.includes('e')) dw = dx;
+        if (s.anchor.includes('w')) dw = -dx;
+        if (s.anchor.includes('s')) dh = dy;
+        if (s.anchor.includes('n')) dh = -dy;
+
+        onResizeRef.current?.(box.id, dw, dh, s.anchor);
+        s.prevX = p.x; s.prevY = p.y;
+    }
+
+    function onResizeUp(e) {
+        try { e.currentTarget?.releasePointerCapture?.(e.pointerId); } catch { }
+        window.removeEventListener('pointermove', onResizeMove);
+        rs.current = null;
+    }
 
     const style = {
         left: box.x,
@@ -581,13 +677,26 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         textAlign: box.style.align,
         outline: selected ? "2px solid #6c8cff" : "1px solid rgba(0,0,0,.08)",
         position: "absolute",
+        cursor: 'grab',
+        userSelect: 'none',
     };
 
     return (
         <div className={`tbox ${selected ? "selected" : ""}`} style={style} ref={ref} onDoubleClick={onSelect}>
-              <button className="drag-handle" ref={handleRef} aria-label="Drag text box" />
-              <div className="content">{box.text}</div>
-            </div>
+            {/* Resize edges */}
+            <div className="edge-handle handle-n" onPointerDown={(e) => startResize(e, 'n')} />
+            <div className="edge-handle handle-s" onPointerDown={(e) => startResize(e, 's')} />
+            <div className="edge-handle handle-e" onPointerDown={(e) => startResize(e, 'e')} />
+            <div className="edge-handle handle-w" onPointerDown={(e) => startResize(e, 'w')} />
+
+            {/* Resize corners */}
+            <div className="corner-handle handle-nw" onPointerDown={(e) => startResize(e, 'nw')} />
+            <div className="corner-handle handle-ne" onPointerDown={(e) => startResize(e, 'ne')} />
+            <div className="corner-handle handle-sw" onPointerDown={(e) => startResize(e, 'sw')} />
+            <div className="corner-handle handle-se" onPointerDown={(e) => startResize(e, 'se')} />
+
+            <div className="content">{box.text}</div>
+        </div>
     );
 }
 
@@ -620,7 +729,8 @@ const styles = `
 .stage-wrap { display: grid; place-items: center; }
 .stage { touch-action: none; position: relative; width: min(840px, 90vw); aspect-ratio: 4/3; background: #0b0f1c; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
 .page-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.02) contrast(1.02); }
-.tbox { user-select: none; }
+.tbox { cursor: grab; }
+.tbox.dragging { cursor: grabbing; }
 .tbox .content {
   width: 100%;
   height: 100%;
@@ -643,6 +753,37 @@ const styles = `
   cursor: grab;
   z-index: 3;
 }
+.tbox .edge-handle,
+.tbox .corner-handle { opacity: 0; transition: opacity .12s; }
+.tbox.selected .edge-handle,
+.tbox.selected .corner-handle { opacity: 1; }
+
+.tbox .edge-handle {
+  position: absolute;
+  z-index: 4;
+  background: transparent; /* invisible hit-area */
+}
+
+.tbox .handle-n { top: -6px; left: 0; right: 0; height: 12px; cursor: ns-resize; }
+.tbox .handle-s { bottom: -6px; left: 0; right: 0; height: 12px; cursor: ns-resize; }
+
+.tbox .handle-e { right: -6px; top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
+.tbox .handle-w { left: -6px;  top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
+
+.tbox .corner-handle {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid #6c8cff;
+  background: #0b0f1c;
+  box-shadow: 0 2px 10px rgba(0,0,0,.4);
+  z-index: 5;
+}
+
+.tbox .handle-nw { top: -10px; left: -10px; cursor: nwse-resize; }
+.tbox .handle-ne { top: -10px; right: -10px; cursor: nesw-resize; }
+.tbox .handle-sw { bottom: -10px; left: -10px; cursor: nesw-resize; }
+.tbox .handle-se { bottom: -10px; right: -10px; cursor: nwse-resize; }
 .tbox .drag-handle:active { cursor: grabbing; }
 .tbox.selected .drag-handle { outline: 1px dashed rgba(108,140,255,.35); outline-offset: 2px; }
 .tbox.selected .drag-bar { outline: 1px dashed rgba(108,140,255,.5); }
