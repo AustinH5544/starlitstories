@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import "./StoryCustomizePage.css";
 
 /**
  * StoryCustomizePage
@@ -281,7 +282,6 @@ export default function StoryCustomizePage() {
 
     return (
         <div className="customizer">
-            <style>{styles}</style>
 
             {/* Top bar */}
             <header className="topbar">
@@ -699,100 +699,3 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         </div>
     );
 }
-
-const styles = `
-:root {
-  --bg: #0b1020;
-  --surface: #0e152a;
-  --text: #e7ecf1;
-  --muted: #9aa6b2;
-  --primary: #6c8cff;
-  --border: #23314f;
-}
-* { box-sizing: border-box; }
-.customizer { padding-top: var(--navbar-height, 64px); min-height: 100vh; background: radial-gradient(1200px 800px at 10% -10%, #1a2652 0%, transparent 55%),
-             radial-gradient(900px 700px at 110% 10%, #361f59 0%, transparent 40%), var(--bg); color: var(--text); }
-.topbar { position: sticky; top: var(--navbar-height, 64px); height: 56px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--border); background: linear-gradient(0deg, rgba(14,21,42,.8), rgba(14,21,42,.8)); backdrop-filter: blur(8px); }
-.topbar .title { text-align: center; font-weight: 600; }
-.topbar .actions { justify-self: end; display: flex; gap: 8px; }
-.btn { background: #1a2344; color: #dbe6ff; border: 1px solid var(--border); padding: 8px 12px; border-radius: 10px; cursor: pointer; }
-.btn:hover { border-color: #3a4f8f; }
-.btn.primary { background: var(--primary); color: #0b0f1c; border-color: #6c8cff; }
-.btn.ghost { background: transparent; }
-.btn.danger { background: #3a1f2a; border-color: #5a2a3a; color: #ffd7df; }
-.layout { display: grid; grid-template-columns: 200px 1fr 320px; gap: 16px; padding: 16px; }
-.sidebar { display: grid; grid-template-rows: auto 1fr; gap: 16px; }
-.pages { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; align-content: start; }
-.thumb { aspect-ratio: 1 / 1; background: #121a35; border: 1px solid var(--border); border-radius: 10px; color: #b6c5ff; cursor: pointer; }
-.thumb.active { outline: 2px solid var(--primary); }
-.copybar { display: grid; gap: 8px; padding: 12px; border: 1px dashed var(--border); border-radius: 12px; background: rgba(20,30,60,.35); }
-.stage-wrap { display: grid; place-items: center; }
-.stage { touch-action: none; position: relative; width: min(840px, 90vw); aspect-ratio: 4/3; background: #0b0f1c; border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
-.page-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(1.02) contrast(1.02); }
-.tbox { cursor: grab; }
-.tbox.dragging { cursor: grabbing; }
-.tbox .content {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  white-space: pre-wrap;
-  pointer-events: auto;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.tbox .drag-handle {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: white;
-  mix-blend-mode: difference;
-  cursor: grab;
-  z-index: 3;
-}
-.tbox .edge-handle,
-.tbox .corner-handle { opacity: 0; transition: opacity .12s; }
-.tbox.selected .edge-handle,
-.tbox.selected .corner-handle { opacity: 1; }
-
-.tbox .edge-handle {
-  position: absolute;
-  z-index: 4;
-  background: transparent; /* invisible hit-area */
-}
-
-.tbox .handle-n { top: -6px; left: 0; right: 0; height: 12px; cursor: ns-resize; }
-.tbox .handle-s { bottom: -6px; left: 0; right: 0; height: 12px; cursor: ns-resize; }
-
-.tbox .handle-e { right: -6px; top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
-.tbox .handle-w { left: -6px;  top: 0; bottom: 0; width: 12px; cursor: ew-resize; }
-
-.tbox .corner-handle {
-  position: absolute;
-  width: 14px; height: 14px;
-  border-radius: 50%;
-  border: 2px solid #6c8cff;
-  background: #0b0f1c;
-  box-shadow: 0 2px 10px rgba(0,0,0,.4);
-  z-index: 5;
-}
-
-.tbox .handle-nw { top: -10px; left: -10px; cursor: nwse-resize; }
-.tbox .handle-ne { top: -10px; right: -10px; cursor: nesw-resize; }
-.tbox .handle-sw { bottom: -10px; left: -10px; cursor: nesw-resize; }
-.tbox .handle-se { bottom: -10px; right: -10px; cursor: nwse-resize; }
-.tbox .drag-handle:active { cursor: grabbing; }
-.tbox.selected .drag-handle { outline: 1px dashed rgba(108,140,255,.35); outline-offset: 2px; }
-.tbox.selected .drag-bar { outline: 1px dashed rgba(108,140,255,.5); }
-.tbox .handle { position: absolute; right: -10px; bottom: -10px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #6c8cff; background: #0b0f1c; box-shadow: 0 2px 10px rgba(0,0,0,.4); cursor: nwse-resize; }
-.inspector { padding: 8px 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(14,21,42,.6); height: fit-content; position: sticky; top: 72px; }
-.inspector .input, .inspector select, .inspector textarea { width: 100%; background: #0f1630; color: #dbe6ff; border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-block: 8px; }
-.row.gap { display: flex; gap: 8px; }
-.row.gap.sm { gap: 6px; align-items: center; }
-.pane.empty { max-width: 680px; margin: 96px auto; background: rgba(14,21,42,.6); padding: 24px; border-radius: 16px; border: 1px solid var(--border); text-align: center; }
-.tip { color: var(--muted); font-size: 12px; }
-`;

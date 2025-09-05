@@ -64,7 +64,7 @@
 /* Header: progress only, centered, transparent, sits below site nav */
 .story-header {
     position: fixed;
-    top: 130px; /* tweak if your site nav height differs */
+    top: 90px; /* tweak if your site nav height differs */
     left: 0;
     right: 0;
     z-index: 100;

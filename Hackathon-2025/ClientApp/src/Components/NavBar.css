@@ -327,3 +327,51 @@
         display: flex;
     }
 }
+
+/* === Mobile: show story header to the right of the logo === */
+@media (max-width: 768px) {
+    /* Ensure the navbar is a positioning context and has a steady height */
+    .navbar {
+        position: relative;
+        min-height: 56px;
+    }
+
+    /* Put the story header on top of the navbar line */
+    .story-viewer .story-header {
+        top: 10px !important; /* inside the navbar padding line */
+        z-index: 1002 !important; /* above .navbar (1000) and under the burger we’ll bump next */
+        justify-content: flex-start !important;
+        pointer-events: none; /* don't block nav interactions */
+        padding-right: 56px; /* leave room for the hamburger at right */
+    }
+
+        /* Nudge the progress block so it sits after the "Starlit Stories" logo */
+        .story-viewer .story-header.only-progress .story-progress {
+            margin-left: 210px; /* ≈ logo width + gap; adjust if your logo changes */
+            max-width: 200px; /* fits between logo and burger on most phones */
+            pointer-events: auto; /* allow hover/click on the progress widget */
+        }
+
+    /* Keep the hamburger above the overlayed header */
+    .mobile-menu-toggle {
+        position: relative;
+        z-index: 1003;
+    }
+
+    /* Slightly reduce logo size so everything fits comfortably */
+    .logo {
+        font-size: 1.35rem;
+    }
+}
+
+/* Extra-small phones: tighten spacing a bit */
+@media (max-width: 480px) {
+    .story-viewer .story-header {
+        top: 10px !important;
+    }
+
+        .story-viewer .story-header.only-progress .story-progress {
+            margin-left: 150px;
+            max-width: 160px;
+        }
+}
