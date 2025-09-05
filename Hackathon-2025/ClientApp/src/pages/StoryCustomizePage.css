@@ -6,6 +6,10 @@
     --muted: #9aa6b2;
     --primary: #6c8cff;
     --border: #23314f;
+    /* layout metrics */
+    --navbar-height: 64px;
+    --topbar-h: 56px;
+    --radius: 12px;
 }
 
 * {
@@ -13,25 +17,33 @@
 }
 
 .customizer {
-    padding-top: var(--navbar-height, 64px);
+    padding-top: calc(var(--navbar-height) + env(safe-area-inset-top, 0px));
     min-height: 100vh;
     background: radial-gradient(1200px 800px at 10% -10%, #1a2652 0%, transparent 55%), radial-gradient(900px 700px at 110% 10%, #361f59 0%, transparent 40%), var(--bg);
     color: var(--text);
 }
 
+/* --- Topbar --- */
 .topbar {
     position: sticky;
-    top: var(--navbar-height, 64px);
-    height: 56px;
+    top: calc(var(--navbar-height) + env(safe-area-inset-top, 0px));
+    z-index: 30;
+    height: var(--topbar-h);
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 12px;
-    padding: 8px 16px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border);
-    background: linear-gradient(0deg, rgba(14,21,42,.8), rgba(14,21,42,.8));
+    background: linear-gradient(0deg, rgba(14, 21, 42, 0.82), rgba(14, 21, 42, 0.82));
     backdrop-filter: blur(8px);
 }
+
+    .topbar .left-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
 
     .topbar .title {
         text-align: center;
@@ -44,6 +56,7 @@
         gap: 8px;
     }
 
+/* Buttons */
 .btn {
     background: #1a2344;
     color: #dbe6ff;
@@ -51,6 +64,7 @@
     padding: 8px 12px;
     border-radius: 10px;
     cursor: pointer;
+    font: inherit;
 }
 
     .btn:hover {
@@ -73,6 +87,17 @@
         color: #ffd7df;
     }
 
+    .btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+/* Hide “mobile-only” buttons on wide screens */
+.show-on-mobile {
+    display: none;
+}
+
+/* --- 3-col desktop layout --- */
 .layout {
     display: grid;
     grid-template-columns: 200px 1fr 320px;
@@ -112,7 +137,7 @@
     padding: 12px;
     border: 1px dashed var(--border);
     border-radius: 12px;
-    background: rgba(20,30,60,.35);
+    background: rgba(20, 30, 60, 0.35);
 }
 
 .stage-wrap {
@@ -124,7 +149,7 @@
     touch-action: none;
     position: relative;
     width: min(840px, 90vw);
-    aspect-ratio: 4/3;
+    aspect-ratio: 4 / 3;
     background: #0b0f1c;
     border-radius: 16px;
     overflow: hidden;
@@ -159,24 +184,11 @@
         user-select: none;
     }
 
-    /* Optional “drag handle” dot (keep for future if you add the element) */
-    .tbox .drag-handle {
-        position: absolute;
-        top: 8px;
-        left: 8px;
-        width: 14px;
-        height: 14px;
-        border-radius: 50%;
-        background: white;
-        mix-blend-mode: difference;
-        cursor: grab;
-        z-index: 3;
-    }
-
+    /* Resize handles (visible only when selected) */
     .tbox .edge-handle,
     .tbox .corner-handle {
         opacity: 0;
-        transition: opacity .12s;
+        transition: opacity 0.12s;
     }
 
     .tbox.selected .edge-handle,
@@ -227,9 +239,9 @@
         width: 14px;
         height: 14px;
         border-radius: 50%;
-        border: 2px solid #6c8cff;
+        border: 2px solid var(--primary);
         background: #0b0f1c;
-        box-shadow: 0 2px 10px rgba(0,0,0,.4);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
         z-index: 5;
     }
 
@@ -257,41 +269,15 @@
         cursor: nwse-resize;
     }
 
-    .tbox .drag-handle:active {
-        cursor: grabbing;
-    }
-
-    .tbox.selected .drag-handle {
-        outline: 1px dashed rgba(108,140,255,.35);
-        outline-offset: 2px;
-    }
-
-    .tbox.selected .drag-bar {
-        outline: 1px dashed rgba(108,140,255,.5);
-    }
-
-    /* Legacy single “.handle” knob (safe to keep) */
-    .tbox .handle {
-        position: absolute;
-        right: -10px;
-        bottom: -10px;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        border: 2px solid #6c8cff;
-        background: #0b0f1c;
-        box-shadow: 0 2px 10px rgba(0,0,0,.4);
-        cursor: nwse-resize;
-    }
-
+/* Inspector */
 .inspector {
     padding: 8px 12px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: rgba(14,21,42,.6);
+    background: rgba(14, 21, 42, 0.6);
     height: fit-content;
     position: sticky;
-    top: 72px;
+    top: calc(var(--topbar-h) + 16px);
 }
 
     .inspector .input,
@@ -325,7 +311,7 @@
 .pane.empty {
     max-width: 680px;
     margin: 96px auto;
-    background: rgba(14,21,42,.6);
+    background: rgba(14, 21, 42, 0.6);
     padding: 24px;
     border-radius: 16px;
     border: 1px solid var(--border);
@@ -337,11 +323,96 @@
     font-size: 12px;
 }
 
+/* --- MOBILE / TABLET --- */
+@media (max-width: 900px) {
+    .show-on-mobile {
+        display: inline-flex;
+    }
+
+    .layout {
+        grid-template-columns: 1fr; /* stage only; panels become drawers */
+        padding: 12px;
+        gap: 12px;
+    }
+
+    .stage {
+        width: min(100vw - 24px, 900px);
+    }
+
+    /* Drawer shell */
+    .drawer {
+        display: block;
+        position: fixed;
+        z-index: 40;
+        top: calc(var(--navbar-height) + var(--topbar-h) + env(safe-area-inset-top, 0px));
+        bottom: 0;
+        width: min(86vw, 340px);
+        padding: 12px;
+        background: rgba(14, 21, 42, 0.9);
+        backdrop-filter: blur(8px);
+        overflow: auto;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        transition: transform 160ms ease;
+    }
+
+    .sidebar.drawer {
+        left: 8px;
+        transform: translateX(-104%);
+    }
+
+    .inspector.drawer {
+        right: 8px;
+        transform: translateX(104%);
+    }
+
+    .drawer[data-open="true"] {
+        transform: translateX(0);
+    }
+
+    /* Scrim behind drawers */
+    .scrim {
+        position: fixed;
+        z-index: 35;
+        top: calc(var(--navbar-height) + var(--topbar-h) + env(safe-area-inset-top, 0px));
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(2px);
+    }
+
+    /* Make form controls roomier on mobile */
+    .inspector .input,
+    .inspector select,
+    .inspector textarea {
+        padding: 10px;
+    }
+}
+
+/* Touch-friendly handles on coarse pointers */
+@media (pointer: coarse) {
+    .tbox .corner-handle {
+        width: 18px;
+        height: 18px;
+    }
+
+    .tbox .handle-e,
+    .tbox .handle-w {
+        width: 18px;
+    }
+
+    .tbox .handle-n,
+    .tbox .handle-s {
+        height: 18px;
+    }
+}
+
 /* (Optional) Improve visibility for users who prefer more contrast */
 @media (prefers-contrast: more) {
     .tbox .corner-handle {
         border-color: #90a7ff;
-        box-shadow: 0 0 0 2px rgba(255,255,255,.2);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
     }
 
     .thumb.active {

@@ -12,7 +12,7 @@ import "./StoryCustomizePage.css";
  *  - Drag text boxes anywhere over the illustration
  *  - Resize text boxes via handles
  *  - Style controls (font, size, color, background, alignment)
- *  - Per‑page layouts with quick copy/paste layout between pages
+ *  - Per-page layouts with quick copy/paste layout between pages
  *  - Autosaves to localStorage (can be swapped for a backend API later)
  */
 export default function StoryCustomizePage() {
@@ -24,6 +24,12 @@ export default function StoryCustomizePage() {
     const [boxesByPage, setBoxesByPage] = useState({});
     const [selectedBoxId, setSelectedBoxId] = useState(null);
     const stageRef = useRef(null);
+
+    // Mobile drawers state: 'pages' | 'inspector' | null
+    const [panel, setPanel] = useState(null);
+    const openPages = () => setPanel("pages");
+    const openInspector = () => setPanel("inspector");
+    const closePanels = () => setPanel(null);
 
     // Load story from navigation state or localStorage (mirrors StoryViewerPage behavior)
     useEffect(() => {
@@ -129,7 +135,8 @@ export default function StoryCustomizePage() {
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
                 if (b.id !== id) return b;
-                let x = nextX, y = nextY;
+                let x = nextX,
+                    y = nextY;
                 if (bounds) {
                     const maxX = bounds.width - b.w - 2;
                     const maxY = bounds.height - b.h - 2;
@@ -151,7 +158,6 @@ export default function StoryCustomizePage() {
                 if (b.id !== id) return b;
                 let x = b.x + dx;
                 let y = b.y + dy;
-                // keep inside image area if possible
                 if (bounds) {
                     const maxX = bounds.width - b.w - 2;
                     const maxY = bounds.height - b.h - 2;
@@ -164,7 +170,7 @@ export default function StoryCustomizePage() {
         });
     }
 
-    function onResize(id, dw, dh, anchor = 'se') {
+    function onResize(id, dw, dh, anchor = "se") {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
@@ -173,37 +179,34 @@ export default function StoryCustomizePage() {
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
                 if (b.id !== id) return b;
 
-                let x = b.x, y = b.y, w = b.w, h = b.h;
-                const minW = 120, minH = 80;
+                let x = b.x,
+                    y = b.y,
+                    w = b.w,
+                    h = b.h;
+                const minW = 120,
+                    minH = 80;
 
-                // Keep right/bottom edges to compute west/north adjustments
                 const right = b.x + b.w;
                 const bottom = b.y + b.h;
 
-                // Horizontal (E/W)
-                if (anchor.includes('e')) {
+                if (anchor.includes("e")) {
                     w = w + dw;
                 }
-                if (anchor.includes('w')) {
-                    // dw is negative when dragging right (because we pass -dx). Move x and recompute width from the fixed right edge.
-                    x = b.x - dw;           // since dw = -dx → x += dx → x = b.x - dw
+                if (anchor.includes("w")) {
+                    x = b.x - dw;
                     w = right - x;
                 }
-
-                // Vertical (N/S)
-                if (anchor.includes('s')) {
+                if (anchor.includes("s")) {
                     h = h + dh;
                 }
-                if (anchor.includes('n')) {
-                    y = b.y - dh;           // since dh = -dy → y += dy → y = b.y - dh
+                if (anchor.includes("n")) {
+                    y = b.y - dh;
                     h = bottom - y;
                 }
 
-                // Min size
                 w = Math.max(minW, w);
                 h = Math.max(minH, h);
 
-                // Stay within the stage
                 if (bounds) {
                     const pad = 2;
                     const maxX = bounds.width - minW - pad;
@@ -248,7 +251,6 @@ export default function StoryCustomizePage() {
         setBoxesByPage((prev) => {
             const next = { ...prev };
             const src = prev[fromIndex] || [];
-            // deep-ish clone and reassign ids
             next[pageIndex] = src.map((b) => ({ ...b, id: crypto.randomUUID(), page: pageIndex }));
             return next;
         });
@@ -260,7 +262,10 @@ export default function StoryCustomizePage() {
             const next = { ...prev };
             Object.keys(next).forEach((k) => {
                 const i = Number(k);
-                next[i] = (next[i] || []).map((b) => ({ ...b, style: { ...b.style, ...selectedBox.style } }));
+                next[i] = (next[i] || []).map((b) => ({
+                    ...b,
+                    style: { ...b.style, ...selectedBox.style },
+                }));
             });
             return next;
         });
@@ -272,7 +277,9 @@ export default function StoryCustomizePage() {
                 <div className="pane empty">
                     <h2>No story loaded</h2>
                     <p>Go back and generate or open a story first.</p>
-                    <button className="btn" onClick={() => navigate("/create")}>Create a Story</button>
+                    <button className="btn" onClick={() => navigate("/create")}>
+                        Create a Story
+                    </button>
                 </div>
             </div>
         );
@@ -282,50 +289,131 @@ export default function StoryCustomizePage() {
 
     return (
         <div className="customizer">
-
             {/* Top bar */}
             <header className="topbar">
-                <button className="btn" onClick={() => navigate(-1)}>← Back</button>
-                <div className="title">Customize: <span>{story.title || "Untitled"}</span></div>
+                <div className="left-actions">
+                    <button className="btn" onClick={() => navigate(-1)} aria-label="Go back">
+                        ← Back
+                    </button>
+
+                    {/* Mobile: open pages drawer */}
+                    <button
+                        className="btn show-on-mobile"
+                        onClick={openPages}
+                        aria-controls="drawer-pages"
+                        aria-expanded={panel === "pages"}
+                    >
+                        ☰ Pages
+                    </button>
+                </div>
+
+                <div className="title">
+                    Customize: <span>{story.title || "Untitled"}</span>
+                </div>
+
                 <div className="actions">
+                    {/* Mobile: open inspector drawer */}
+                    <button
+                        className="btn show-on-mobile"
+                        onClick={openInspector}
+                        disabled={!selectedBox}
+                        aria-controls="drawer-inspector"
+                        aria-expanded={panel === "inspector"}
+                        title={selectedBox ? "Open inspector" : "Select a text box to edit"}
+                    >
+                        🎚 Inspector
+                    </button>
+
                     <button className="btn" onClick={addTextBox}>➕ Add Text Box</button>
-                    <button className="btn" disabled={selectedBox == null} onClick={() => duplicateBox(selectedBox?.id)}>⧉ Duplicate</button>
-                    <button className="btn danger" disabled={selectedBox == null} onClick={() => removeBox(selectedBox?.id)}>🗑 Remove</button>
+                    <button
+                        className="btn"
+                        disabled={selectedBox == null}
+                        onClick={() => duplicateBox(selectedBox?.id)}
+                    >
+                        ⧉ Duplicate
+                    </button>
+                    <button
+                        className="btn danger"
+                        disabled={selectedBox == null}
+                        onClick={() => removeBox(selectedBox?.id)}
+                    >
+                        🗑 Remove
+                    </button>
                 </div>
             </header>
 
+            {/* Scrim for mobile drawers */}
+            <div
+                className="scrim"
+                hidden={panel === null}
+                onClick={closePanels}
+                aria-hidden={panel === null}
+            />
+
             {/* Main layout */}
             <div className="layout">
-                {/* Left: page picker */}
-                <aside className="sidebar">
+                {/* Left: page picker (drawer on mobile) */}
+                <aside
+                    id="drawer-pages"
+                    className="sidebar drawer"
+                    data-open={panel === "pages"}
+                    aria-hidden={panel !== "pages"}
+                >
                     <div className="pages">
                         <button
                             className={`thumb ${pageIndex === -1 ? "active" : ""}`}
-                            onClick={() => setPageIndex(-1)}
+                            onClick={() => {
+                                setPageIndex(-1);
+                                closePanels();
+                            }}
                             title="Cover"
-                        >📖 Cover</button>
+                        >
+                            📖
+                        </button>
                         {story.pages.map((_, i) => (
-                            <button key={i} className={`thumb ${i === pageIndex ? "active" : ""}`} onClick={() => setPageIndex(i)}>
+                            <button
+                                key={i}
+                                className={`thumb ${i === pageIndex ? "active" : ""}`}
+                                onClick={() => {
+                                    setPageIndex(i);
+                                    closePanels();
+                                }}
+                            >
                                 {i + 1}
                             </button>
                         ))}
                     </div>
+
                     <div className="copybar">
                         <label>Copy layout from:</label>
                         <select onChange={(e) => copyLayoutFrom(Number(e.target.value))} value="">
-                            <option value="" disabled>Choose page…</option>
+                            <option value="" disabled>
+                                Choose page…
+                            </option>
                             {story.pages.map((_, i) => (
-                                <option key={i} value={i}>Page {i + 1}</option>
+                                <option key={i} value={i}>
+                                    Page {i + 1}
+                                </option>
                             ))}
                         </select>
-                        <button className="btn ghost" disabled={!selectedBox} onClick={applySelectedStyleToAllPages}>Apply selected style → all pages</button>
+                        <button
+                            className="btn ghost"
+                            disabled={!selectedBox}
+                            onClick={applySelectedStyleToAllPages}
+                        >
+                            Apply selected style → all pages
+                        </button>
                     </div>
                 </aside>
 
                 {/* Center: stage */}
                 <main className="stage-wrap">
                     <div className="stage" ref={stageRef}>
-                        <img src={page?.imageUrl || story.coverImageUrl || "/placeholder.svg"} alt="Page" className="page-img" />
+                        <img
+                            src={page?.imageUrl || story.coverImageUrl || "/placeholder.svg"}
+                            alt="Page"
+                            className="page-img"
+                        />
                         {(boxesByPage[pageIndex] || []).map((b) => (
                             <DraggableBox
                                 key={b.id}
@@ -340,8 +428,13 @@ export default function StoryCustomizePage() {
                     </div>
                 </main>
 
-                {/* Right: inspector */}
-                <aside className="inspector">
+                {/* Right: inspector (drawer on mobile) */}
+                <aside
+                    id="drawer-inspector"
+                    className="inspector drawer"
+                    data-open={panel === "inspector"}
+                    aria-hidden={panel !== "inspector"}
+                >
                     <h3>Text Box</h3>
                     {selectedBox ? (
                         <>
@@ -443,10 +536,7 @@ export default function StoryCustomizePage() {
                                         value={Math.round((selectedBox.style.bgAlpha ?? 0.8) * 100)}
                                         onChange={(e) =>
                                             updateStyle({
-                                                bgAlpha: Math.max(
-                                                    0,
-                                                    Math.min(1, Number(e.target.value) / 100)
-                                                ),
+                                                bgAlpha: Math.max(0, Math.min(1, Number(e.target.value) / 100)),
                                             })
                                         }
                                     />
@@ -515,17 +605,6 @@ function clampN(v, min, max) {
     return isNaN(n) ? min : Math.max(min, Math.min(max, n));
 }
 
-function rgbToHex(v) {
-    if (!v) return "#ffffff";
-    if (v.startsWith("#")) return v.slice(0, 7);
-    const m = v.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-    if (!m) return "#ffffff";
-    const r = Number(m[1]).toString(16).padStart(2, "0");
-    const g = Number(m[2]).toString(16).padStart(2, "0");
-    const b = Number(m[3]).toString(16).padStart(2, "0");
-    return `#${r}${g}${b}`;
-}
-
 function hexToRgb(hex) {
     if (!hex) return { r: 255, g: 255, b: 255 };
     if (hex.length === 4) {
@@ -542,8 +621,12 @@ function hexToRgb(hex) {
 
 function colorToRgba(hexOrRgb, alpha = 0.8) {
     if (!hexOrRgb) return `rgba(255,255,255,${alpha})`;
-    if (hexOrRgb.startsWith("rgba")) return hexOrRgb.replace(/rgba\(([^)]+)\)/, (m, inner) => `rgba(${inner.split(',').slice(0, 3).join(',')}, ${alpha})`);
-    if (hexOrRgb.startsWith("rgb")) return hexOrRgb.replace(/rgb\(([^)]+)\)/, (m, inner) => `rgba(${inner}, ${alpha})`);
+    if (hexOrRgb.startsWith("rgba"))
+        return hexOrRgb.replace(/rgba\(([^)]+)\)/, (m, inner) => {
+            return `rgba(${inner.split(",").slice(0, 3).join(",")}, ${alpha})`;
+        });
+    if (hexOrRgb.startsWith("rgb"))
+        return hexOrRgb.replace(/rgb\(([^)]+)\)/, (m, inner) => `rgba(${inner}, ${alpha})`);
     const base = hexOrRgb.slice(0, 7);
     const { r, g, b } = hexToRgb(base);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
@@ -558,11 +641,16 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
     const onDragRef = useRef(onDrag);
     const onSelectRef = useRef(onSelect);
     const onResizeRef = useRef(onResize);
-    useEffect(() => { onDragRef.current = onDrag; }, [onDrag]);
-    useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
-    useEffect(() => { onResizeRef.current = onResize; }, [onResize]);
+    useEffect(() => {
+        onDragRef.current = onDrag;
+    }, [onDrag]);
+    useEffect(() => {
+        onSelectRef.current = onSelect;
+    }, [onSelect]);
+    useEffect(() => {
+        onResizeRef.current = onResize;
+    }, [onResize]);
 
-    // Helper (define once)
     const pointer = (e) => ({ x: e.clientX, y: e.clientY });
 
     useEffect(() => {
@@ -570,11 +658,7 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         if (!el) return;
 
         function down(e) {
-            // Don’t hijack resize starts
-            if (e.target.closest?.('.edge-handle, .corner-handle')) return;
-
-            // If you add inline editing later, guard here:
-            // if (e.target.closest?.('input, textarea, [contenteditable="true"]')) return;
+            if (e.target.closest?.(".edge-handle, .corner-handle")) return;
 
             e.stopPropagation();
             e.preventDefault();
@@ -583,14 +667,17 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
             const p = pointer(e);
             dragState.current = { prevX: p.x, prevY: p.y, started: false };
 
-            try { el.setPointerCapture?.(e.pointerId); } catch { }
-            window.addEventListener('pointermove', move, { passive: false });
-            window.addEventListener('pointerup', up, { once: true });
-            el.classList.add('dragging');
+            try {
+                el.setPointerCapture?.(e.pointerId);
+            } catch { }
+            window.addEventListener("pointermove", move, { passive: false });
+            window.addEventListener("pointerup", up, { once: true });
+            el.classList.add("dragging");
         }
 
         function move(e) {
-            const s = dragState.current; if (!s) return;
+            const s = dragState.current;
+            if (!s) return;
             e.preventDefault();
 
             const p = pointer(e);
@@ -608,16 +695,18 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         }
 
         function up(e) {
-            try { el.releasePointerCapture?.(e.pointerId); } catch { }
-            window.removeEventListener('pointermove', move);
+            try {
+                el.releasePointerCapture?.(e.pointerId);
+            } catch { }
+            window.removeEventListener("pointermove", move);
             dragState.current = null;
-            el.classList.remove('dragging');
+            el.classList.remove("dragging");
         }
 
-        el.addEventListener('pointerdown', down);
+        el.addEventListener("pointerdown", down);
         return () => {
-            el.removeEventListener('pointerdown', down);
-            window.removeEventListener('pointermove', move);
+            el.removeEventListener("pointerdown", down);
+            window.removeEventListener("pointermove", move);
         };
     }, [box.id]);
 
@@ -632,31 +721,38 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         const p = pointer(e);
         rs.current = { prevX: p.x, prevY: p.y, anchor };
 
-        try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { }
-        window.addEventListener('pointermove', onResizeMove, { passive: false });
-        window.addEventListener('pointerup', onResizeUp, { once: true });
+        try {
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+        } catch { }
+        window.addEventListener("pointermove", onResizeMove, { passive: false });
+        window.addEventListener("pointerup", onResizeUp, { once: true });
     }
 
     function onResizeMove(e) {
-        const s = rs.current; if (!s) return;
+        const s = rs.current;
+        if (!s) return;
         e.preventDefault();
         const p = pointer(e);
         const dx = p.x - s.prevX;
         const dy = p.y - s.prevY;
 
-        let dw = 0, dh = 0;
-        if (s.anchor.includes('e')) dw = dx;
-        if (s.anchor.includes('w')) dw = -dx;
-        if (s.anchor.includes('s')) dh = dy;
-        if (s.anchor.includes('n')) dh = -dy;
+        let dw = 0,
+            dh = 0;
+        if (s.anchor.includes("e")) dw = dx;
+        if (s.anchor.includes("w")) dw = -dx;
+        if (s.anchor.includes("s")) dh = dy;
+        if (s.anchor.includes("n")) dh = -dy;
 
         onResizeRef.current?.(box.id, dw, dh, s.anchor);
-        s.prevX = p.x; s.prevY = p.y;
+        s.prevX = p.x;
+        s.prevY = p.y;
     }
 
     function onResizeUp(e) {
-        try { e.currentTarget?.releasePointerCapture?.(e.pointerId); } catch { }
-        window.removeEventListener('pointermove', onResizeMove);
+        try {
+            e.currentTarget?.releasePointerCapture?.(e.pointerId);
+        } catch { }
+        window.removeEventListener("pointermove", onResizeMove);
         rs.current = null;
     }
 
@@ -677,23 +773,28 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         textAlign: box.style.align,
         outline: selected ? "2px solid #6c8cff" : "1px solid rgba(0,0,0,.08)",
         position: "absolute",
-        cursor: 'grab',
-        userSelect: 'none',
+        cursor: "grab",
+        userSelect: "none",
     };
 
     return (
-        <div className={`tbox ${selected ? "selected" : ""}`} style={style} ref={ref} onDoubleClick={onSelect}>
+        <div
+            className={`tbox ${selected ? "selected" : ""}`}
+            style={style}
+            ref={ref}
+            onDoubleClick={onSelect}
+        >
             {/* Resize edges */}
-            <div className="edge-handle handle-n" onPointerDown={(e) => startResize(e, 'n')} />
-            <div className="edge-handle handle-s" onPointerDown={(e) => startResize(e, 's')} />
-            <div className="edge-handle handle-e" onPointerDown={(e) => startResize(e, 'e')} />
-            <div className="edge-handle handle-w" onPointerDown={(e) => startResize(e, 'w')} />
+            <div className="edge-handle handle-n" onPointerDown={(e) => startResize(e, "n")} />
+            <div className="edge-handle handle-s" onPointerDown={(e) => startResize(e, "s")} />
+            <div className="edge-handle handle-e" onPointerDown={(e) => startResize(e, "e")} />
+            <div className="edge-handle handle-w" onPointerDown={(e) => startResize(e, "w")} />
 
             {/* Resize corners */}
-            <div className="corner-handle handle-nw" onPointerDown={(e) => startResize(e, 'nw')} />
-            <div className="corner-handle handle-ne" onPointerDown={(e) => startResize(e, 'ne')} />
-            <div className="corner-handle handle-sw" onPointerDown={(e) => startResize(e, 'sw')} />
-            <div className="corner-handle handle-se" onPointerDown={(e) => startResize(e, 'se')} />
+            <div className="corner-handle handle-nw" onPointerDown={(e) => startResize(e, "nw")} />
+            <div className="corner-handle handle-ne" onPointerDown={(e) => startResize(e, "ne")} />
+            <div className="corner-handle handle-sw" onPointerDown={(e) => startResize(e, "sw")} />
+            <div className="corner-handle handle-se" onPointerDown={(e) => startResize(e, "se")} />
 
             <div className="content">{box.text}</div>
         </div>
