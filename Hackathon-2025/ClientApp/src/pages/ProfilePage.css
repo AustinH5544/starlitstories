@@ -26,6 +26,8 @@
     }
 
     .profile-page .stars {
+        background: #0c1445 url("/stars.jpg") no-repeat center center;
+        background-size: cover;
         z-index: -3;
     }
 
@@ -34,7 +36,11 @@
     }
 
     .profile-page .clouds {
+        background: transparent url("/clouds.png") repeat top center;
+        background-size: contain; /* or contain depending on effect */
         z-index: -1;
+        opacity: 0.8;
+        animation: move-clouds 500s linear infinite;
         height: 50%;
     }
 

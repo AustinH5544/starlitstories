@@ -12,9 +12,9 @@
 }
 
     /* Animated background elements */
-    .profile-page .stars,
-    .profile-page .twinkling,
-    .profile-page .clouds {
+    .upgrade-page .stars,
+    .upgrade-page .twinkling,
+    .upgrade-page .clouds {
         position: absolute;
         top: 0;
         left: 0;
@@ -25,16 +25,22 @@
         display: block;
     }
 
-    .profile-page .stars {
+    .upgrade-page .stars {
+        background: #0c1445 url("/stars.jpg") no-repeat center center;
+        background-size: cover;
         z-index: -3;
     }
 
-    .profile-page .twinkling {
+/*    .upgrade-page .twinkling {
         z-index: -2;
-    }
+    }*/
 
-    .profile-page .clouds {
+    .upgrade-page .clouds {
+        background: transparent url("/clouds.png") repeat top center;
+        background-size: contain; /* or contain depending on effect */
         z-index: -1;
+        opacity: 0.8;
+        animation: move-clouds 500s linear infinite;
         height: 50%;
     }
 

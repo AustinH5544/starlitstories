@@ -64,9 +64,9 @@ body {
 }
 
 /* Animated background elements */
-.stars,
-.twinkling,
-.clouds {
+.about-page .stars,
+.about-page .twinkling,
+.about-page .clouds {
     position: absolute;
     top: 0;
     left: 0;
@@ -77,19 +77,19 @@ body {
     display: block;
 }
 
-.stars {
+.about-page .stars {
     background: #0c1445 url("/stars.jpg") no-repeat center center;
     background-size: cover;
     z-index: -3;
 }
 
-.twinkling {
+/*.twinkling {
     background: transparent url("/twinklingtest.png") repeat top center;
     z-index: -2;
     animation: move-twinkle 200s linear infinite;
-}
+}*/
 
-.clouds {
+.about-page .clouds {
     background: transparent url("/clouds.png") repeat top center;
     background-size: contain; /* or contain depending on effect */
     z-index: -1;

@@ -12,9 +12,9 @@
 }
 
 /* Animated background elements */
-.stars,
-.small-clouds,
-.clouds {
+.signup-page .stars,
+/*.small-clouds,*/
+.signup-page .clouds {
     position: absolute;
     top: 0;
     left: 0;

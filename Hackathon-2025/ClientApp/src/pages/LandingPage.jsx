@@ -52,6 +52,9 @@ const LandingPage = () => {
             <section className="hero-section">
                 <div className="stars"></div>
                 <div className="twinkling"></div>
+                <div class="sprinkle"></div>
+                <div class="sprinkle2"></div>
+                <div class="sprinkle3"></div>
                 <div className="clouds"></div>
 
                 <div className={`hero-content ${isVisible.hero ? "fade-in" : ""}`}>
