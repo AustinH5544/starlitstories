@@ -44,6 +44,7 @@
 /* Meta */
 .scard-meta {
     cursor: pointer;
+    min-width: 0;
 }
 
 .scard-title {
@@ -72,6 +73,7 @@
     color: #fff;
     cursor: pointer;
     transition: background .15s ease, transform .1s ease;
+    flex-shrink: 0;
 }
 
     .scard-menuBtn:hover {
