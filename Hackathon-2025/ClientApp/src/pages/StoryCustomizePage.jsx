@@ -2,13 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 import "./StoryCustomizePage.css";
 
 /**
  * StoryCustomizePage
  *
- * A paid-members-only editor that lets users arrange page text like a real picture book:
+ * A editor that lets users arrange page text like a real picture book:
  *  - Drag text boxes anywhere over the illustration
  *  - Resize text boxes via handles
  *  - Style controls (font, size, color, background, alignment)
@@ -31,7 +30,30 @@ export default function StoryCustomizePage() {
     const openInspector = () => setPanel("inspector");
     const closePanels = () => setPanel(null);
 
-    // Load story from navigation state or localStorage (mirrors StoryViewerPage behavior)
+    // stable helper
+    function createDefaultTextBox(text, page) {
+        return {
+            id: crypto.randomUUID(),
+            page,
+            x: 24, y: 24, w: 420, h: 160,
+            text,
+            style: {
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontSize: 20, fontWeight: 400, lineHeight: 1.35,
+                color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.8,
+                align: "left", padding: 16, radius: 12, shadow: true,
+            },
+        };
+    }
+
+    function seedFromStory(s) {
+        const init = {};
+        (s?.pages || []).forEach((p, i) => {
+            init[i] = [createDefaultTextBox(p?.text || "", i)];
+        });
+        return init;
+    }
+
     useEffect(() => {
         let s = state?.story;
         if (!s) {
@@ -40,17 +62,48 @@ export default function StoryCustomizePage() {
         }
         if (s && Array.isArray(s.pages)) {
             setStory(s);
-            // seed default layout from story text if not present
+
             const key = storageKey(s);
             const savedLayouts = JSON.parse(localStorage.getItem(key) || "null");
-            if (savedLayouts) setBoxesByPage(savedLayouts);
-            else {
-                const init = {};
-                s.pages.forEach((p, i) => {
-                    init[i] = [createDefaultTextBox(p?.text || "", i)];
-                });
-                setBoxesByPage(init);
+
+            function normalizeLayouts(saved, s) {
+                if (!saved || typeof saved !== "object") return null;
+
+                // Drop any legacy cover entry
+                const clean = { ...saved };
+                delete clean["-1"];
+
+                const keys = Object.keys(clean).map(Number).sort((a, b) => a - b);
+
+                // Old data used 1..N (cover was 0) -> shift to 0..N-1
+                if (keys[0] === 1 && keys[keys.length - 1] === s.pages.length) {
+                    const next = {};
+                    for (let i = 0; i < s.pages.length; i++) {
+                        next[i] = (clean[i + 1] || []).map(b => ({ ...b, id: crypto.randomUUID(), page: i }));
+                        if (!next[i].length && (s.pages[i]?.text ?? "")) {
+                            next[i] = [createDefaultTextBox(s.pages[i].text, i)];
+                        }
+                    }
+                    return next;
+                }
+
+                // Length mismatch or missing key 0? Reseed.
+                if (keys.length !== s.pages.length || !keys.includes(0)) return null;
+
+                // Otherwise coerce shape and ensure ids/pages
+                const next = {};
+                for (let i = 0; i < s.pages.length; i++) {
+                    next[i] = (clean[i] || []).map(b => ({ ...b, id: b.id || crypto.randomUUID(), page: i }));
+                    if (!next[i].length && (s.pages[i]?.text ?? "")) {
+                        next[i] = [createDefaultTextBox(s.pages[i].text, i)];
+                    }
+                }
+                return next;
             }
+
+            const normalized = normalizeLayouts(savedLayouts, s);
+            setBoxesByPage(normalized || seedFromStory(s));
+            if (normalized) localStorage.setItem(key, JSON.stringify(normalized));
         }
     }, [state]);
 
@@ -69,31 +122,6 @@ export default function StoryCustomizePage() {
 
     function storageKey(s) {
         return `layout:${s.id ?? s.title ?? "untitled"}`;
-    }
-
-    function createDefaultTextBox(text, page) {
-        return {
-            id: crypto.randomUUID(),
-            page,
-            x: 24,
-            y: 24,
-            w: 420,
-            h: 160,
-            text,
-            style: {
-                fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 20,
-                fontWeight: 400,
-                lineHeight: 1.35,
-                color: "#1b1b1b",
-                bg: "#ffffff",
-                bgAlpha: 0.8,
-                align: "left",
-                padding: 16,
-                radius: 12,
-                shadow: true,
-            },
-        };
     }
 
     function addTextBox() {
@@ -326,6 +354,13 @@ export default function StoryCustomizePage() {
 
                     <button className="btn" onClick={addTextBox}>➕ Add Text Box</button>
                     <button
+                        className="btn ghost"
+                        onClick={() => setBoxesByPage(seedFromStory(story))}
+                        title="Reset layout to default text positions"
+                    >
+                        Reset layout
+                    </button>
+                    <button
                         className="btn"
                         disabled={selectedBox == null}
                         onClick={() => duplicateBox(selectedBox?.id)}
@@ -362,10 +397,7 @@ export default function StoryCustomizePage() {
                     <div className="pages">
                         <button
                             className={`thumb ${pageIndex === -1 ? "active" : ""}`}
-                            onClick={() => {
-                                setPageIndex(-1);
-                                closePanels();
-                            }}
+                            onClick={() => { setPageIndex(-1); setSelectedBoxId(null); closePanels(); }}
                             title="Cover"
                         >
                             📖
