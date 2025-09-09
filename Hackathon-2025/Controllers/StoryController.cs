@@ -22,13 +22,20 @@ public class StoryController : ControllerBase
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOptionsSnapshot<StoryOptions> _storyOpts;
 
+    // NEW: services that centralize policy
+    private readonly IQuotaService _quota;      // NEW
+
+    private readonly IPeriodService _period;    // NEW
+
     public StoryController(
-    IStoryGeneratorService storyService,
-    AppDbContext db,
-    BlobUploadService blobService,
-    IProgressBroker progress,
-    IServiceScopeFactory scopeFactory,
-    IOptionsSnapshot<StoryOptions> storyOpts)
+        IStoryGeneratorService storyService,
+        AppDbContext db,
+        BlobUploadService blobService,
+        IProgressBroker progress,
+        IServiceScopeFactory scopeFactory,
+        IOptionsSnapshot<StoryOptions> storyOpts,
+        IQuotaService quota,                    // NEW
+        IPeriodService period)                  // NEW
     {
         _storyService = storyService;
         _db = db;
@@ -36,6 +43,8 @@ public class StoryController : ControllerBase
         _progress = progress;
         _scopeFactory = scopeFactory;
         _storyOpts = storyOpts;
+        _quota = quota;                         // NEW
+        _period = period;                       // NEW
     }
 
     [Authorize]
@@ -50,17 +59,17 @@ public class StoryController : ControllerBase
 
         var now = DateTime.UtcNow;
 
-        // Subscription limit checks / monthly reset
-        var limitExceeded = await CheckAndMaybeResetLimitsAsync(user, now);
-        if (limitExceeded?.exceeded == true)
-            return StatusCode(403, limitExceeded.Value.message!);
+        // NEW: Stripe/calendar-aware rollover (resets per-period counters, not wallet)
+        await RolloverIfNeededAsync(user, now); // NEW
 
-        // BACKEND SWITCH: enable/disable enforcing page length hints
+        // NEW: capacity check (base quota) + add-on reservation (decrement wallet up-front)
+        var capacity = await EnsureCapacityAndMaybeReserveAddOnAsync(user); // NEW
+        if (!capacity.ok) return StatusCode(403, capacity.message!);        // NEW
+
+        // Length gating (unchanged, behind your StoryOptions flag)
         var enforceLength = _storyOpts.Value.LengthHintEnabled;
-
         if (enforceLength)
         {
-            // allowed lengths by membership
             var membership = (user.Membership ?? "").ToLowerInvariant();
             var allowed = membership switch
             {
@@ -70,11 +79,9 @@ public class StoryController : ControllerBase
                 _ => new[] { "short" }
             };
 
-            // normalize requested length
             var requested = (request.StoryLength ?? "short").ToLowerInvariant();
             if (!allowed.Contains(requested)) requested = allowed[0];
 
-            // map lengths to page targets (hint, not strict)
             var lengthToCount = new Dictionary<string, int>
             {
                 ["short"] = 4,
@@ -87,13 +94,21 @@ public class StoryController : ControllerBase
         }
         else
         {
-            // Hints OFF: ignore any client-provided length/page count
             request.StoryLength = null;
             request.PageCount = null;
         }
 
-        // Generate the story
-        var result = await _storyService.GenerateFullStoryAsync(request);
+        // NEW: refund reserved add-on if generation fails
+        StoryResult result; // NEW
+        try                                                  // NEW
+        {                                                    // NEW
+            result = await _storyService.GenerateFullStoryAsync(request);
+        }                                                    // NEW
+        catch                                                // NEW
+        {                                                    // NEW
+            if (capacity.usedAddOn) await RefundReservedAddOnAsync(user); // NEW
+            throw;                                           // NEW
+        }                                                    // NEW
 
         // Upload cover image
         var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
@@ -128,7 +143,7 @@ public class StoryController : ControllerBase
         };
 
         _db.Stories.Add(story);
-        user.BooksGenerated += 1;
+        user.BooksGenerated += 1; // base counter for the period
         await _db.SaveChangesAsync();
 
         return Ok(result);
@@ -146,19 +161,14 @@ public class StoryController : ControllerBase
 
         var now = DateTime.UtcNow;
 
-        // Check/Reset monthly limits up front
-        var limitExceeded = await CheckAndMaybeResetLimitsAsync(user, now);
-        if (limitExceeded?.exceeded == true)
-            return StatusCode(403, limitExceeded.Value.message!);
+        // NEW: rollover at request time; we also re-check inside the background scope
+        await RolloverIfNeededAsync(user, now); // NEW
 
-        // BACKEND SWITCH: enable/disable enforcing page length hints
+        // Length gating (unchanged, using your options)
         var enforceLength = _storyOpts.Value.LengthHintEnabled;
-
         if (enforceLength)
         {
-            // SAME length gating as /generate-full
             var membership = (user.Membership ?? "").ToLowerInvariant();
-
             var allowed = membership switch
             {
                 "free" => new[] { "short" },
@@ -182,7 +192,6 @@ public class StoryController : ControllerBase
         }
         else
         {
-            // Hints OFF: ignore any client-provided length/page count
             request.StoryLength = null;
             request.PageCount = null;
         }
@@ -202,6 +211,10 @@ public class StoryController : ControllerBase
                 var scopedBlob = scope.ServiceProvider.GetRequiredService<BlobUploadService>();
                 var scopedGenerator = scope.ServiceProvider.GetRequiredService<IStoryGeneratorService>();
 
+                // NEW: bring services into the background scope
+                var scopedQuota = scope.ServiceProvider.GetRequiredService<IQuotaService>();   // NEW
+                var scopedPeriod = scope.ServiceProvider.GetRequiredService<IPeriodService>(); // NEW
+
                 // Reload user within this scope
                 var sUser = await scopedDb.Users.FirstOrDefaultAsync(u => u.Id == user.Id);
                 if (sUser == null)
@@ -211,9 +224,36 @@ public class StoryController : ControllerBase
                     return;
                 }
 
-                // 1) Generate
+                // NEW: rollover again in case boundary crossed between request and job start
+                if (scopedPeriod.IsPeriodBoundary(sUser, DateTime.UtcNow))                    // NEW
+                {                                                                             // NEW
+                    scopedPeriod.OnPeriodRollover(sUser, DateTime.UtcNow);                   // NEW
+                    scopedDb.Users.Update(sUser);                                            // NEW
+                    await scopedDb.SaveChangesAsync();                                       // NEW
+                }                                                                             // NEW
+
+                // NEW: capacity check + add-on reservation INSIDE the scope
+                var canProceed = await EnsureCapacityAndMaybeReserveAddOnAsyncScoped(scopedDb, scopedQuota, sUser); // NEW
+                if (!canProceed.ok)                                                                               // NEW
+                {                                                                                                 // NEW
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "error", Percent = 100, Message = canProceed.message, Done = true });
+                    _progress.Complete(jobId);
+                    return;
+                }
+
+                // 1) Generate (with refund on failure)
                 _progress.Publish(jobId, new ProgressUpdate { Stage = "text", Percent = 15, Message = "Writing your story…" });
-                var result = await scopedGenerator.GenerateFullStoryAsync(request);
+                StoryResult result;
+                try
+                {
+                    result = await scopedGenerator.GenerateFullStoryAsync(request);
+                }
+                catch
+                {
+                    if (canProceed.usedAddOn)
+                        await RefundReservedAddOnAsyncScoped(scopedDb, sUser); // NEW
+                    throw;
+                }
 
                 // 2) Upload cover
                 _progress.Publish(jobId, new ProgressUpdate { Stage = "image", Percent = 30, Message = "Preparing images…", Index = 0, Total = result.Pages.Count });
@@ -330,69 +370,84 @@ public class StoryController : ControllerBase
         return user;
     }
 
-    /// <summary>
-    /// Handles monthly reset and returns (exceeded, message) if over limit.
-    /// </summary>
-    private async Task<(bool exceeded, string? message)?> CheckAndMaybeResetLimitsAsync(User user, DateTime now)
+    // NEW: centralized rollover using IPeriodService
+    private async Task RolloverIfNeededAsync(User user, DateTime now) // NEW
     {
-        // Free users: one lifetime story (your existing rule)
-        if (user.Membership == "free" && user.BooksGenerated >= 1)
-            return (true, "Free users can only generate one story.");
-
-        // Monthly limits for paid
-        int monthlyLimit = user.Membership switch
+        if (_period.IsPeriodBoundary(user, now))
         {
-            "pro" => 5,
-            "premium" => 11,
-            _ => 1
-        };
-
-        // Reset monthly counters if needed
-        if (user.LastReset.Month != now.Month || user.LastReset.Year != now.Year)
-        {
-            user.BooksGenerated = 0;
-            user.LastReset = now;
+            _period.OnPeriodRollover(user, now);
             _db.Users.Update(user);
             await _db.SaveChangesAsync();
         }
-
-        if (user.BooksGenerated >= monthlyLimit)
-            return (true, $"Your {user.Membership} plan allows {monthlyLimit} books per month. You've reached your limit.");
-
-        return (false, null);
     }
 
-    [Authorize]
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int id)
+    // NEW: capacity check + add-on reservation (refund if generation fails)
+    private async Task<(bool ok, bool usedAddOn, string? message)> EnsureCapacityAndMaybeReserveAddOnAsync(User user) // NEW
     {
-        var user = await GetAndValidateUserAsync();
-        if (user is null) return Unauthorized("Invalid or missing user.");
+        // Preserve your free plan rule: one lifetime story
+        if (string.Equals(user.Membership, "free", StringComparison.OrdinalIgnoreCase) && user.BooksGenerated >= 1)
+            return (false, false, "Free users can only generate one story.");
 
-        var story = await _db.Stories
-            .Include(s => s.Pages)
-            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == user.Id);
+        var baseQuota = _quota.BaseQuotaFor(user.Membership);
+        var used = user.BooksGenerated;
+        var baseRemaining = Math.Max(baseQuota - used, 0);
 
-        if (story is null) return NotFound("Story not found.");
+        if (baseRemaining > 0)
+            return (true, false, null);
 
-        // Collect blob URLs (cover + page images)
-        var urls = new List<string>();
-        if (!string.IsNullOrWhiteSpace(story.CoverImageUrl))
-            urls.Add(story.CoverImageUrl);
+        // base exhausted — try to spend wallet
+        if (user.AddOnBalance <= 0)
+            return (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
 
-        urls.AddRange(story.Pages
-            .Where(p => !string.IsNullOrWhiteSpace(p.ImageUrl))
-            .Select(p => p.ImageUrl!));
-
-        // Best-effort blob cleanup
-        foreach (var url in urls.Distinct())
-        {
-            try { await _blobService.DeleteByUrlAsync(url); } catch { /* log if desired */ }
-        }
-
-        _db.Stories.Remove(story); // pages will cascade
+        user.AddOnBalance -= 1;
+        user.AddOnSpentThisPeriod += 1;
+        _db.Users.Update(user);
         await _db.SaveChangesAsync();
 
-        return NoContent();
+        return (true, true, null);
     }
+
+    // NEW: refund helper for sync path
+    private async Task RefundReservedAddOnAsync(User user) // NEW
+    {
+        user.AddOnBalance += 1;
+        if (user.AddOnSpentThisPeriod > 0) user.AddOnSpentThisPeriod -= 1;
+        _db.Users.Update(user);
+        await _db.SaveChangesAsync();
+    }
+
+    // NEW: scoped versions for background job
+    private async Task<(bool ok, bool usedAddOn, string? message)> EnsureCapacityAndMaybeReserveAddOnAsyncScoped( // NEW
+        AppDbContext scopedDb, IQuotaService scopedQuota, User sUser)
+    {
+        if (string.Equals(sUser.Membership, "free", StringComparison.OrdinalIgnoreCase) && sUser.BooksGenerated >= 1)
+            return (false, false, "Free users can only generate one story.");
+
+        var baseQuota = scopedQuota.BaseQuotaFor(sUser.Membership);
+        var used = sUser.BooksGenerated;
+        var baseRemaining = Math.Max(baseQuota - used, 0);
+
+        if (baseRemaining > 0)
+            return (true, false, null);
+
+        if (sUser.AddOnBalance <= 0)
+            return (false, false, $"Your {sUser.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
+
+        sUser.AddOnBalance -= 1;
+        sUser.AddOnSpentThisPeriod += 1;
+        scopedDb.Users.Update(sUser);
+        await scopedDb.SaveChangesAsync();
+
+        return (true, true, null);
+    }
+
+    private async Task RefundReservedAddOnAsyncScoped(AppDbContext scopedDb, User sUser) // NEW
+    {
+        sUser.AddOnBalance += 1;
+        if (sUser.AddOnSpentThisPeriod > 0) sUser.AddOnSpentThisPeriod -= 1;
+        scopedDb.Users.Update(sUser);
+        await scopedDb.SaveChangesAsync();
+    }
+
+    // REMOVED: old CheckAndMaybeResetLimitsAsync(...) with hardcoded monthly limits
 }

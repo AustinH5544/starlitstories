@@ -2,10 +2,12 @@
 
 public class StripeSettings
 {
-    public required string SecretKey { get; set; }
-    public required string PublishableKey { get; set; }
-    public required string WebhookSecret { get; set; }
+    public string SecretKey { get; set; }
+    public string PublishableKey { get; set; }
+    public string WebhookSecret { get; set; }
 
-    public required string PriceIdPro { get; set; }
-    public required string PriceIdPremium { get; set; }
+    public string PriceIdPro { get; set; }
+    public string PriceIdPremium { get; set; }
+    public string PriceIdAddon5 { get; set; }
+    public string PriceIdAddon11 { get; set; }
 }

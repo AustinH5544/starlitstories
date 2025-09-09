@@ -39,10 +39,13 @@ builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 builder.Services.AddSingleton<BlobUploadService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
+builder.Services.AddScoped<IQuotaService, QuotaService>();
+builder.Services.AddScoped<IPeriodService, PeriodService>();
 
 // --- Billing / Payments ---
 // Bind Stripe settings (now also includes WebhookSecret and plan price IDs)
 builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));  // keep this
+builder.Services.Configure<CreditsOptions>(builder.Configuration.GetSection("Credits"));
 
 // Choose billing provider via config: "stripe" (default) or another later
 var billingProvider = builder.Configuration["Billing:Provider"] ?? "stripe";
