@@ -54,7 +54,7 @@ export default function StoryCard({
             setMenuOpen(false);
         } catch (e) {
             console.error(e);
-            alert("Download failed. Please try again.");
+            alert(`Download failed: ${e?.message || e}`);
         } finally {
             setDownloading(false);
         }
