@@ -40,6 +40,14 @@ const NavBar = () => {
         setMobileMenuOpen(!mobileMenuOpen)
     }
 
+    const handleHomeClick = (e) => {
+        if (location.pathname === "/") {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            setMobileMenuOpen(false);
+        }
+    };
+
     return (
         <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
             <div className="nav-container">
@@ -66,7 +74,11 @@ const NavBar = () => {
                         </div>
                     )}
 
-                    <Link to="/" className={location.pathname === "/" ? "active" : ""}>
+                    <Link
+                        to="/"
+                        className={location.pathname === "/" ? "active" : ""}
+                        onClick={handleHomeClick}
+                    >
                         Home
                     </Link>
                     {user && (
@@ -77,9 +89,9 @@ const NavBar = () => {
                     <Link to="/about" className={location.pathname === "/about" ? "active" : ""}>
                         About
                     </Link>
-                    <a href="/#how-it-works" className="nav-link">
-                        How It Works
-                    </a>
+                    {/*<a href="/#how-it-works" className="nav-link">*/}
+                    {/*    How It Works*/}
+                    {/*</a>*/}
                 </div>
 
                 <div className="nav-right">
