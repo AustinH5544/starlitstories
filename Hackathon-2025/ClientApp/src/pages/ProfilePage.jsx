@@ -128,14 +128,21 @@ const ProfilePage = () => {
         navigate("/view", { state: { story } })
     }
 
-    const onShare = (story) => {
-        const url = `${window.location.origin}/view` // or deep link with id if you prefer
-        // You can open a modal instead; for now, copy link like your viewer did
-        navigator.clipboard
-            .writeText(url)
-            .then(() => alert("Link copied to clipboard!"))
-            .catch(() => alert("Could not copy link."));
-    }
+    const onShare = async (story) => {
+        try {
+            const res = await fetch(`/api/stories/${story.id}/share`, { method: "POST" });
+            if (!res.ok) throw new Error("Could not create share link");
+            const { url } = await res.json();    // e.g., http://localhost:5173/s/<TOKEN>
+
+            if (navigator.share) {
+                try { await navigator.share({ title: story.title, url }); return; } catch { }
+            }
+            await navigator.clipboard.writeText(url);
+            alert("Share link copied!");
+        } catch (e) {
+            alert(e.message || "Share failed.");
+        }
+    };
 
     const onDownload = async (story, format) => {
         if (format === "pdf") {

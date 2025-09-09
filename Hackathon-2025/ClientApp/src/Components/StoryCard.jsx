@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { publicBase } from "../utils/urls";
 import PropTypes from "prop-types";
 import "./StoryCard.css";
 
@@ -59,6 +60,16 @@ export default function StoryCard({
             setDownloading(false);
         }
     };
+
+    async function handleShare(story) {
+        const url = new URL(`/view/${story.id}`, publicBase()).toString();
+
+        if (navigator.share) {
+            try { await navigator.share({ title: story.title, url }); return; } catch { }
+        }
+        await navigator.clipboard.writeText(url);
+        alert("Share link copied!");
+    }
 
     const handleDelete = async () => {
         if (deleting) return;

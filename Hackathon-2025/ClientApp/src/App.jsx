@@ -31,6 +31,7 @@ function App() {
                     <Route path="/signup" element={<SignupPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/view" element={<StoryViewerPage />} />
+                    <Route path="/s/:token" element={<StoryViewerPage mode="public" />} />
                     <Route path="/signup/complete" element={<SignupComplete />} />
                     <Route path="/upgrade" element={<UpgradePage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
