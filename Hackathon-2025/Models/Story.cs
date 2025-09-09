@@ -7,6 +7,7 @@ public class Story
     public string CoverImageUrl { get; set; } = "";
 
     public List<StoryPage> Pages { get; set; } = new();
+    public ICollection<StoryShare> Shares { get; set; } = new List<StoryShare>();
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

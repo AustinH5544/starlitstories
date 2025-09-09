@@ -1,5 +1,6 @@
 ﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { publicBase } from "../utils/urls";
 import PropTypes from "prop-types";
 import "./StoryCard.css";
 
@@ -54,7 +55,7 @@ export default function StoryCard({
             setMenuOpen(false);
         } catch (e) {
             console.error(e);
-            alert("Download failed. Please try again.");
+            alert(`Download failed: ${e?.message || e}`);
         } finally {
             setDownloading(false);
         }

@@ -4,6 +4,7 @@ using Hackathon_2025.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Hackathon_2025.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250909220224_AddStoryShare")]
+    partial class AddStoryShare
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,19 +24,6 @@ namespace Hackathon_2025.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Hackathon_2025.Models.ProcessedWebhook", b =>
-                {
-                    b.Property<string>("EventId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime>("ProcessedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("EventId");
-
-                    b.ToTable("ProcessedWebhooks");
-                });
 
             modelBuilder.Entity("Hackathon_2025.Models.Story", b =>
                 {
@@ -136,12 +126,6 @@ namespace Hackathon_2025.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AddOnBalance")
-                        .HasColumnType("int");
-
-                    b.Property<int>("AddOnSpentThisPeriod")
-                        .HasColumnType("int");
-
                     b.Property<string>("BillingCustomerRef")
                         .HasColumnType("nvarchar(max)");
 
@@ -155,9 +139,6 @@ namespace Hackathon_2025.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("CurrentPeriodEndUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("CurrentPeriodStartUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Email")

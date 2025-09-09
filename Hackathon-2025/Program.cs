@@ -23,7 +23,14 @@ if (string.IsNullOrWhiteSpace(apiKey))
 
 // --- Database ---
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sql => sql.EnableRetryOnFailure(
+            maxRetryCount: 10,                    // retry a few times
+            maxRetryDelay: TimeSpan.FromSeconds(10),
+            errorNumbersToAdd: null));
+});
 
 // --- Identity / hashing ---
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();

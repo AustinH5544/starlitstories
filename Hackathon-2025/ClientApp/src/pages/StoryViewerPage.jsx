@@ -1,117 +1,133 @@
-﻿"use client"
+﻿"use client";
 
-import { useState, useEffect } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
-import "./StoryViewerPage.css"
-import { useAuth } from "../context/AuthContext"
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import "./StoryViewerPage.css";
+import { useAuth } from "../context/AuthContext";
 
-const StoryViewerPage = () => {
-    const { state } = useLocation()
-    const navigate = useNavigate()
+export default function StoryViewerPage({ mode = "private" }) {
+    const navigate = useNavigate();
+    const { state } = useLocation();           // carries { story } on private route
+    const { token } = useParams();             // present only on /s/:token
+    const { user } = useAuth();
 
-    const [story, setStory] = useState(null)
-    const [currentPage, setCurrentPage] = useState(-1) // -1 = cover
-    const [isReading, setIsReading] = useState(false)
-    const [showControls, setShowControls] = useState(true)
-    const [enlargedImage, setEnlargedImage] = useState(null)
-    const [showCompletion, setShowCompletion] = useState(false)
+    const [story, setStory] = useState(null);
+    const [loading, setLoading] = useState(mode === "public" && !!token);
+    const [error, setError] = useState("");
 
-    const { user } = useAuth()
+    const [currentPage, setCurrentPage] = useState(-1); // -1 = cover
+    const [isReading, setIsReading] = useState(false);
+    const [showControls, setShowControls] = useState(true);
+    const [enlargedImage, setEnlargedImage] = useState(null);
+    const [showCompletion, setShowCompletion] = useState(false);
 
-    // Load story from state or localStorage
+    // Load story: public (by token) or private (from state/localStorage)
     useEffect(() => {
-        if (state?.story) {
-            setStory(state.story)
-            localStorage.setItem("story", JSON.stringify(state.story))
-        } else {
-            const savedStory = localStorage.getItem("story")
-            if (savedStory) {
-                setStory(JSON.parse(savedStory))
+        let alive = true;
+
+        async function load() {
+            if (mode === "public" && token) {
+                try {
+                    const res = await fetch(`/api/share/${token}`);
+                    if (!res.ok) throw new Error("Link expired or not found.");
+                    const data = await res.json(); // { id, title, coverImageUrl, pages:[...] }
+                    if (alive) setStory(data);
+                } catch (e) {
+                    if (alive) setError(e.message || String(e));
+                } finally {
+                    if (alive) setLoading(false);
+                }
+                return;
+            }
+
+            // private
+            if (state?.story) {
+                if (alive) {
+                    setStory(state.story);
+                    localStorage.setItem("story", JSON.stringify(state.story));
+                }
+            } else {
+                const saved = localStorage.getItem("story");
+                if (saved && alive) setStory(JSON.parse(saved));
             }
         }
-    }, [state])
 
-    // Auto-hide controls after 1000 seconds of inactivity (only when reading)
+        load();
+        return () => { alive = false; };
+    }, [mode, token, state]);
+
+    // Auto-hide controls (only when reading)
     useEffect(() => {
-        if (!isReading || !showControls) return
+        if (!isReading || !showControls) return;
+        const timer = setTimeout(() => setShowControls(false), 1000000);
+        return () => clearTimeout(timer);
+    }, [isReading, showControls]);
 
-        const timer = setTimeout(() => {
-            setShowControls(false)
-        }, 1000000)
-
-        return () => clearTimeout(timer)
-    }, [isReading, showControls])
-
+    // Handlers
     const nextPage = () => {
-        if (story && currentPage < story.pages.length - 1) {
-            setCurrentPage(currentPage + 1)
-            setShowControls(true)
+        if (!story) return;
+        if (currentPage < story.pages.length - 1) {
+            setCurrentPage((p) => p + 1);
+            setShowControls(true);
         } else if (currentPage === story.pages.length - 1) {
-            // They're trying to go past the last page, show completion
-            setShowCompletion(true)
+            setShowCompletion(true);
         }
-    }
+    };
 
     const prevPage = () => {
         if (currentPage > -1) {
-            setCurrentPage(currentPage - 1)
-            setShowControls(true)
-            setShowCompletion(false) // Hide completion if going back
+            setCurrentPage((p) => p - 1);
+            setShowControls(true);
+            setShowCompletion(false);
         }
-    }
+    };
 
     const startReading = () => {
-        setCurrentPage(0)
-        setIsReading(true)
-        setShowControls(true)
-        setShowCompletion(false)
-    }
+        setCurrentPage(0);
+        setIsReading(true);
+        setShowControls(true);
+        setShowCompletion(false);
+    };
 
     const goToPage = (pageIndex) => {
-        setCurrentPage(pageIndex)
-        setShowControls(true)
-        setShowCompletion(false)
-    }
+        setCurrentPage(pageIndex);
+        setShowControls(true);
+        setShowCompletion(false);
+    };
 
-    const finishStory = () => {
-        setShowCompletion(true)
-    }
-
+    const finishStory = () => setShowCompletion(true);
     const readAgain = () => {
-        setCurrentPage(-1)
-        setIsReading(false)
-        setShowCompletion(false)
-        setShowControls(true)
-    }
+        setCurrentPage(-1);
+        setIsReading(false);
+        setShowCompletion(false);
+        setShowControls(true);
+    };
 
     const enlargeImage = (imageUrl, e) => {
-        e.stopPropagation() // Prevent triggering the content click handler
-        setEnlargedImage(imageUrl)
-    }
+        e.stopPropagation();
+        setEnlargedImage(imageUrl);
+    };
+    const closeEnlargedImage = () => setEnlargedImage(null);
 
-    const closeEnlargedImage = () => {
-        setEnlargedImage(null)
-    }
-
-    // Only toggle controls when clicking in the main content area
     const handleContentClick = (e) => {
-        // Don't toggle if clicking on buttons or controls
         if (
             e.target.closest(".story-header") ||
             e.target.closest(".story-navigation") ||
             e.target.closest(".completion-overlay") ||
             e.target.closest("button") ||
             e.target.closest(".page-image-container")
-        ) {
-            return
-        }
+        ) return;
 
-        // Only toggle controls when actually reading (not on cover)
         if (isReading && currentPage >= 0) {
-            setShowControls(!showControls)
+            setShowControls((v) => !v);
         }
-    }
+    };
 
+    // Loading / error states
+    if (loading) return <div className="page pad">Loading…</div>;
+    if (error) return <div className="page pad">⚠️ {error}</div>;
+
+    // No story
     if (!story || !Array.isArray(story.pages)) {
         return (
             <div className="story-viewer">
@@ -135,12 +151,13 @@ const StoryViewerPage = () => {
                     </div>
                 </div>
             </div>
-        )
+        );
     }
 
-    const isCover = currentPage === -1
-    const page = story.pages[currentPage]
-    const isLastPage = currentPage === story.pages.length - 1
+    // Render cover/pages
+    const isCover = currentPage === -1;
+    const page = isCover ? null : story.pages[currentPage];
+    const isLastPage = !isCover && currentPage === story.pages.length - 1;
 
     return (
         <div className="story-viewer" onClick={handleContentClick}>
@@ -193,7 +210,8 @@ const StoryViewerPage = () => {
                                         {story.pages.length} pages
                                     </span>
                                     <span className="stat">
-                                        <span className="stat-icon">⏱️</span>~{Math.ceil(story.pages.length * 1.5)} min read
+                                        <span className="stat-icon">⏱️</span>
+                                        ~{Math.ceil(story.pages.length * 1.5)} min read
                                     </span>
                                 </div>
                             </div>
@@ -306,7 +324,5 @@ const StoryViewerPage = () => {
                 </div>
             )}
         </div>
-    )
+    );
 }
-
-export default StoryViewerPage

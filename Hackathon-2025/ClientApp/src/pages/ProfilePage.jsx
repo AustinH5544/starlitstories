@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
+import { publicBase } from "../utils/urls";
 
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
@@ -128,14 +129,25 @@ const ProfilePage = () => {
         navigate("/view", { state: { story } })
     }
 
-    const onShare = (story) => {
-        const url = `${window.location.origin}/view` // or deep link with id if you prefer
-        // You can open a modal instead; for now, copy link like your viewer did
-        navigator.clipboard
-            .writeText(url)
-            .then(() => alert("Link copied to clipboard!"))
-            .catch(() => alert("Could not copy link."));
-    }
+    const onShare = async (story) => {
+        try {
+            // use your authenticated api client, not bare fetch
+            const { data } = await api.post(`stories/${story.id}/share`);
+            const { token } = data;
+            if (!token) throw new Error("No token returned");
+
+            const url = new URL(`/s/${token}`, publicBase()).toString();
+
+            if (navigator.share) {
+                try { await navigator.share({ title: story.title, url }); return; } catch { }
+            }
+            await navigator.clipboard.writeText(url);
+            alert("Share link copied!");
+        } catch (e) {
+            const status = e?.response?.status;
+            alert(`Could not create share link${status ? ` (${status})` : ""}.`);
+        }
+    };
 
     const onDownload = async (story, format) => {
         if (format === "pdf") {
