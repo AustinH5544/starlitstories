@@ -110,7 +110,17 @@ export default function StoryCustomizePage() {
     // Persist on change
     useEffect(() => {
         if (!story) return;
-        localStorage.setItem(storageKey(story), JSON.stringify(boxesByPage));
+        const key = storageKey(story);
+        localStorage.setItem(key, JSON.stringify(boxesByPage));
+
+        // store stage size so export can scale coordinates 1:1
+        const rect = stageRef.current?.getBoundingClientRect();
+        if (rect) {
+            localStorage.setItem(`${key}:meta`, JSON.stringify({
+                stageW: Math.round(rect.width),
+                stageH: Math.round(rect.height),
+            }));
+        }
     }, [story, boxesByPage]);
 
     // Helpers

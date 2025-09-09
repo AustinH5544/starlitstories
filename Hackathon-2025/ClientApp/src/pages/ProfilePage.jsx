@@ -7,6 +7,7 @@ import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import StoryCard from "../components/StoryCard"
+import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
@@ -138,7 +139,7 @@ const ProfilePage = () => {
 
     const onDownload = async (story, format) => {
         if (format === "pdf") {
-            await downloadAsPDF(story)
+            await downloadStoryPdf(story)
         } else {
             await downloadAsImages(story)
         }
