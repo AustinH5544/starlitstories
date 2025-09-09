@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
+import { publicBase } from "../utils/urls";
 
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
@@ -130,9 +131,12 @@ const ProfilePage = () => {
 
     const onShare = async (story) => {
         try {
-            const res = await fetch(`/api/stories/${story.id}/share`, { method: "POST" });
-            if (!res.ok) throw new Error("Could not create share link");
-            const { url } = await res.json();    // e.g., http://localhost:5173/s/<TOKEN>
+            // use your authenticated api client, not bare fetch
+            const { data } = await api.post(`stories/${story.id}/share`);
+            const { token } = data;
+            if (!token) throw new Error("No token returned");
+
+            const url = new URL(`/s/${token}`, publicBase()).toString();
 
             if (navigator.share) {
                 try { await navigator.share({ title: story.title, url }); return; } catch { }
@@ -140,7 +144,8 @@ const ProfilePage = () => {
             await navigator.clipboard.writeText(url);
             alert("Share link copied!");
         } catch (e) {
-            alert(e.message || "Share failed.");
+            const status = e?.response?.status;
+            alert(`Could not create share link${status ? ` (${status})` : ""}.`);
         }
     };
 

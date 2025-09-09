@@ -61,16 +61,6 @@ export default function StoryCard({
         }
     };
 
-    async function handleShare(story) {
-        const url = new URL(`/view/${story.id}`, publicBase()).toString();
-
-        if (navigator.share) {
-            try { await navigator.share({ title: story.title, url }); return; } catch { }
-        }
-        await navigator.clipboard.writeText(url);
-        alert("Share link copied!");
-    }
-
     const handleDelete = async () => {
         if (deleting) return;
         const ok = confirm(`Delete "${story?.title || "this story"}"? This cannot be undone.`);
