@@ -150,10 +150,10 @@ const SignupPage = () => {
                             >
                                 <div className="plan-icon">✨</div>
                                 <h3>Pro</h3>
-                                <p className="plan-price">$5/month</p>
+                                <p className="plan-price">$4/month</p>
                                 <p className="plan-description">Great for regular storytelling</p>
                                 <ul className="plan-features">
-                                    <li>✓ 10 stories per month</li>
+                                    <li>✓ 5 stories per month</li>
                                     <li>✓ Advanced customization</li>
                                     <li>✓ High-quality illustrations</li>
                                     <li>✓ Download & share</li>
@@ -175,10 +175,10 @@ const SignupPage = () => {
                                 <div className="plan-badge">Most Popular</div>
                                 <div className="plan-icon">🌟</div>
                                 <h3>Premium</h3>
-                                <p className="plan-price">$15/month</p>
+                                <p className="plan-price">$8/month</p>
                                 <p className="plan-description">Perfect for families who love stories</p>
                                 <ul className="plan-features">
-                                    <li>✓ 50 stories per month</li>
+                                    <li>✓ 11 stories per month</li>
                                     <li>✓ Premium illustrations</li>
                                     <li>✓ Multiple characters</li>
                                     <li>✓ Print-ready format</li>

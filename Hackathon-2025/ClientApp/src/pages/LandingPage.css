@@ -971,22 +971,22 @@
 /* Twinkles — minima at true 0; brightness rides on --b */
 @keyframes twinkleTop {
     0%, 18% {
-        opacity: 0.05;
+        opacity: 0.01;
         --b: 1.0;
     }
 
     38% {
-        opacity: 0.80;
+        opacity: 0.30;
         --b: 2.1; /* brighter = stronger perceived glow */
     }
 
     62% {
-        opacity: 0.32;
+        opacity: 0.25;
         --b: 1.25;
     }
 
     100% {
-        opacity: 0.05;
+        opacity: 0.01;
         --b: 1.0;
     }
 }
@@ -1014,7 +1014,7 @@
 }
 
 /* (Optional) Respect users who prefer reduced motion */
-@media (prefers-reduced-motion: reduce) {
+/*@media (prefers-reduced-motion: reduce) {
     .landing-page .sprinkle::before,
     .landing-page .sprinkle2::before,
     .landing-page .sprinkle3::before,
@@ -1022,7 +1022,7 @@
     .landing-page .sprinkle2::after,
     .landing-page .sprinkle3::after {
         animation: none;
-        opacity: .12; /* very subtle static stars */
-        --b: 1;
+        opacity: .12;*/ /* very subtle static stars */
+        /*--b: 1;
     }
-}
+}*/

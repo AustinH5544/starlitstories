@@ -25,16 +25,16 @@
     display: block;
 }
 
-.stars {
+.signup-page .stars {
     background: #0c1445 url("/stars.jpg") no-repeat top center;
     background-size: cover;
     z-index: -3;
 }
 
-.clouds {
+.signup-page .clouds {
     background: transparent url("/clouds.png") repeat top center;
     background-size: contain;
-    z-index: -2;
+    z-index: -1;
     opacity: 0.8;
     animation: move-clouds 500s linear infinite;
     height: 50%;
