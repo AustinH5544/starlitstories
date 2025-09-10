@@ -6,13 +6,16 @@ import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 //import { loadStripe } from '@stripe/stripe-js';
 import "./SignupPage.css"
+import EyeOpen from "../assets/eye-open.svg";
+import EyeClosed from "../assets/eye-closed.svg";
 
 const SignupPage = () => {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
     const [membership, setMembership] = useState("")
-
+    const [showPwd, setShowPwd] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
     const { login } = useAuth()
     const navigate = useNavigate()
 
@@ -96,26 +99,67 @@ const SignupPage = () => {
 
                     <div className="form-group">
                         <label htmlFor="password">Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            placeholder="Create a password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                        />
+                        <div className="input-with-toggle">
+                            <input
+                                id="password"
+                                className="input"
+                                type={showPwd ? "text" : "password"}
+                                placeholder="Create a password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                            />
+                            <button
+                                type="button"
+                                className="toggle-visibility"
+                                aria-label={showPwd ? "Hide password" : "Show password"}
+                                aria-pressed={showPwd}
+                                onClick={() => setShowPwd(s => !s)}
+                                title={showPwd ? "Hide password" : "Show password"}
+                            >
+                                <img
+                                    src={showPwd ? EyeClosed : EyeOpen}
+                                    alt=""
+                                    className="icon-eye"
+                                    width="22"
+                                    height="22"
+                                />
+                            </button>
+                        </div>
                     </div>
 
+                    {/* Confirm Password */}
                     <div className="form-group">
                         <label htmlFor="confirm">Confirm Password</label>
-                        <input
-                            id="confirm"
-                            type="password"
-                            placeholder="Confirm your password"
-                            value={confirm}
-                            onChange={(e) => setConfirm(e.target.value)}
-                            required
-                        />
+                        <div className="input-with-toggle">
+                            <input
+                                id="confirm"
+                                className="input"
+                                type={showConfirm ? "text" : "password"}
+                                placeholder="Confirm your password"
+                                value={confirm}
+                                onChange={(e) => setConfirm(e.target.value)}
+                                required
+                            />
+                            <button
+                                type="button"
+                                className="toggle-visibility"
+                                aria-label={showConfirm ? "Hide confirmation" : "Show confirmation"}
+                                aria-pressed={showConfirm}
+                                aria-controls="confirm"
+                                onClick={() => setShowConfirm((s) => !s)}
+                                title={showConfirm ? "Hide confirmation" : "Show confirmation"}
+                            >
+                                <img
+                                    src={showConfirm ? EyeClosed : EyeOpen}
+                                    alt=""
+                                    className="icon-eye"
+                                    width="22"
+                                    height="22"
+                                    draggable="false"
+                                />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="form-group">

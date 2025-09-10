@@ -420,3 +420,50 @@
     font-weight: bold;
     margin-top: 1rem;
 }
+/* Container that lets the eye sit inside the input */
+.input-with-toggle {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+    .input-with-toggle > input {
+        width: 100%;
+        box-sizing: border-box;
+        padding-right: 44px; /* room for the eye */
+    }
+
+/* The eye button itself */
+.toggle-visibility {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    color: #fff; /* doesn't recolor <img>, but used below for outline */
+}
+
+    .toggle-visibility:focus {
+        outline: none;
+    }
+
+    /* Keep an accessible ring when tabbing with keyboard */
+    .toggle-visibility:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+
+/* Optional: prevent dragging the icon */
+.icon-eye {
+    display: block;
+    pointer-events: none;
+}
+
+.icon-eye {
+    filter: invert(1) brightness(1.4);
+}
