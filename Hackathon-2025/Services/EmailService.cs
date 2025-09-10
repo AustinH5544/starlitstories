@@ -17,7 +17,7 @@ public class EmailService : IEmailService
 
     public async Task SendVerificationEmailAsync(string email, string verificationToken)
     {
-        var subject = "Verify Your Email - Bedtime Stories";
+        var subject = "Verify Your Email - Starlit Stories";
         var baseUrl = (_config["App:BaseUrl"] ?? "").TrimEnd('/');
         var verificationUrl = $"{baseUrl}/verify-email?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(verificationToken)}";
 
@@ -25,7 +25,7 @@ public class EmailService : IEmailService
             <html>
             <body style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
                 <div style='text-align: center; margin-bottom: 30px;'>
-                    <h1 style='color: #4f46e5; margin-bottom: 10px;'>Welcome to Bedtime Stories! 📚</h1>
+                    <h1 style='color: #4f46e5; margin-bottom: 10px;'>Welcome to Starlit Stories! 📚</h1>
                     <p style='color: #6b7280; font-size: 16px;'>Please verify your email address to get started</p>
                 </div>
 
@@ -34,7 +34,7 @@ public class EmailService : IEmailService
                         Hi there! 👋
                     </p>
                     <p style='color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 20px;'>
-                        Thank you for signing up for Bedtime Stories! To complete your registration and start creating magical stories for your little ones, please verify your email address by clicking the button below.
+                        Thank you for signing up for Starlit Stories! To complete your registration and start creating magical stories for your little ones, please verify your email address by clicking the button below.
                     </p>
 
                     <div style='text-align: center; margin: 30px 0;'>
@@ -62,7 +62,7 @@ public class EmailService : IEmailService
 
     public async Task SendPasswordResetEmailAsync(string email, string resetToken)
     {
-        var subject = "Reset Your Password - Bedtime Stories";
+        var subject = "Reset Your Password - Starlit Stories";
         var baseUrl = (_config["App:BaseUrl"] ?? "").TrimEnd('/');
         var resetUrl = $"{baseUrl}/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(resetToken)}";
 
@@ -71,7 +71,7 @@ public class EmailService : IEmailService
             <body style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
                 <div style='text-align: center; margin-bottom: 30px;'>
                     <h1 style='color: #4f46e5; margin-bottom: 10px;'>Password Reset Request 🔐</h1>
-                    <p style='color: #6b7280; font-size: 16px;'>Reset your Bedtime Stories password</p>
+                    <p style='color: #6b7280; font-size: 16px;'>Reset your Starlit Stories password</p>
                 </div>
 
                 <div style='background: #f9fafb; padding: 30px; border-radius: 10px; margin-bottom: 30px;'>
@@ -79,7 +79,7 @@ public class EmailService : IEmailService
                         Hi there! 👋
                     </p>
                     <p style='color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 20px;'>
-                        We received a request to reset your password for your Bedtime Stories account. Click the button below to create a new password.
+                        We received a request to reset your password for your Starlit Stories account. Click the button below to create a new password.
                     </p>
 
                     <div style='text-align: center; margin: 30px 0;'>
@@ -114,7 +114,7 @@ public class EmailService : IEmailService
             var smtpUsername = _config["Email:SmtpUsername"];
             var smtpPassword = _config["Email:SmtpPassword"];
             var fromEmail = _config["Email:FromEmail"];
-            var fromName = _config["Email:FromName"] ?? "Bedtime Stories";
+            var fromName = _config["Email:FromName"] ?? "Starlit Stories";
 
             if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {

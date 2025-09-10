@@ -34,7 +34,7 @@ const UpgradePage = () => {
         {
             id: "premium",
             name: "Premium",
-            price: "$10/month",
+            price: "$8/month",
             icon: "🌟",
             description: "Perfect for families who love stories",
             features: [
