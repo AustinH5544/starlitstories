@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useEffect } from "react"
+import "./LandingPage.css";
 import "./AboutPage.css"
 
 const teamMembers = [
@@ -26,6 +27,7 @@ const AboutPage = () => {
         benefits: false,
         team: false,
         vision: false,
+        contact: false,
     })
 
     // Handle scroll animations
@@ -41,6 +43,7 @@ const AboutPage = () => {
                 benefits: scrollPosition > windowHeight * 0.5,
                 team: scrollPosition > windowHeight * 0.7,
                 vision: scrollPosition > windowHeight * 0.9,
+                contact: scrollPosition > windowHeight * 1.05,
             })
         }
 
@@ -251,38 +254,77 @@ const AboutPage = () => {
             </section>
 
             {/* Contact Section */}
-            <section className="about-section contact-section">
-                <div className="section-content">
-                    <h2>Connect With Us</h2>
-                    <p className="contact-intro">
-                        We'd love to hear from you! Share your story experiences, suggestions, or just say hello.
-                    </p>
+            {/*<section className="about-section contact-section">*/}
+            {/*    <div className={`section-content ${isVisible.contact ? "slide-up" : ""}`}>*/}
+            {/*        <h2>Connect With Us</h2>*/}
+            {/*        <p className="contact-intro">*/}
+            {/*            We'd love to hear from you! Share your story experiences, suggestions, or just say hello.*/}
+            {/*        </p>*/}
 
-                    <div className="contact-methods">
-                        <a href="mailto:hello@StarlitStories.com" className="contact-method">
-                            <div className="contact-icon">✉️</div>
-                            <span>hello@StarlitStories.com</span>
-                        </a>
-                        <a href="https://twitter.com/StarlitStories" className="contact-method">
-                            <div className="contact-icon">🐦</div>
-                            <span>@StarlitStories</span>
-                        </a>
-                        <a href="https://instagram.com/StarlitStories" className="contact-method">
-                            <div className="contact-icon">📸</div>
-                            <span>@StarlitStories</span>
-                        </a>
+            {/*        <div className="contact-methods">*/}
+            {/*            <a href="mailto:hello@StarlitStories.com" className="contact-method">*/}
+            {/*                <div className="contact-icon">✉️</div>*/}
+            {/*                <span>hello@StarlitStories.com</span>*/}
+            {/*            </a>*/}
+            {/*            <a href="https://twitter.com/StarlitStories" className="contact-method">*/}
+            {/*                <div className="contact-icon">🐦</div>*/}
+            {/*                <span>@StarlitStories</span>*/}
+            {/*            </a>*/}
+            {/*            <a href="https://instagram.com/StarlitStories" className="contact-method">*/}
+            {/*                <div className="contact-icon">📸</div>*/}
+            {/*                <span>@StarlitStories</span>*/}
+            {/*            </a>*/}
+            {/*        </div>*/}
+
+            {/*        <div className="newsletter-signup">*/}
+            {/*            <h3>Join Our Storytelling Community</h3>*/}
+            {/*            <p>Subscribe to receive updates, story tips, and special offers.</p>*/}
+            {/*            <form className="newsletter-form">*/}
+            {/*                <input type="email" placeholder="Your email address" required />*/}
+            {/*                <button type="submit">Subscribe</button>*/}
+            {/*            </form>*/}
+            {/*        </div>*/}
+            {/*    </div>*/}
+            {/*</section>*/}
+            <footer className="footer">
+                <div className="footer-content">
+                    <div className="footer-logo">
+                        <span className="logo">Starlit Stories</span>
+                        <p>Making bedtime magical, one story at a time</p>
                     </div>
 
-                    <div className="newsletter-signup">
-                        <h3>Join Our Storytelling Community</h3>
-                        <p>Subscribe to receive updates, story tips, and special offers.</p>
-                        <form className="newsletter-form">
-                            <input type="email" placeholder="Your email address" required />
-                            <button type="submit">Subscribe</button>
-                        </form>
+                    <div className="footer-links">
+                        <div className="footer-column">
+                            <h4>Company</h4>
+                            <a href="/about">About Us</a>
+                            <a href="/contact">Contact</a>
+                            <a href="/privacy">Privacy Policy</a>
+                            <a href="/terms">Terms of Service</a>
+                        </div>
+
+                        <div className="footer-column">
+                            <h4>Resources</h4>
+                            <a href="/blog">Blog</a>
+                            <a href="/faq">FAQ</a>
+                            <a href="/support">Support</a>
+                        </div>
+
+                        <div className="footer-column">
+                            <h4>Connect</h4>
+                            <div className="social-links">
+                                <a href="#" className="social-link">📱</a>
+                                <a href="#" className="social-link">📘</a>
+                                <a href="#" className="social-link">📸</a>
+                                <a href="#" className="social-link">🐦</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </section>
+
+                <div className="footer-bottom">
+                    <p>© 2025 Starlit Stories. All rights reserved.</p>
+                </div>
+            </footer>
         </div>
     )
 }
