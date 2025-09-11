@@ -15,12 +15,14 @@ public class StripeGateway : IPaymentGateway
 {
     private readonly StripeSettings _cfg;
     private readonly AppDbContext _db;
+    private readonly ILogger<StripeGateway> _log;
 
-    public StripeGateway(IOptions<StripeSettings> cfg, AppDbContext db)
+    public StripeGateway(IOptions<StripeSettings> cfg, AppDbContext db, ILogger<StripeGateway> log)
     {
         _cfg = cfg.Value;
         _db = db;
         StripeConfiguration.ApiKey = _cfg.SecretKey;
+        _log = log;
     }
 
     private string MapPlanPrice(string planKey) => planKey switch
@@ -136,11 +138,18 @@ public class StripeGateway : IPaymentGateway
         HandleWebhookAsync(HttpRequest request)
     {
         var json = await new StreamReader(request.Body).ReadToEndAsync();
-        var stripeEvent = EventUtility.ConstructEvent(
-            json,
-            request.Headers["Stripe-Signature"],
-            _cfg.WebhookSecret
-        );
+        Event stripeEvent;
+        try
+        {
+            stripeEvent = EventUtility.ConstructEvent(json, request.Headers["Stripe-Signature"], _cfg.WebhookSecret);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "ConstructEvent failed");
+            throw; // controller will 400/500 and log
+        }
+
+        _log.LogInformation("Stripe event received: type={Type} id={Id}", stripeEvent.Type, stripeEvent.Id);
 
         switch (stripeEvent.Type)
         {

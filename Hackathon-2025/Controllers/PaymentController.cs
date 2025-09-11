@@ -3,8 +3,11 @@ using Hackathon_2025.Models;
 using Hackathon_2025.Services;                 // NEW: IQuotaService, IPeriodService, IPaymentGateway
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;            // NEW: IOptions<StripeSettings>
+using Stripe;
 using System.Security.Claims;
+using Microsoft.Extensions.Logging; // at top
 
 // so IPaymentGateway resolves
 
@@ -16,6 +19,7 @@ namespace Hackathon_2025.Controllers
     {
         private readonly IPaymentGateway _gateway;
         private readonly AppDbContext _db;
+        private readonly ILogger<PaymentsController> _log; // NEW
 
         // NEW: policy + period services and Stripe price IDs
         private readonly IQuotaService _quota;          // NEW
@@ -28,10 +32,12 @@ namespace Hackathon_2025.Controllers
             AppDbContext db,
             IQuotaService quota,                        // NEW
             IPeriodService period,                      // NEW
-            IOptions<StripeSettings> stripe)            // NEW
+            IOptions<StripeSettings> stripe,
+            ILogger<PaymentsController> log)            // NEW
         {
             _gateway = gateway;
             _db = db;
+            _log = log; // NEW
             _quota = quota;                             // NEW
             _period = period;                           // NEW
             _stripe = stripe;                           // NEW
@@ -196,45 +202,68 @@ namespace Hackathon_2025.Controllers
         }
 
         [HttpPost("webhook")]
+        [AllowAnonymous] // be explicit
         public async Task<IActionResult> Webhook()
         {
-            // CHANGED: gateway returns add-on info in addition to plan/period updates
-            var (eventId, uid, custRef, subRef, planKey, status, periodEnd, addOnSku, addOnQty)
-                = await _gateway.HandleWebhookAsync(Request);
-
-            // Try to locate the user:
-            User? user = null;
-            if (uid.HasValue) user = await _db.Users.FindAsync(uid.Value);
-            if (user is null && !string.IsNullOrEmpty(custRef))
-                user = _db.Users.FirstOrDefault(u => u.BillingCustomerRef == custRef);
-            if (user is null && !string.IsNullOrEmpty(subRef))
-                user = _db.Users.FirstOrDefault(u => u.BillingSubscriptionRef == subRef);
-
-            if (user != null)
+            try
             {
+                var (eventId, uid, custRef, subRef, planKey, status, periodEnd, addOnSku, addOnQty) =
+                    await _gateway.HandleWebhookAsync(Request);
+
+                _log.LogInformation("Stripe webhook {EventId} uid={Uid} cust={Cust} sub={Sub} planKey={Plan} status={Status} addOn={Sku}/{Qty}",
+                    eventId, uid, custRef, subRef, planKey, status, addOnSku, addOnQty);
+
+                // Idempotency (insert first)
+                try
+                {
+                    _db.ProcessedWebhooks.Add(new ProcessedWebhook { EventId = eventId, ProcessedAtUtc = DateTime.UtcNow });
+                    await _db.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    _log.LogWarning("Duplicate webhook {EventId} ignored.", eventId);
+                    return Ok(); // already processed
+                }
+
+                // Resolve user by uid -> customer -> subscription
+                User? user = null;
+                if (uid.HasValue) user = await _db.Users.FindAsync(uid.Value);
+                if (user is null && !string.IsNullOrEmpty(custRef))
+                    user = _db.Users.FirstOrDefault(u => u.BillingCustomerRef == custRef);
+                if (user is null && !string.IsNullOrEmpty(subRef))
+                    user = _db.Users.FirstOrDefault(u => u.BillingSubscriptionRef == subRef);
+
+                if (user is null)
+                {
+                    _log.LogWarning("Webhook {EventId}: user not found (uid={Uid}, cust={Cust}, sub={Sub})", eventId, uid, custRef, subRef);
+                    return Ok();
+                }
+
+                // Update fields
                 user.BillingProvider = "stripe";
                 if (!string.IsNullOrEmpty(custRef)) user.BillingCustomerRef = custRef;
                 if (!string.IsNullOrEmpty(subRef)) user.BillingSubscriptionRef = subRef;
-                if (!string.IsNullOrEmpty(planKey)) { user.PlanKey = planKey; user.Membership = planKey; } // keep in sync
+                if (!string.IsNullOrEmpty(planKey)) { user.PlanKey = planKey; user.Membership = planKey; }
                 if (!string.IsNullOrEmpty(status)) user.PlanStatus = status;
                 user.CurrentPeriodEndUtc = periodEnd;
 
-                // NEW: credit add-on purchases (carryover wallet)
-                if (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0)
-                {
-                    var credits = addOnSku switch
-                    {
-                        "addon_plus5" => 5 * addOnQty,
-                        "addon_plus11" => 11 * addOnQty,
-                        _ => 0
-                    };
-                    if (credits > 0) user.AddOnBalance += credits; // persists across months
-                }
-
                 await _db.SaveChangesAsync();
-            }
+                _log.LogInformation("Webhook {EventId}: updated user {UserId} → membership={Membership}, status={Status}",
+                    eventId, user.Id, user.Membership, user.PlanStatus);
 
-            return Ok();
+                return Ok();
+            }
+            catch (StripeException ex)
+            {
+                // Signature mismatch or construct error -> check WebhookSecret or endpoint route
+                _log.LogError(ex, "Stripe webhook error");
+                return BadRequest();
+            }
+            catch (Exception ex)
+            {
+                _log.LogError(ex, "Unhandled webhook error");
+                return StatusCode(500);
+            }
         }
     }
 }
