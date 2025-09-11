@@ -139,6 +139,51 @@ export async function downloadStoryPdf(story) {
     const stageW = meta?.stageW || defaultStageW;
 
     const canvases = [];
+    const coverBoxesStored =
+        JSON.parse(localStorage.getItem(`${key}:cover`) || "null") ??
+        (Array.isArray(layouts["-1"]) ? layouts["-1"] : null);
+
+    if (story.coverImageUrl) {
+        let coverStageH = meta?.coverStageH;
+        if (!coverStageH) {
+            try {
+                const img = await loadImage(story.coverImageUrl);
+                coverStageH = Math.round(stageW * (img.naturalHeight / img.naturalWidth));
+            } catch {
+                coverStageH = Math.round(stageW * 0.75);
+            }
+        }
+
+        const defaultCoverBoxes = story.title
+            ? [{
+                x: Math.round(stageW * 0.08),
+                y: Math.round(coverStageH * 0.06),
+                w: Math.round(stageW * 0.84),
+                h: Math.round(coverStageH * 0.16),
+                text: story.title,
+                style: {
+                    fontFamily: "Georgia, 'Times New Roman', serif",
+                    fontSize: 36, fontWeight: 700, lineHeight: 1.2,
+                    color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.0,
+                    align: "center", padding: 8, radius: 12, shadow: false
+                }
+            }]
+            : [];
+
+        const coverBoxes = Array.isArray(coverBoxesStored) ? coverBoxesStored : defaultCoverBoxes;
+
+        try {
+            const coverCanvas = await renderPageCanvas({
+                page: { imageUrl: story.coverImageUrl },
+                boxes: coverBoxes,
+                stageW,
+                stageH: coverStageH
+            });
+            canvases.push(coverCanvas);
+        } catch (e) {
+            console.warn("[PDF] Skipping cover due to error:", e?.message || e);
+        }
+    }
     for (let i = 0; i < pages.length; i++) {
         const page = pages[i];
         // If editor saved stageH, use it; else infer from image aspect
