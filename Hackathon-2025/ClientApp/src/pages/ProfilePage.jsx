@@ -21,24 +21,119 @@ const ProfilePage = () => {
     const [showCancelModal, setShowCancelModal] = useState(false);
     const { search } = useLocation();
     const [flash, setFlash] = useState("");
+    const [billing, setBilling] = useState(null);
 
     const BASE = import.meta.env.BASE_URL
-
     const [showImageModal, setShowImageModal] = useState(false)
 
     const openBillingPortal = async () => {
         try {
-            setWorking(true); setActionMsg("");
-            const { data } = await api.get("payments/billing/portal"); // GET /api/payments/billing/portal
-            if (data?.url) window.location.href = data.url;
-            else setActionMsg("Could not open billing portal.");
+            setWorking(true);
+            setActionMsg("");
+
+            // If your API needs POST, swap to api.post(...).
+            const cfg = { skipAuth401Handler: true };
+            const { data } = await api.get("payments/billing/portal", cfg);
+
+            // Be flexible about the returned key name
+            const url = data?.url || data?.portalUrl || data?.sessionUrl;
+            if (url) {
+                window.location.href = url; // or: window.location.assign(url)
+                return;
+            }
+
+            throw new Error("No portal URL returned");
         } catch (e) {
-            console.error(e);
-            setActionMsg("Could not open billing portal.");
+            console.error("openBillingPortal error:", e);
+            const status = e?.response?.status;
+            if (status === 401) {
+                setActionMsg("Please sign in again, then try opening the billing portal.");
+            } else if (status === 403) {
+                setActionMsg("Your account can’t access the billing portal yet.");
+            } else {
+                setActionMsg("Could not open the billing portal. Please try again.");
+            }
         } finally {
             setWorking(false);
         }
     };
+
+    // Converts ISO string, ms, or *seconds* into a Date
+    const toDate = (v) => {
+        if (!v) return null;
+        if (v instanceof Date) return v;
+        if (typeof v === "number") {
+            // treat < 1e12 as seconds, otherwise ms
+            return new Date(v < 1e12 ? v * 1000 : v);
+        }
+        // numeric string?
+        if (typeof v === "string" && /^\d+$/.test(v)) {
+            const n = Number(v);
+            return new Date(n < 1e12 ? n * 1000 : n);
+        }
+        // ISO or other date-like string
+        const d = new Date(v);
+        return isNaN(d.getTime()) ? null : d;
+    };
+
+    // Picks the best renewal/cancel dates regardless of field style
+    const coerceBilling = (raw) => {
+        if (!raw || typeof raw !== "object") return null;
+
+        // accept nested objects commonly returned by backends
+        const src = raw.subscription ?? raw.data ?? raw;
+
+        // small helper
+        const first = (...keys) => {
+            for (const k of keys) if (src?.[k] != null) return src[k];
+            return null;
+        };
+
+        const current = first(
+            "currentPeriodEnd", "current_period_end", "period_end",
+            "nextRenewalAt", "next_renewal_at",
+            "expiresAt", "expires_at", "validUntil", "valid_until"
+        );
+
+        const cancel = first(
+            "cancelAt", "cancel_at",
+            "accessUntil", "access_until",
+            "endsAt", "ends_at"
+        );
+
+        return {
+            ...src,
+            currentPeriodEnd: toDate(current)?.toISOString() ?? null,
+            cancelAt: toDate(cancel)?.toISOString() ?? null,
+        };
+    };
+
+    // pretty format for display
+    const formatDate = (iso) => {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    };
+
+    useEffect(() => {
+        let alive = true;
+        (async () => {
+            const tier = String(user?.membership || "").toLowerCase();
+            if (!user?.email || tier === "free") { if (alive) setBilling(null); return; }
+            try {
+                const { data } = await api.get("payments/subscription");
+                if (alive) setBilling(coerceBilling(data?.subscription ?? data));
+            } catch (e) {
+                console.warn("Could not load subscription", e);
+                if (alive) setBilling(null);
+            }
+        })();
+        return () => { alive = false; };
+    }, [user?.email, user?.membership]);
+
+    const isPaid = (user?.membership ?? "free").toLowerCase() !== "free";
+    const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
+    const renewalLabel = billing?.cancelAt ? "Access until" : "Next renewal";
 
     useEffect(() => {
         const q = new URLSearchParams(search);
@@ -340,6 +435,17 @@ const ProfilePage = () => {
                             <span className="detail-value">{user.membership || "Free"}</span>
                         </div>
                     </div>
+
+                    {/* NEW: Next renewal / Access until (paid users only) */}
+                    {isPaid && (
+                        <div className="detail-card">
+                            <div className="detail-icon">🗓️</div>
+                            <div className="detail-content">
+                                <span className="detail-label">{renewalLabel}</span>
+                                <span className="detail-value">{renewalDate ? formatDate(renewalDate) : "—"}</span>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="detail-card">
                         <div className="detail-icon">📚</div>
