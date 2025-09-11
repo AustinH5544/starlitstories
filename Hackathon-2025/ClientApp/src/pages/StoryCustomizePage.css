@@ -140,6 +140,60 @@
     background: rgba(20, 30, 60, 0.35);
 }
 
+/* Copybar — compact, keep controls near the top */
+.copybar {
+    display: grid;
+    grid-auto-rows: min-content; /* rows size to content */
+    align-content: start; /* pack rows at the top */
+    gap: 10px;
+    margin-top: -10px; /* nudge whole card up */
+    padding: 12px; /* compact padding */
+
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    background: rgba(20, 30, 60, 0.35);
+    flex: 0 0 auto !important; /* ignore any flex:1 from parents */
+    align-self: start; /* sit at the top of the column */
+    height: auto; /* size to content */
+    min-height: 0; /* kill any inherited min-height */
+}
+
+    .copybar label {
+        display: block;
+        font-weight: 600;
+        color: var(--text);
+        margin-bottom: 4px;
+    }
+
+    /* Make the dropdown match other inputs */
+    .copybar .input,
+    .copybar select {
+        width: 100%;
+        background: #0f1630;
+        color: #dbe6ff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 12px;
+        height: 40px;
+        line-height: 1.2;
+        appearance: none;
+    }
+
+    /* Keep the button right under the select (not pinned) */
+    .copybar .btn {
+        height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        justify-self: stretch; /* full width */
+        margin-top: 0 !important; /* override any global auto */
+    }
+
+.copybar-controls {
+    display: grid;
+    gap: 12px; /* ← padding between the two controls */
+}
+
 .stage-wrap {
     display: grid;
     place-items: center;

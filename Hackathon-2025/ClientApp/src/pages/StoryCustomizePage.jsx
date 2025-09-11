@@ -428,23 +428,25 @@ export default function StoryCustomizePage() {
 
                     <div className="copybar">
                         <label>Copy layout from:</label>
-                        <select onChange={(e) => copyLayoutFrom(Number(e.target.value))} value="">
-                            <option value="" disabled>
-                                Choose page…
-                            </option>
-                            {story.pages.map((_, i) => (
-                                <option key={i} value={i}>
-                                    Page {i + 1}
-                                </option>
-                            ))}
-                        </select>
-                        <button
-                            className="btn ghost"
-                            disabled={!selectedBox}
-                            onClick={applySelectedStyleToAllPages}
-                        >
+                        <div className="copybar-controls">
+                            <select
+                                className="input"
+                                onChange={(e) => copyLayoutFrom(Number(e.target.value))}
+                                value=""
+                            >
+                                <option value="" disabled>Choose page…</option>
+                                {story.pages.map((_, i) => (
+                                    <option key={i} value={i}>Page {i + 1}</option>
+                                ))}
+                            </select>
+                            <button
+                                className="btn ghost"
+                                disabled={!selectedBox}
+                                onClick={applySelectedStyleToAllPages}
+                            >
                             Apply selected style → all pages
-                        </button>
+                            </button>
+                        </div>
                     </div>
                 </aside>
 
