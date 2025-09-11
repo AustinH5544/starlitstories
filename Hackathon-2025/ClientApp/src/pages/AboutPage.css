@@ -319,7 +319,7 @@ body {
     margin-top: 3rem;
 }
 
-.benefit-card {
+.about-page .benefit-card {
     background: #f9f7ff;
     border-radius: 15px;
     padding: 2rem;
@@ -328,22 +328,22 @@ body {
     height: 100%;
 }
 
-    .benefit-card:hover {
+    .about-page .benefit-card:hover {
         transform: translateY(-5px);
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     }
 
-.benefit-icon {
+.about-page .benefit-icon {
     font-size: 3rem;
     margin-bottom: 1.5rem;
 }
 
-.benefit-card h3 {
+.about-page .benefit-card h3 {
     margin-bottom: 1rem;
     color: #333;
 }
 
-.benefit-card p {
+.about-page .benefit-card p {
     color: #666;
     line-height: 1.6;
 }
