@@ -19,7 +19,7 @@ export default function StoryCustomizePage() {
     const navigate = useNavigate();
 
     const [story, setStory] = useState(null);
-    const [pageIndex, setPageIndex] = useState(0);
+    const [pageIndex, setPageIndex] = useState(-1);
     const [boxesByPage, setBoxesByPage] = useState({});
     const [selectedBoxId, setSelectedBoxId] = useState(null);
     const stageRef = useRef(null);
@@ -44,6 +44,53 @@ export default function StoryCustomizePage() {
                 align: "left", padding: 16, radius: 12, shadow: true,
             },
         };
+    }
+
+    function resetCurrentPage() {
+        const key = storageKey(story);
+
+        // Cover page
+        if (pageIndex === -1) {
+            const rect0 = stageRef.current?.getBoundingClientRect();
+            const estW = Math.round(rect0?.width || 600);
+            const estH = Math.round(rect0?.height || Math.round(estW * 0.75));
+            const fresh = story.title ? [createDefaultCoverBox(story.title, estW, estH)] : [];
+
+            setBoxesByPage(prev => {
+                const next = { ...prev, [-1]: fresh };
+                localStorage.setItem(key, JSON.stringify(next));
+                localStorage.setItem(`${key}:cover`, JSON.stringify(fresh));
+                return next;
+            });
+            setSelectedBoxId(null);
+            return;
+        }
+
+        // Regular page
+        setBoxesByPage(prev => {
+            const next = { ...prev, [pageIndex]: [createDefaultTextBox(story.pages[pageIndex]?.text || "", pageIndex)] };
+            localStorage.setItem(key, JSON.stringify(next));
+            return next;
+        });
+        setSelectedBoxId(null);
+    }
+
+    function resetAllLayouts() {
+        const key = storageKey(story);
+
+        // Re-seed all regular pages
+        const base = seedFromStory(story);
+
+        // Fresh default cover title
+        const rect0 = stageRef.current?.getBoundingClientRect();
+        const estW = Math.round(rect0?.width || 600);
+        const estH = Math.round(rect0?.height || Math.round(estW * 0.75));
+        base[-1] = story.title ? [createDefaultCoverBox(story.title, estW, estH)] : [];
+
+        setBoxesByPage(base);
+        localStorage.setItem(key, JSON.stringify(base));
+        localStorage.setItem(`${key}:cover`, JSON.stringify(base[-1]));
+        setSelectedBoxId(null);
     }
 
     function seedFromStory(s) {
@@ -102,8 +149,26 @@ export default function StoryCustomizePage() {
             }
 
             const normalized = normalizeLayouts(savedLayouts, s);
-            setBoxesByPage(normalized || seedFromStory(s));
-            if (normalized) localStorage.setItem(key, JSON.stringify(normalized));
+            const base = normalized || seedFromStory(s);
+
+            // pull any previously saved cover boxes
+            const coverSaved = JSON.parse(localStorage.getItem(`${key}:cover`) || "null");
+
+            // estimate stage size if we have it
+            const rect0 = stageRef.current?.getBoundingClientRect();
+            const estW = Math.round(rect0?.width || 600);
+            const estH = Math.round(rect0?.height || Math.round(estW * 0.75));
+
+            // ensure a cover layout key (-1) exists so the user can edit the cover
+            if (!Array.isArray(base[-1])) {
+                base[-1] = Array.isArray(coverSaved)
+                    ? coverSaved
+                    : (s.title ? [createDefaultCoverBox(s.title, estW, estH)] : []);
+            }
+
+            // set once, save once
+            setBoxesByPage(base);
+            localStorage.setItem(key, JSON.stringify(base));
         }
     }, [state]);
 
@@ -111,17 +176,24 @@ export default function StoryCustomizePage() {
     useEffect(() => {
         if (!story) return;
         const key = storageKey(story);
+        localStorage.setItem(`${key}:cover`, JSON.stringify(boxesByPage[-1] || []));
         localStorage.setItem(key, JSON.stringify(boxesByPage));
 
         // store stage size so export can scale coordinates 1:1
         const rect = stageRef.current?.getBoundingClientRect();
+        if (rect && pageIndex === -1) {
+            const mk = `${key}:meta`;
+            const metaNow = JSON.parse(localStorage.getItem(mk) || "{}");
+            metaNow.coverStageH = Math.round(rect.height);
+            localStorage.setItem(mk, JSON.stringify(metaNow));
+        }
         if (rect) {
             localStorage.setItem(`${key}:meta`, JSON.stringify({
                 stageW: Math.round(rect.width),
                 stageH: Math.round(rect.height),
             }));
         }
-    }, [story, boxesByPage]);
+    }, [story, boxesByPage, pageIndex]);
 
     // Helpers
     const currentBoxes = boxesByPage?.[pageIndex] || [];
@@ -294,6 +366,25 @@ export default function StoryCustomizePage() {
         });
     }
 
+    function createDefaultCoverBox(title, stageW = 600, stageH = 450) {
+        const w = Math.round(stageW * 0.84);
+        const x = Math.round((stageW - w) / 2);
+        const y = Math.round(stageH * 0.06);
+        return {
+            id: crypto.randomUUID(),
+            page: -1,
+            x, y, w,
+            h: Math.round(stageH * 0.16),
+            text: title || "My Story",
+            style: {
+                fontFamily: "Georgia, 'Times New Roman', serif",
+                fontSize: 36, fontWeight: 700, lineHeight: 1.2,
+                color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.0,
+                align: "center", padding: 8, radius: 12, shadow: false
+            },
+        };
+    }
+
     function applySelectedStyleToAllPages() {
         if (!selectedBox) return;
         setBoxesByPage((prev) => {
@@ -365,10 +456,17 @@ export default function StoryCustomizePage() {
                     <button className="btn" onClick={addTextBox}>➕ Add Text Box</button>
                     <button
                         className="btn ghost"
-                        onClick={() => setBoxesByPage(seedFromStory(story))}
-                        title="Reset layout to default text positions"
+                        onClick={resetCurrentPage}
+                        title="Reset just this page (keeps other pages as-is)"
                     >
-                        Reset layout
+                        Reset page
+                    </button>
+                    <button
+                        className="btn ghost"
+                        onClick={resetAllLayouts}
+                        title="Reset all pages (including a fresh cover title)"
+                    >
+                        Reset all
                     </button>
                     <button
                         className="btn"
