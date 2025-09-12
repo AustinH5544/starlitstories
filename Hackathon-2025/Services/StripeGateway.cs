@@ -94,9 +94,8 @@ public class StripeGateway : IPaymentGateway
     // ---------- One-time add-on checkout ----------
 
     public async Task<CheckoutSession> CreateOneTimeCheckoutAsync(
-        int userId, string userEmail, string priceId, int quantity, string successUrl, string cancelUrl)
+    int userId, string userEmail, string priceId, int quantity, string successUrl, string cancelUrl)
     {
-        // derive a simple sku for webhook parsing
         string sku =
             priceId == _cfg.PriceIdAddon5 ? "addon_plus5" :
             priceId == _cfg.PriceIdAddon11 ? "addon_plus11" : "unknown";
@@ -111,7 +110,7 @@ public class StripeGateway : IPaymentGateway
         {
             PaymentMethodTypes = new List<string> { "card" },
             LineItems = new List<Checkout.SessionLineItemOptions> { lineItem },
-            Mode = "payment", // one-time payment
+            Mode = "payment",
             CustomerEmail = userEmail,
             ClientReferenceId = userId.ToString(),
             Metadata = new Dictionary<string, string?>
@@ -119,11 +118,15 @@ public class StripeGateway : IPaymentGateway
                 ["userId"] = userId.ToString(),
                 ["email"] = userEmail,
                 ["sku"] = sku,
-                ["qty"] = quantity.ToString()
+                ["qty"] = quantity.ToString(),
+                ["priceId"] = priceId              // <-- NEW safety net
             },
             SuccessUrl = successUrl,
             CancelUrl = cancelUrl
         };
+
+        _log.LogInformation("CreateOneTimeCheckout: user {UserId} priceId={PriceId} sku={Sku} qty={Qty}",
+            userId, priceId, sku, quantity);
 
         var sessSvc = new Checkout.SessionService();
         var session = await sessSvc.CreateAsync(create);
@@ -133,9 +136,9 @@ public class StripeGateway : IPaymentGateway
     // ---------- Webhook ----------
 
     public async Task<(string eventId, int? userId, string? customerRef, string? subscriptionRef,
-                       string? planKey, string? status, DateTime? periodEndUtc,
-                       string? addOnSku, int addOnQty)>
-        HandleWebhookAsync(HttpRequest request)
+                   string? planKey, string? status, DateTime? periodEndUtc,
+                   string? addOnSku, int addOnQty)>
+    HandleWebhookAsync(HttpRequest request)
     {
         var json = await new StreamReader(request.Body).ReadToEndAsync();
         Event stripeEvent;
@@ -146,7 +149,7 @@ public class StripeGateway : IPaymentGateway
         catch (Exception ex)
         {
             _log.LogError(ex, "ConstructEvent failed");
-            throw; // controller will 400/500 and log
+            throw;
         }
 
         _log.LogInformation("Stripe event received: type={Type} id={Id}", stripeEvent.Type, stripeEvent.Id);
@@ -158,7 +161,6 @@ public class StripeGateway : IPaymentGateway
                     var session = (Checkout.Session)stripeEvent.Data.Object;
                     var uidStr = session.ClientReferenceId ?? session.Metadata.GetValueOrDefault("userId");
 
-                    // SUBSCRIPTION checkout
                     if (string.Equals(session.Mode, "subscription", StringComparison.OrdinalIgnoreCase))
                     {
                         return (
@@ -168,18 +170,31 @@ public class StripeGateway : IPaymentGateway
                             subscriptionRef: session.SubscriptionId,
                             planKey: session.Metadata.GetValueOrDefault("plan") ?? "pro",
                             status: "active",
-                            periodEndUtc: null, // optionally compute from subscription
+                            periodEndUtc: null,
                             addOnSku: null,
                             addOnQty: 0
                         );
                     }
 
-                    // ONE-TIME add-on checkout
                     if (string.Equals(session.Mode, "payment", StringComparison.OrdinalIgnoreCase))
                     {
-                        var sku = session.Metadata.GetValueOrDefault("sku"); // "addon_plus5" | "addon_plus11"
+                        var sku = session.Metadata.GetValueOrDefault("sku");   // "addon_plus5" | "addon_plus11" | unknown
                         var qtyStr = session.Metadata.GetValueOrDefault("qty");
                         var qty = int.TryParse(qtyStr, out var q) ? Math.Max(1, q) : 1;
+
+                        // Fallback by priceId in metadata if sku is missing/unknown
+                        var priceIdMeta = session.Metadata.GetValueOrDefault("priceId");
+                        if (string.IsNullOrEmpty(sku) || string.Equals(sku, "unknown", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (!string.IsNullOrEmpty(priceIdMeta))
+                            {
+                                sku = priceIdMeta == _cfg.PriceIdAddon5 ? "addon_plus5" :
+                                      priceIdMeta == _cfg.PriceIdAddon11 ? "addon_plus11" : "unknown";
+                            }
+                        }
+
+                        _log.LogInformation("Webhook map: sessionId={SessionId} sku={Sku} qty={Qty} priceIdMeta={PriceIdMeta}",
+                            session.Id, sku, qty, priceIdMeta);
 
                         return (
                             eventId: stripeEvent.Id,
@@ -194,7 +209,6 @@ public class StripeGateway : IPaymentGateway
                         );
                     }
 
-                    // Fallback for unexpected variant
                     return (stripeEvent.Id, null, session.CustomerId, session.SubscriptionId, null, "ignored", null, null, 0);
                 }
 
@@ -203,25 +217,19 @@ public class StripeGateway : IPaymentGateway
                 {
                     var sub = (Stripe.Subscription)stripeEvent.Data.Object;
 
-                    // Map price -> planKey
                     var priceId = sub.Items?.Data?.FirstOrDefault()?.Price?.Id;
                     string? planKey =
                         priceId == _cfg.PriceIdPremium ? "premium" :
                         priceId == _cfg.PriceIdPro ? "pro" : null;
 
-                    // Optionally set end from sub.CurrentPeriodEnd
-                    // DateTime? end = sub.CurrentPeriodEnd.HasValue
-                    //   ? DateTimeOffset.FromUnixTimeSeconds(sub.CurrentPeriodEnd.Value).UtcDateTime
-                    //   : null;
-
                     return (
                         eventId: stripeEvent.Id,
-                        userId: null, // resolve by customer/subscription in controller
+                        userId: null,
                         customerRef: sub.CustomerId,
                         subscriptionRef: sub.Id,
                         planKey: planKey,
                         status: sub.Status,
-                        periodEndUtc: null, // or 'end' if you compute it above
+                        periodEndUtc: null,
                         addOnSku: null,
                         addOnQty: 0
                     );

@@ -202,7 +202,7 @@ namespace Hackathon_2025.Controllers
         }
 
         [HttpPost("webhook")]
-        [AllowAnonymous] // be explicit
+        [AllowAnonymous]
         public async Task<IActionResult> Webhook()
         {
             try
@@ -210,52 +210,95 @@ namespace Hackathon_2025.Controllers
                 var (eventId, uid, custRef, subRef, planKey, status, periodEnd, addOnSku, addOnQty) =
                     await _gateway.HandleWebhookAsync(Request);
 
-                _log.LogInformation("Stripe webhook {EventId} uid={Uid} cust={Cust} sub={Sub} planKey={Plan} status={Status} addOn={Sku}/{Qty}",
-                    eventId, uid, custRef, subRef, planKey, status, addOnSku, addOnQty);
+                _log.LogInformation(
+                    "Stripe webhook {EventId} uid={Uid} cust={Cust} sub={Sub} planKey={Plan} status={Status} addOn={Sku}/{Qty}",
+                    eventId, uid, custRef, subRef, planKey, status, addOnSku, addOnQty
+                );
 
-                // Idempotency (insert first)
-                try
+                // --- No idempotency fence (for testing). ---
+                // Exit early for informational/no-op events to avoid unnecessary work.
+                if (string.Equals(status, "ignored", StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrEmpty(addOnSku)
+                    && string.IsNullOrEmpty(planKey))
                 {
-                    _db.ProcessedWebhooks.Add(new ProcessedWebhook { EventId = eventId, ProcessedAtUtc = DateTime.UtcNow });
-                    await _db.SaveChangesAsync();
-                }
-                catch (DbUpdateException)
-                {
-                    _log.LogWarning("Duplicate webhook {EventId} ignored.", eventId);
-                    return Ok(); // already processed
-                }
-
-                // Resolve user by uid -> customer -> subscription
-                User? user = null;
-                if (uid.HasValue) user = await _db.Users.FindAsync(uid.Value);
-                if (user is null && !string.IsNullOrEmpty(custRef))
-                    user = _db.Users.FirstOrDefault(u => u.BillingCustomerRef == custRef);
-                if (user is null && !string.IsNullOrEmpty(subRef))
-                    user = _db.Users.FirstOrDefault(u => u.BillingSubscriptionRef == subRef);
-
-                if (user is null)
-                {
-                    _log.LogWarning("Webhook {EventId}: user not found (uid={Uid}, cust={Cust}, sub={Sub})", eventId, uid, custRef, subRef);
+                    _log.LogInformation("Webhook {EventId}: nothing to apply (status=ignored).", eventId);
                     return Ok();
                 }
 
-                // Update fields
+                // --- Resolve user via uid -> customer -> subscription ---
+                User? user = null;
+                if (uid.HasValue)
+                    user = await _db.Users.FindAsync(uid.Value);
+                if (user is null && !string.IsNullOrEmpty(custRef))
+                    user = await _db.Users.FirstOrDefaultAsync(u => u.BillingCustomerRef == custRef);
+                if (user is null && !string.IsNullOrEmpty(subRef))
+                    user = await _db.Users.FirstOrDefaultAsync(u => u.BillingSubscriptionRef == subRef);
+
+                if (user is null)
+                {
+                    _log.LogWarning("Webhook {EventId}: user not found (uid={Uid}, cust={Cust}, sub={Sub})",
+                        eventId, uid, custRef, subRef);
+                    return Ok(); // still 200 so Stripe won't retry forever
+                }
+
+                _log.LogInformation("Webhook {EventId}: applying updates to user {UserId}", eventId, user.Id);
+
+                // --- Subscription/membership updates (if present) ---
                 user.BillingProvider = "stripe";
                 if (!string.IsNullOrEmpty(custRef)) user.BillingCustomerRef = custRef;
                 if (!string.IsNullOrEmpty(subRef)) user.BillingSubscriptionRef = subRef;
                 if (!string.IsNullOrEmpty(planKey)) { user.PlanKey = planKey; user.Membership = planKey; }
                 if (!string.IsNullOrEmpty(status)) user.PlanStatus = status;
-                user.CurrentPeriodEndUtc = periodEnd;
+                if (periodEnd.HasValue) user.CurrentPeriodEndUtc = periodEnd;
+
+                // --- One-time add-on credits (if present) ---
+                if (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0)
+                {
+                    var qty = Math.Max(1, addOnQty);
+                    var perPack = addOnSku switch
+                    {
+                        "addon_plus5" => 5,
+                        "addon_plus11" => 11,
+                        _ => 0
+                    };
+
+                    if (perPack == 0)
+                    {
+                        _log.LogWarning("Webhook {EventId}: Unknown add-on SKU '{Sku}'. No credits added.", eventId, addOnSku);
+                    }
+                    else
+                    {
+                        var before = user.AddOnBalance;
+                        var credits = perPack * qty;
+
+                        // IDEMPOTENCY DISABLED: duplicates from Stripe will add credits again.
+                        user.AddOnBalance = checked(before + credits);
+
+                        _log.LogInformation(
+                            "Webhook {EventId}: +{Credits} credits ({Sku} x{Qty}) → user {UserId} balance {Before} → {After}",
+                            eventId, credits, addOnSku, qty, user.Id, before, user.AddOnBalance
+                        );
+                    }
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(addOnSku))
+                        _log.LogDebug("Webhook {EventId}: No add-on SKU provided.", eventId);
+                    if (addOnQty <= 0)
+                        _log.LogDebug("Webhook {EventId}: Non-positive add-on quantity {Qty}.", eventId, addOnQty);
+                }
 
                 await _db.SaveChangesAsync();
-                _log.LogInformation("Webhook {EventId}: updated user {UserId} → membership={Membership}, status={Status}",
-                    eventId, user.Id, user.Membership, user.PlanStatus);
+
+                _log.LogInformation(
+                    "Webhook {EventId}: updated user {UserId} → membership={Membership}, status={Status}",
+                    eventId, user.Id, user.Membership, user.PlanStatus
+                );
 
                 return Ok();
             }
             catch (StripeException ex)
             {
-                // Signature mismatch or construct error -> check WebhookSecret or endpoint route
                 _log.LogError(ex, "Stripe webhook error");
                 return BadRequest();
             }
