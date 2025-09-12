@@ -2,60 +2,77 @@
 using System.Text.Json;
 using System.Text;
 using Hackathon_2025.Models;
+using System.Linq;
 
 namespace Hackathon_2025.Services;
 
 public static class PromptBuilder
 {
+    // Base watercolor style with strong "cover-safe" guardrails.
     private static string GetDefaultArtStyle() =>
-    "Children's book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI. No physical books. No visual aids. No color palettes. No swatches. No design guides. Only illustrate the scene. The characters must appear visually consistent in every image.";
+        "Children's book illustration in a consistent watercolor art style. " +
+        "Portrait orientation, single full-bleed image. " +
+        "Soft lighting, gentle pastel tones, hand-painted look, minimal outlines. " +
+        "Show exactly the listed characters once each (no clones or duplicates). " +
+        "Do not create character sheets, thumbnails, panels, turnarounds, labels, callouts, or sidebars. " +
+        "Do not show color palettes, swatches, UI, logos, or design guides. " +
+        "Depict one cohesive scene only.";
 
     public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph, string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
         var style = GetArtStyle(artStyleKey);
-        return $"{style} {anchors} are {scene}.";
+        return $"{style} {anchors} are {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
     }
 
     /// <summary>
     /// Image prompt that considers reading level (no reader age).
     /// </summary>
     public static string BuildImagePrompt(
-    List<CharacterSpec> characters,
-    string paragraph,
-    string? readingLevel,
-    string? artStyleKey)
+        List<CharacterSpec> characters,
+        string paragraph,
+        string? readingLevel,
+        string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
-        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} are {scene}.";
+        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} are {scene}. " +
+               "One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
     }
 
     private static string GetArtStyle(string? key)
     {
         var k = (key ?? "watercolor").Trim().ToLowerInvariant();
+
+        const string guardrails =
+            " Portrait orientation, single full-bleed image. " +
+            " Show exactly the listed characters once each (no clones). " +
+            " No character sheets, thumbnails, panels, turnarounds, labels, callouts, or sidebars. " +
+            " No color palettes, swatches, UI, logos, or design guides. " +
+            " One cohesive scene only.";
+
         return k switch
         {
-            "comic" => "Children's comic style. Bold clean outlines. Flat bright colors. Exaggerated expressions. No text. No logos. No UI.",
-            "crayon" => "Crayon drawing style. Waxy texture. Child-like strokes. Soft colors. No text. No logos. No UI.",
-            "papercut" => "Paper cutout collage style. Flat layered shapes. Soft shadows. No outlines. No text. No logos. No UI.",
-            "toy3d" => "3D toy render style. Soft lighting. Plush/plastic look. Gentle colors. No text. No logos. No UI.",
-            "pixel" => "Pixel art style. Low resolution mosaic look. Clear silhouettes. No text. No logos. No UI.",
-            "inkwash" => "Ink and wash style. Minimal lines. Soft washes. Calming mood. No text. No logos. No UI.",
-            _ => "Children's book illustration in a consistent watercolor art style. Soft lighting. Gentle pastel tones. No outlines. Hand-painted look. Full-body character. Centered. Front-facing. Flat background. No text. No logos. No UI."
+            "comic" => "Children's comic style. Bold clean outlines. Flat bright colors." + guardrails,
+            "crayon" => "Crayon drawing style. Waxy texture. Child-like strokes. Soft colors." + guardrails,
+            "papercut" => "Paper cutout collage style. Flat layered shapes. Soft shadows. No outlines." + guardrails,
+            "toy3d" => "3D toy render style. Soft lighting. Plush/plastic look. Gentle colors." + guardrails,
+            "pixel" => "Pixel art style. Low resolution mosaic look. Clear silhouettes." + guardrails,
+            "inkwash" => "Ink and wash style. Minimal lines. Soft washes. Calming mood." + guardrails,
+            _ => GetDefaultArtStyle()
         };
     }
 
     public static async Task<string> BuildImagePromptAsync(
-    List<CharacterSpec> characters,
-    string paragraph,
-    HttpClient httpClient,
-    string apiKey,
-    string? artStyleKey)
+        List<CharacterSpec> characters,
+        string paragraph,
+        HttpClient httpClient,
+        string apiKey,
+        string? artStyleKey)
     {
         // 1) Clean once up front (used by both primary & fallback paths)
         paragraph = CleanForModel(paragraph);
@@ -66,10 +83,8 @@ public static class PromptBuilder
         {
             try
             {
-                // Preferred: AI scene summarization (your existing method)
-                // -> PromptBuilder.BuildImagePromptWithSceneAsync(...)
                 return await BuildImagePromptWithSceneAsync(
-                    characters, paragraph, httpClient, apiKey, artStyleKey); // :contentReference[oaicite:0]{index=0}
+                    characters, paragraph, httpClient, apiKey, artStyleKey);
             }
             catch when (attempt < maxAttempts)
             {
@@ -78,14 +93,13 @@ public static class PromptBuilder
         }
 
         // 3) Fallback: keyword heuristic if API keeps failing
-        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor)); // :contentReference[oaicite:1]{index=1}
-        var style = GetArtStyle(artStyleKey);                                     // :contentReference[oaicite:2]{index=2}
-
+        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
+        var style = GetArtStyle(artStyleKey);
         var scene = string.IsNullOrWhiteSpace(paragraph)
             ? "posing for a simple portrait in a calm setting"
-            : SummarizeScene(paragraph);                                          // :contentReference[oaicite:3]{index=3}
+            : SummarizeScene(paragraph);
 
-        return $"{style} {anchors} are {scene}.";
+        return $"{style} {anchors} are {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
     }
 
     private static string CleanForModel(string s, int maxLen = 800)
@@ -95,14 +109,14 @@ public static class PromptBuilder
         return s.Length > maxLen ? s[..maxLen] : s;
     }
 
-
     private static string GetCharacterAnchor(CharacterSpec character)
     {
         var description = character.IsAnimal
             ? BuildAnimalDescription(character.DescriptionFields)
             : BuildHumanDescription(character.DescriptionFields);
 
-        return $"A consistent character named {character.Name}, who is {description}. (Role: {character.Role})";
+        // Avoid labels/parentheses (e.g., "Role:") that trigger sidebars or callouts.
+        return $"a consistent character named {character.Name} who is {description}";
     }
 
     private static string BuildHumanDescription(Dictionary<string, string> fields)
@@ -168,7 +182,6 @@ public static class PromptBuilder
                 tone = "engaging, varied, age-appropriate language";
                 break;
             default:
-                // leave defaults
                 break;
         }
 
@@ -184,13 +197,12 @@ public static class PromptBuilder
             color = $"with {bodyColor} {covering}";
         }
         var accessory = fields.TryGetValue("accessory", out var a) ? $"wearing {a}" : "";
-
         return $"a {species} {color} {accessory}".Trim();
     }
 
     private static string SummarizeScene(string paragraph)
     {
-        paragraph = paragraph.ToLower();
+        paragraph = (paragraph ?? "").ToLower();
 
         if (paragraph.Contains("owl")) return "talking to a wise owl in a glowing forest";
         if (paragraph.Contains("fireflies")) return "walking through a grove of glowing fireflies";
@@ -203,19 +215,18 @@ public static class PromptBuilder
     }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
-    List<CharacterSpec> characters,
-    string paragraph,
-    HttpClient httpClient,
-    string apiKey,
-    string? artStyleKey)
+        List<CharacterSpec> characters,
+        string paragraph,
+        HttpClient httpClient,
+        string apiKey,
+        string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         var style = GetArtStyle(artStyleKey);
 
-        // (same scene summarization call as you have today):contentReference[oaicite:3]{index=3}
         var userPrompt = $"""
-        Summarize the following story paragraph into a short visual scene that can be used in an illustration. 
-        Describe only what the characters are doing and what the environment looks like. 
+        Summarize the following story paragraph into a short visual scene for an illustration.
+        Describe only what the characters are doing and what the environment looks like.
         Do not mention names, appearance, or clothing.
 
         Paragraph: "{paragraph}"
@@ -247,43 +258,51 @@ public static class PromptBuilder
         var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
         var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
 
-        return $"{style} {anchors} are {scene}.";
+        return $"{style} {anchors} are {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
     }
 
+    // --- Cover prompts -------------------------------------------------------
+
+    /// <summary>
+    /// Cover prompt that considers reading level and art style.
+    /// Produces a single, true cover composition with no palettes/panels/duplicates.
+    /// </summary>
     public static string BuildCoverPrompt(
-    List<CharacterSpec> characters,
-    string theme,
-    string? readingLevel,
-    string? artStyleKey)
+        List<CharacterSpec> characters,
+        string theme,
+        string? readingLevel,
+        string? artStyleKey)
     {
-        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
+        string anchors = string.Join(", ", characters.Select(GetCharacterAnchor));
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
+        const string coverComp =
+            " Cover composition: portrait 4:5 or 5:7 aspect, cinematic framing with a clear focal subject. " +
+            " Leave gentle negative space near the top for a future title, but do not draw any text. " +
+            " Use depth (foreground/mid/background) and lighting to guide the eye. ";
+
+        const string negatives =
+            " Depict the group once as a single scene. Do not repeat or mirror any character. " +
+            " Do not include color palettes, swatches, diagrams, frames, borders, watermarks, or multiple panels.";
+
         return $"""
-            {style} Use {visualMood}. Keep the tone {tone}.
-            Show only the scene; no text, no logos, no book design elements.
-            Depict: {anchors}, in a setting inspired by the theme: {theme}.
-            """;
+{style} Use {visualMood}. Keep the tone {tone}.
+{coverComp}
+Show only a single scene with cohesive lighting and background.
+Depict {anchors} in a setting inspired by the theme: {theme}.
+{negatives}
+""";
     }
 
-
     /// <summary>
-    /// Cover prompt that considers reading level (no reader age).
+    /// Overload without artStyleKey (defaults to watercolor style).
     /// </summary>
     public static string BuildCoverPrompt(
         List<CharacterSpec> characters,
         string theme,
         string? readingLevel)
     {
-        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
-        var (visualMood, tone) = GetReadingProfile(readingLevel);
-
-        return $"""
-    Children's book watercolor illustration in a consistent style.
-    Use {visualMood}. Keep the tone {tone}.
-    Show only the scene; no text, no logos, no book design elements.
-    Depict: {anchors}, in a setting inspired by the theme: {theme}.
-    """;
+        return BuildCoverPrompt(characters, theme, readingLevel, null);
     }
 }
