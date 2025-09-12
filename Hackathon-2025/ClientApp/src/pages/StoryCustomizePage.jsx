@@ -101,6 +101,60 @@ export default function StoryCustomizePage() {
         return init;
     }
 
+    const FONT_OPTIONS = [
+        { label: "System Sans (UI)", value: `ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"` },
+        { label: "System Serif", value: `ui-serif, Georgia, "Times New Roman", Times, serif` },
+        { label: "System Mono", value: `ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace` },
+        { label: "Georgia", value: `Georgia, "Times New Roman", serif` },
+        { label: "Garamond", value: `Garamond, "Times New Roman", serif` },
+        { label: "Times New Roman", value: `"Times New Roman", Times, serif` },
+        { label: "Arial", value: `Arial, Helvetica, sans-serif` },
+        { label: "Helvetica", value: `Helvetica, Arial, sans-serif` },
+        { label: "Trebuchet MS", value: `"Trebuchet MS", Tahoma, sans-serif` },
+        { label: "Verdana", value: `Verdana, Geneva, sans-serif` },
+        // Pre-named Google families (loaded on demand)
+        { label: "Montserrat (Google)", value: `Montserrat, ui-sans-serif, system-ui, Arial` },
+        { label: "Merriweather (Google)", value: `Merriweather, ui-serif, Georgia` },
+        { label: "Lora (Google)", value: `Lora, ui-serif, Georgia` },
+        { label: "Nunito (Google)", value: `Nunito, ui-sans-serif, Arial` },
+        { label: "Pacifico (Google)", value: `Pacifico, cursive` },
+    ];
+
+    function googleCssUrl(family, weights = "300;400;600;700") {
+        // Accept either raw family ("Merriweather") or a CSS stack starting with a Google family
+        const first = family.split(",")[0].replace(/['"]/g, "").trim();
+        const fam = first.replace(/\s+/g, "+");
+        return `https://fonts.googleapis.com/css2?family=${fam}:wght@${weights}&display=swap`;
+    }
+
+    async function ensureFontLoaded(fontFamily) {
+        if (!fontFamily) return;
+        const id = `gf-${fontFamily.split(",")[0].replace(/['"\s]/g, "")}`;
+        if (!document.getElementById(id)) {
+            const link = document.createElement("link");
+            link.id = id;
+            link.rel = "stylesheet";
+            link.href = googleCssUrl(fontFamily);
+            document.head.appendChild(link);
+        }
+        try {
+            // try to warm up one typical size; it’s okay if it resolves immediately
+            await document.fonts.load(`16px ${fontFamily.split(",")[0]}`);
+        } catch { /* ignore */ }
+    }
+
+    function setFontFamily(family) {
+        if (!selectedBox) return;
+        ensureFontLoaded(family);
+        setBoxesByPage(prev => {
+            const next = { ...prev };
+            next[pageIndex] = (next[pageIndex] || []).map(b =>
+                b.id === selectedBox.id ? { ...b, style: { ...b.style, fontFamily: family } } : b
+            );
+            return next;
+        });
+    }
+
     useEffect(() => {
         let s = state?.story;
         if (!s) {
@@ -587,6 +641,42 @@ export default function StoryCustomizePage() {
                                 onChange={(e) => updateText(e.target.value)}
                                 rows={6}
                             />
+
+                            <label>Font family</label>
+                            <div className="grid2">
+                                <select
+                                    className="input"
+                                    value={selectedBox.style.fontFamily}
+                                    onChange={(e) => setFontFamily(e.target.value)}
+                                    style={{ fontFamily: selectedBox.style.fontFamily }}
+                                    title="Choose a web-safe or Google font"
+                                >
+                                    {FONT_OPTIONS.map(opt => (
+                                        <option key={opt.label} value={opt.value} style={{ fontFamily: opt.value }}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                {/* Quick custom Google family loader */}
+                                <div className="row gap sm">
+                                    <input
+                                        className="input"
+                                        placeholder='Custom Google family (e.g., "Quicksand")'
+                                        onKeyDown={async (e) => {
+                                            if (e.key === "Enter") {
+                                                const fam = e.currentTarget.value.trim();
+                                                if (!fam) return;
+                                                const stack = `${fam}, ui-sans-serif, Arial`;
+                                                await ensureFontLoaded(stack);
+                                                setFontFamily(stack);
+                                                e.currentTarget.value = "";
+                                            }
+                                        }}
+                                        title='Press Enter to load and apply. Example: Quicksand'
+                                    />
+                                </div>
+                            </div>
 
                             <div className="grid2">
                                 <div>
