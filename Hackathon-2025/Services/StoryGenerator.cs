@@ -349,16 +349,15 @@ Put a line containing only --- between paragraphs. Do not include any other divi
     private async Task<string> GenerateTitleAsync(string characterName, string theme)
     {
         var prompt = $"""
-Suggest a creative and whimsical children's book title based on a character named {characterName} and a theme of "{theme}". The title should be short, magical, and memorable.
+Suggest a creative and whimsical children's book title based on a character named {characterName}
+and a theme of "{theme}". Return ONLY the title text — no quotes, no punctuation at the ends,
+no extra words, no Markdown.
 """;
 
         var requestBody = new
         {
             model = "gpt-3.5-turbo",
-            messages = new[]
-            {
-                new { role = "user", content = prompt }
-            },
+            messages = new[] { new { role = "user", content = prompt } },
             temperature = 0.9,
             max_tokens = 20
         };
@@ -371,7 +370,18 @@ Suggest a creative and whimsical children's book title based on a character name
         res.EnsureSuccessStatusCode();
 
         var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
-        return json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString()!;
+        var raw = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+
+        // strip code fences, newlines, and surrounding quotes/backticks/smart quotes
+        var cleaned = Regex.Replace(raw, @"(?m)^\s*```.*$|^\s*>.*$", "");
+        cleaned = cleaned.Replace("\r", "").Replace("\n", " ").Trim();
+
+        // remove surrounding quotes/backticks (straight or smart) and trailing period
+        cleaned = Regex.Replace(cleaned, @"^[\s""'“”‘’`]+", "");
+        cleaned = Regex.Replace(cleaned, @"[\s""'“”‘’`]+$", "");
+        cleaned = Regex.Replace(cleaned, @"\s{2,}", " ").Trim();
+
+        return cleaned;
     }
 
     // --- Simplified: map reading level to text style guidance (no readerAge)
