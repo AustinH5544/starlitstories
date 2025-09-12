@@ -103,7 +103,7 @@ const LandingPage = () => {
                     <div className="arrow-down"></div>
                 </div>
             </section>
-
+            <div className="gradient-block">
             {/* How It Works Section */}
             <section id="how-it-works" className="section">
                 <div className={`section-content ${isVisible.features ? "slide-up" : ""}`}>
@@ -237,7 +237,8 @@ const LandingPage = () => {
                         </div>
                     </div>
                 </div>
-            </section>
+                </section>
+            </div>
 
             {/* Call to Action Section */}
             <section className="section cta-section">
