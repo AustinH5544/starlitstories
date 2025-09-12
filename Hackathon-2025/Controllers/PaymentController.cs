@@ -214,12 +214,12 @@ namespace Hackathon_2025.Controllers
                     "Stripe webhook {EventId} uid={Uid} cust={Cust} sub={Sub} planKey={Plan} status={Status} addOn={Sku}/{Qty}",
                     eventId, uid, custRef, subRef, planKey, status, addOnSku, addOnQty);
 
-                // Ignore pure noise before any DB work
+                // 1) Ignore events we never mutate on
                 var actionable =
-                    (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0) // checkout.session.completed (one-time)
-                    || (!string.IsNullOrEmpty(planKey))               // customer.subscription.* / subs
-                    || (string.Equals(status, "active", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(status, "canceled", StringComparison.OrdinalIgnoreCase));
+                    (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0) ||              // one-time add-ons
+                    !string.IsNullOrEmpty(planKey) ||                                 // subscription price mapped to plan
+                    string.Equals(status, "active", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(status, "canceled", StringComparison.OrdinalIgnoreCase);
 
                 if (!actionable)
                 {
@@ -227,21 +227,21 @@ namespace Hackathon_2025.Controllers
                     return Ok();
                 }
 
+                // 2) Atomic fence + updates under EF retry strategy
                 var strategy = _db.Database.CreateExecutionStrategy();
                 await strategy.ExecuteAsync(async () =>
                 {
-                    await using var tx = await _db.Database.BeginTransactionAsync();
+                    await using var tx = await _db.Database.BeginTransactionAsync(
+                        System.Data.IsolationLevel.Serializable);
 
-                    // --- Idempotency gate (insert-if-not-exists) ---
-                    // Use either: raw MERGE with HOLDLOCK, or try/catch PK insert.
-                    var rows = await _db.Database.ExecuteSqlRawAsync(@"
-                MERGE [dbo].[ProcessedWebhooks] WITH (HOLDLOCK) AS t
-                USING (SELECT CAST({0} AS nvarchar(200)) AS [EventId],
-                             SYSUTCDATETIME() AS [ProcessedAtUtc]) AS s
-                ON (t.[EventId] = s.[EventId])
-                WHEN NOT MATCHED THEN
-                    INSERT ([EventId], [ProcessedAtUtc]) VALUES (s.[EventId], s.[ProcessedAtUtc]);",
-                        parameters: new object[] { eventId });
+                    // --- Idempotency: insert-if-not-exists ---
+                    // If the row existed already, MERGE returns 0 rows affected.
+                    var rows = await _db.Database.ExecuteSqlInterpolatedAsync($@"
+MERGE [dbo].[ProcessedWebhooks] WITH (HOLDLOCK, ROWLOCK) AS t
+USING (SELECT {eventId} AS [EventId], SYSUTCDATETIME() AS [ProcessedAtUtc]) AS s
+ON (t.[EventId] = s.[EventId])
+WHEN NOT MATCHED THEN
+    INSERT ([EventId], [ProcessedAtUtc]) VALUES (s.[EventId], s.[ProcessedAtUtc]);");
 
                     if (rows == 0)
                     {
@@ -261,10 +261,17 @@ namespace Hackathon_2025.Controllers
 
                     if (user is null)
                     {
-                        _log.LogWarning("Webhook {EventId}: user not found (uid={Uid}, cust={Cust}, sub={Sub})",
+                        // Pick ONE policy:
+                        // (A) Consider consumed (prevents replays — what you do now):
+                        _log.LogWarning("Webhook {EventId}: user not found (uid={Uid}, cust={Cust}, sub={Sub}) — consumed.",
                             eventId, uid, custRef, subRef);
-                        await tx.CommitAsync(); // we still consider the event consumed
+                        await tx.CommitAsync();
                         return;
+
+                        // (B) Or: rollback so the fence doesn’t stick, then 500 to trigger Stripe retry:
+                        // _log.LogWarning("Webhook {EventId}: user not found — will retry via Stripe.", eventId);
+                        // await tx.RollbackAsync();
+                        // throw new Exception("User not found for actionable event");
                     }
 
                     // --- Apply updates ---
@@ -277,18 +284,14 @@ namespace Hackathon_2025.Controllers
 
                     if (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0)
                     {
-                        var perPack = addOnSku switch
-                        {
-                            "addon_plus5" => 5,
-                            "addon_plus11" => 11,
-                            _ => 0
-                        };
+                        int perPack = addOnSku switch { "addon_plus5" => 5, "addon_plus11" => 11, _ => 0 };
                         if (perPack > 0)
                         {
                             var before = user.AddOnBalance;
                             var credits = perPack * Math.Max(1, addOnQty);
                             user.AddOnBalance = checked(before + credits);
-                            _log.LogInformation("Webhook {EventId}: +{Credits} ({Sku} x{Qty}) → {Before} → {After} for user {UserId}",
+                            _log.LogInformation(
+                                "Webhook {EventId}: +{Credits} ({Sku} x{Qty}) → {Before} → {After} for user {UserId}",
                                 eventId, credits, addOnSku, addOnQty, before, user.AddOnBalance, user.Id);
                         }
                         else
