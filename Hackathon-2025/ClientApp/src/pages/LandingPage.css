@@ -488,7 +488,7 @@
 }
 
 /* Parents Section */
-.parents-section {
+/*.parents-section {
     background: #f9f7ff;
     position: relative;
 }
@@ -501,7 +501,7 @@
         right: 0;
         height: 100px;
         background: linear-gradient(to bottom, white, #f9f7ff);
-    }
+    }*/
 
 .parents-grid {
     display: grid;
@@ -540,9 +540,9 @@
 }
 
 /* Kids Section / Testimonials */
-.kids-section {
+/*.kids-section {
     background: white;
-}
+}*/
 
 .testimonials-container {
     display: flex;
@@ -1030,4 +1030,9 @@
 /* Force dark headings everywhere except the CTA */
 .landing-page .section:not(.cta-section) .section-title {
     color: #333;
+}
+
+/* Diagonal, but toned down */
+.gradient-block {
+    background: linear-gradient( 135deg, #f4efff 0%, #faf8ff 50%, #ffffff 100% );
 }
