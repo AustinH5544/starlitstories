@@ -32,7 +32,7 @@ namespace Hackathon_2025.Migrations
 
                     b.HasKey("EventId");
 
-                    b.ToTable("ProcessedWebhooks");
+                    b.ToTable("ProcessedWebhooks", (string)null);
                 });
 
             modelBuilder.Entity("Hackathon_2025.Models.Story", b =>
@@ -61,7 +61,7 @@ namespace Hackathon_2025.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Stories");
+                    b.ToTable("Stories", (string)null);
                 });
 
             modelBuilder.Entity("Hackathon_2025.Models.StoryPage", b =>
@@ -90,7 +90,7 @@ namespace Hackathon_2025.Migrations
 
                     b.HasIndex("StoryId");
 
-                    b.ToTable("StoryPages");
+                    b.ToTable("StoryPages", (string)null);
                 });
 
             modelBuilder.Entity("Hackathon_2025.Models.StoryShare", b =>
@@ -125,7 +125,7 @@ namespace Hackathon_2025.Migrations
                     b.HasIndex("Token")
                         .IsUnique();
 
-                    b.ToTable("StoryShares");
+                    b.ToTable("StoryShares", (string)null);
                 });
 
             modelBuilder.Entity("Hackathon_2025.Models.User", b =>
@@ -203,7 +203,7 @@ namespace Hackathon_2025.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("Hackathon_2025.Models.Story", b =>

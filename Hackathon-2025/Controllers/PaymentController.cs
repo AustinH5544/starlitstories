@@ -212,88 +212,97 @@ namespace Hackathon_2025.Controllers
 
                 _log.LogInformation(
                     "Stripe webhook {EventId} uid={Uid} cust={Cust} sub={Sub} planKey={Plan} status={Status} addOn={Sku}/{Qty}",
-                    eventId, uid, custRef, subRef, planKey, status, addOnSku, addOnQty
-                );
+                    eventId, uid, custRef, subRef, planKey, status, addOnSku, addOnQty);
 
-                // --- No idempotency fence (for testing). ---
-                // Exit early for informational/no-op events to avoid unnecessary work.
-                if (string.Equals(status, "ignored", StringComparison.OrdinalIgnoreCase)
-                    && string.IsNullOrEmpty(addOnSku)
-                    && string.IsNullOrEmpty(planKey))
+                // Ignore pure noise before any DB work
+                var actionable =
+                    (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0) // checkout.session.completed (one-time)
+                    || (!string.IsNullOrEmpty(planKey))               // customer.subscription.* / subs
+                    || (string.Equals(status, "active", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(status, "canceled", StringComparison.OrdinalIgnoreCase));
+
+                if (!actionable)
                 {
-                    _log.LogInformation("Webhook {EventId}: nothing to apply (status=ignored).", eventId);
+                    _log.LogInformation("Webhook {EventId}: nothing to apply.", eventId);
                     return Ok();
                 }
 
-                // --- Resolve user via uid -> customer -> subscription ---
-                User? user = null;
-                if (uid.HasValue)
-                    user = await _db.Users.FindAsync(uid.Value);
-                if (user is null && !string.IsNullOrEmpty(custRef))
-                    user = await _db.Users.FirstOrDefaultAsync(u => u.BillingCustomerRef == custRef);
-                if (user is null && !string.IsNullOrEmpty(subRef))
-                    user = await _db.Users.FirstOrDefaultAsync(u => u.BillingSubscriptionRef == subRef);
-
-                if (user is null)
+                var strategy = _db.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
                 {
-                    _log.LogWarning("Webhook {EventId}: user not found (uid={Uid}, cust={Cust}, sub={Sub})",
-                        eventId, uid, custRef, subRef);
-                    return Ok(); // still 200 so Stripe won't retry forever
-                }
+                    await using var tx = await _db.Database.BeginTransactionAsync();
 
-                _log.LogInformation("Webhook {EventId}: applying updates to user {UserId}", eventId, user.Id);
+                    // --- Idempotency gate (insert-if-not-exists) ---
+                    // Use either: raw MERGE with HOLDLOCK, or try/catch PK insert.
+                    var rows = await _db.Database.ExecuteSqlRawAsync(@"
+                MERGE [dbo].[ProcessedWebhooks] WITH (HOLDLOCK) AS t
+                USING (SELECT CAST({0} AS nvarchar(200)) AS [EventId],
+                             SYSUTCDATETIME() AS [ProcessedAtUtc]) AS s
+                ON (t.[EventId] = s.[EventId])
+                WHEN NOT MATCHED THEN
+                    INSERT ([EventId], [ProcessedAtUtc]) VALUES (s.[EventId], s.[ProcessedAtUtc]);",
+                        parameters: new object[] { eventId });
 
-                // --- Subscription/membership updates (if present) ---
-                user.BillingProvider = "stripe";
-                if (!string.IsNullOrEmpty(custRef)) user.BillingCustomerRef = custRef;
-                if (!string.IsNullOrEmpty(subRef)) user.BillingSubscriptionRef = subRef;
-                if (!string.IsNullOrEmpty(planKey)) { user.PlanKey = planKey; user.Membership = planKey; }
-                if (!string.IsNullOrEmpty(status)) user.PlanStatus = status;
-                if (periodEnd.HasValue) user.CurrentPeriodEndUtc = periodEnd;
-
-                // --- One-time add-on credits (if present) ---
-                if (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0)
-                {
-                    var qty = Math.Max(1, addOnQty);
-                    var perPack = addOnSku switch
+                    if (rows == 0)
                     {
-                        "addon_plus5" => 5,
-                        "addon_plus11" => 11,
-                        _ => 0
-                    };
-
-                    if (perPack == 0)
-                    {
-                        _log.LogWarning("Webhook {EventId}: Unknown add-on SKU '{Sku}'. No credits added.", eventId, addOnSku);
+                        _log.LogInformation("Webhook {EventId}: already processed. Skipping.", eventId);
+                        await tx.CommitAsync();
+                        return;
                     }
-                    else
+
+                    // --- Resolve user ---
+                    User? user = null;
+                    if (uid.HasValue)
+                        user = await _db.Users.FindAsync(uid.Value);
+                    if (user is null && !string.IsNullOrEmpty(custRef))
+                        user = await _db.Users.FirstOrDefaultAsync(u => u.BillingCustomerRef == custRef);
+                    if (user is null && !string.IsNullOrEmpty(subRef))
+                        user = await _db.Users.FirstOrDefaultAsync(u => u.BillingSubscriptionRef == subRef);
+
+                    if (user is null)
                     {
-                        var before = user.AddOnBalance;
-                        var credits = perPack * qty;
-
-                        // IDEMPOTENCY DISABLED: duplicates from Stripe will add credits again.
-                        user.AddOnBalance = checked(before + credits);
-
-                        _log.LogInformation(
-                            "Webhook {EventId}: +{Credits} credits ({Sku} x{Qty}) → user {UserId} balance {Before} → {After}",
-                            eventId, credits, addOnSku, qty, user.Id, before, user.AddOnBalance
-                        );
+                        _log.LogWarning("Webhook {EventId}: user not found (uid={Uid}, cust={Cust}, sub={Sub})",
+                            eventId, uid, custRef, subRef);
+                        await tx.CommitAsync(); // we still consider the event consumed
+                        return;
                     }
-                }
-                else
-                {
-                    if (string.IsNullOrEmpty(addOnSku))
-                        _log.LogDebug("Webhook {EventId}: No add-on SKU provided.", eventId);
-                    if (addOnQty <= 0)
-                        _log.LogDebug("Webhook {EventId}: Non-positive add-on quantity {Qty}.", eventId, addOnQty);
-                }
 
-                await _db.SaveChangesAsync();
+                    // --- Apply updates ---
+                    user.BillingProvider = "stripe";
+                    if (!string.IsNullOrEmpty(custRef)) user.BillingCustomerRef = custRef;
+                    if (!string.IsNullOrEmpty(subRef)) user.BillingSubscriptionRef = subRef;
+                    if (!string.IsNullOrEmpty(planKey)) { user.PlanKey = planKey; user.Membership = planKey; }
+                    if (!string.IsNullOrEmpty(status)) user.PlanStatus = status;
+                    if (periodEnd.HasValue) user.CurrentPeriodEndUtc = periodEnd;
 
-                _log.LogInformation(
-                    "Webhook {EventId}: updated user {UserId} → membership={Membership}, status={Status}",
-                    eventId, user.Id, user.Membership, user.PlanStatus
-                );
+                    if (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0)
+                    {
+                        var perPack = addOnSku switch
+                        {
+                            "addon_plus5" => 5,
+                            "addon_plus11" => 11,
+                            _ => 0
+                        };
+                        if (perPack > 0)
+                        {
+                            var before = user.AddOnBalance;
+                            var credits = perPack * Math.Max(1, addOnQty);
+                            user.AddOnBalance = checked(before + credits);
+                            _log.LogInformation("Webhook {EventId}: +{Credits} ({Sku} x{Qty}) → {Before} → {After} for user {UserId}",
+                                eventId, credits, addOnSku, addOnQty, before, user.AddOnBalance, user.Id);
+                        }
+                        else
+                        {
+                            _log.LogWarning("Webhook {EventId}: Unknown SKU {Sku}.", eventId, addOnSku);
+                        }
+                    }
+
+                    await _db.SaveChangesAsync();
+                    await tx.CommitAsync();
+
+                    _log.LogInformation("Webhook {EventId}: updated user {UserId} → membership={Membership}, status={Status}",
+                        eventId, user.Id, user.Membership, user.PlanStatus);
+                });
 
                 return Ok();
             }
