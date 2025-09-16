@@ -377,6 +377,11 @@
     font-size: 1.1rem;
     color: white;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 195px; /* adjust width to fit your layout */
+    display: block;
 }
 
 /* Profile Actions */
