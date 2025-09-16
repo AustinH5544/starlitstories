@@ -9,7 +9,8 @@ import "./LoginPage.css"
 const SESSION_KEY = "needsVerification"
 
 const LoginPage = () => {
-    const [email, setEmail] = useState("")
+    const [identifier, setIdentifier] = useState("")      // email OR username
+    const [email, setEmail] = useState("")                // used for resend verification
     const [password, setPassword] = useState("")
     const [status, setStatus] = useState("")
     const [isLoading, setIsLoading] = useState(false)
@@ -22,11 +23,7 @@ const LoginPage = () => {
     useEffect(() => {
         const persisted = sessionStorage.getItem(SESSION_KEY)
         if (persisted === "true") setNeedsVerification(true)
-
-        return () => {
-            // Clear when navigating away so the banner doesn't stick across pages
-            sessionStorage.removeItem(SESSION_KEY)
-        }
+        return () => sessionStorage.removeItem(SESSION_KEY)
     }, [])
 
     // Keep sessionStorage in sync while on this page
@@ -34,42 +31,39 @@ const LoginPage = () => {
         sessionStorage.setItem(SESSION_KEY, needsVerification ? "true" : "false")
     }, [needsVerification])
 
+    // If the identifier looks like an email, auto-fill the email field for resend
+    useEffect(() => {
+        if (identifier.includes("@")) setEmail(identifier.trim())
+    }, [identifier])
+
     const handleSubmit = async (e) => {
         e.preventDefault()
         setStatus("")
-        setIsLoading(true) // do NOT clear needsVerification here
+        setIsLoading(true)
 
         try {
             const response = await api.post(
                 "/auth/login",
-                { email, password },
+                { identifier, password },
                 { skipAuth401Handler: true }
             )
 
             // successful login
-            login(response.data)
-            // clear persisted flag on success
+            login(response.data)                    // expects { token, email, username, membership }
             sessionStorage.removeItem(SESSION_KEY)
             navigate("/profile")
         } catch (err) {
             console.error(err)
 
-            // --- Network / cold start / gateway errors ---
-            // Axios "no response" (e.g., DNS fail, CORS block, server cold start)
             if (!err.response) {
-                // Axios may set code to ECONNABORTED on timeout
-                if (err.code === "ECONNABORTED") {
-                    setStatus("Our servers are waking up. Please try again in a few seconds.")
-                } else {
-                    setStatus("We couldn’t reach the server. It may be starting up—please try again shortly.")
-                }
+                if (err.code === "ECONNABORTED") setStatus("Our servers are waking up. Please try again in a few seconds.")
+                else setStatus("We couldn’t reach the server. It may be starting up—please try again shortly.")
                 return
             }
 
-            const { status, data } = err.response
+            const { status: httpStatus, data } = err.response
 
-            // Gateway / server warming / transient backend errors
-            if ([502, 503, 504, 522, 523, 524].includes(status)) {
+            if ([502, 503, 504, 522, 523, 524].includes(httpStatus)) {
                 setStatus("Server is starting up or temporarily unavailable. Please try again in a moment.")
                 return
             }
@@ -77,24 +71,24 @@ const LoginPage = () => {
             // Email verification flow
             if (data?.requiresVerification) {
                 setNeedsVerification(true)
+                // server may include the verified email; if not, use identifier if it’s an email
+                if (data?.email) setEmail(data.email)
+                else if (identifier.includes("@")) setEmail(identifier)
                 setStatus("Please verify your email before logging in. Check your inbox for a verification link.")
                 return
             }
 
-            // Auth errors (bad credentials, 401/403) — fall back to API message if present
-            if (status === 401 || status === 403) {
+            if (httpStatus === 401 || httpStatus === 403) {
                 setNeedsVerification(false)
                 setStatus(data?.message || "Login failed. Please check your credentials.")
                 return
             }
 
-            // Generic fallback for other 4xx
-            if (status >= 400 && status < 500) {
+            if (httpStatus >= 400 && httpStatus < 500) {
                 setStatus(data?.message || "Login failed. Please check your input and try again.")
                 return
             }
 
-            // Any other unexpected status
             setStatus("Unexpected error while signing in. Please try again.")
         } finally {
             setIsLoading(false)
@@ -102,7 +96,8 @@ const LoginPage = () => {
     }
 
     const resendVerification = async () => {
-        if (!email) {
+        const targetEmail = (email || (identifier.includes("@") ? identifier : "")).trim()
+        if (!targetEmail) {
             setStatus("Please enter your email address first.")
             return
         }
@@ -111,10 +106,10 @@ const LoginPage = () => {
         try {
             await api.post(
                 "/auth/resend-verification",
-                { email },
+                { email: targetEmail },
                 { skipAuth401Handler: true }
             )
-            setNeedsVerification(true) // keep the banner/CTA visible
+            setNeedsVerification(true)
             setStatus("Verification email sent! Please check your inbox.")
         } catch (err) {
             console.error(err)
@@ -145,13 +140,13 @@ const LoginPage = () => {
 
                 <form onSubmit={handleSubmit} className="login-form">
                     <div className="form-group">
-                        <label htmlFor="email">Email Address</label>
+                        <label htmlFor="identifier">Email or Username</label>
                         <input
-                            id="email"
-                            type="email"
-                            placeholder="Enter your email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value.trim())}
+                            id="identifier"
+                            type="text"
+                            placeholder="Enter your email or username"
+                            value={identifier}
+                            onChange={(e) => setIdentifier(e.target.value.trim())}
                             required
                             disabled={isLoading}
                         />
@@ -177,7 +172,7 @@ const LoginPage = () => {
                             <button
                                 type="button"
                                 onClick={resendVerification}
-                                disabled={isLoading || !email}
+                                disabled={isLoading}
                                 className="resend-button"
                             >
                                 {isLoading ? "Sending..." : "📤 Resend Verification Email"}
@@ -192,29 +187,14 @@ const LoginPage = () => {
                 </form>
 
                 <div className="login-footer">
-                    <p>
-                        Don't have an account? <Link to="/signup">Create one here</Link>
-                    </p>
-                    <p>
-                        <Link to="/forgot-password" className="forgot-link">
-                            Forgot your password?
-                        </Link>
-                    </p>
+                    <p>Don't have an account? <Link to="/signup">Create one here</Link></p>
+                    <p><Link to="/forgot-password" className="forgot-link">Forgot your password?</Link></p>
                 </div>
 
                 <div className="login-features">
-                    <div className="feature-item">
-                        <span className="feature-icon">📚</span>
-                        <span>Access your saved stories</span>
-                    </div>
-                    <div className="feature-item">
-                        <span className="feature-icon">✨</span>
-                        <span>Continue creating magic</span>
-                    </div>
-                    <div className="feature-item">
-                        <span className="feature-icon">👨‍👩‍👧‍👦</span>
-                        <span>Share with your family</span>
-                    </div>
+                    <div className="feature-item"><span className="feature-icon">📚</span><span>Access your saved stories</span></div>
+                    <div className="feature-item"><span className="feature-icon">✨</span><span>Continue creating magic</span></div>
+                    <div className="feature-item"><span className="feature-icon">👨‍👩‍👧‍👦</span><span>Share with your family</span></div>
                 </div>
             </div>
         </div>

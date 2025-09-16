@@ -12,6 +12,10 @@ import { publicBase } from "../utils/urls";
 
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
+    const [editingU, setEditingU] = useState(false);
+    const [uname, setUname] = useState(user?.username || "");
+    const [uStatus, setUStatus] = useState("");
+    const [savingU, setSavingU] = useState(false);
     const [stories, setStories] = useState([])
     const [loading, setLoading] = useState(true)
     const navigate = useNavigate()
@@ -78,6 +82,32 @@ const ProfilePage = () => {
         }
         const d = new Date(v);
         return isNaN(d.getTime()) ? null : d;
+    };
+
+    const saveUsername = async () => {
+        setUStatus("");
+        const trimmed = (uname || "").trim();
+        const re = /^[a-z0-9._-]{3,24}$/;
+        if (!re.test(trimmed)) {
+            setUStatus("Use 3–24 chars: a–z, 0–9, dot, underscore, hyphen.");
+            return;
+        }
+        setSavingU(true);
+        try {
+            await api.put("/profile/username", { username: trimmed });
+            // Update local auth state so UI reflects immediately
+            if (setUser) setUser((prev) => ({ ...prev, username: trimmed }));
+            setEditingU(false);
+            setUStatus("Username updated.");
+            setTimeout(() => setUStatus(""), 1500);
+        } catch (err) {
+            const msg =
+                err?.response?.data?.message ||
+                (err?.response?.status === 409 ? "That username is taken." : "Could not update username.");
+            setUStatus(msg);
+        } finally {
+            setSavingU(false);
+        }
     };
 
     const coerceBilling = (raw) => {
@@ -363,14 +393,14 @@ const ProfilePage = () => {
                                 />
                             ) : (
                                 <div className="avatar-fallback">
-                                    {(user.name || user.email)[0].toUpperCase()}
+                                    {(user.username || user.email)[0].toUpperCase()}
                                 </div>
                             )}
                             <div className="avatar-edit-overlay"><span>✏️</span></div>
                         </div>
                     </div>
 
-                    <h1 className="profile-title">Welcome back, {user.name || user.email.split("@")[0]}!</h1>
+                    <h1 className="profile-title">Welcome back, {user.username || user.email.split("@")[0]}!</h1>
                     <p className="profile-subtitle">Your magical storytelling dashboard</p>
                 </div>
 

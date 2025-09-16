@@ -68,7 +68,7 @@ const NavBar = () => {
                                     onError={(e) => (e.currentTarget.src = `${BASE}avatars/default-avatar.png`)}
                                 />
                                 <div className="mobile-user-name">
-                                    {user.displayName || (user.email?.split("@")[0]) || "My Account"}
+                                    {user.username || (user.email?.split("@")[0]) || "My Account"}
                                 </div>
                             </Link>
                         </div>
@@ -107,7 +107,7 @@ const NavBar = () => {
                                     />
                                 </div>
                                 <span className="user-name">
-                                    {user.displayName || (user.email?.split("@")[0]) || "My Account"}
+                                    {user.username || (user.email?.split("@")[0]) || "My Account"}
                                 </span>
                             </a>
                             <button className="logout-button" onClick={logout}>Logout</button>

@@ -28,6 +28,23 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<ProcessedWebhook>()
             .HasKey(p => p.EventId);
 
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.UsernameNormalized)
+            .IsUnique();
+
+        // (Optional) basic length/required constraints
+        modelBuilder.Entity<User>()
+            .Property(u => u.Username)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.UsernameNormalized)
+            .HasMaxLength(64);
+
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
         // StoryShare config (single, explicit relationship)
         modelBuilder.Entity<StoryShare>(e =>
         {

@@ -34,6 +34,7 @@ public class ProfileController : ControllerBase
         return Ok(new
         {
             user.Email,
+            user.Username,
             user.Membership,
             user.BooksGenerated,
             user.LastReset,

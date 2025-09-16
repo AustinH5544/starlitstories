@@ -4,12 +4,12 @@ import { useState } from "react"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
-//import { loadStripe } from '@stripe/stripe-js';
 import "./SignupPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
 
 const SignupPage = () => {
+    const [username, setUsername] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
@@ -22,20 +22,28 @@ const SignupPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault()
 
+        // Client-side validation (mirrors server rules)
+        const uname = username.trim()
+        const usernameRe = /^[a-z0-9._-]{3,24}$/ // a–z, 0–9, dot, underscore, hyphen
+        if (!usernameRe.test(uname)) {
+            alert("Username must be 3–24 chars: a–z, 0–9, dot, underscore or hyphen.")
+            return
+        }
+
         if (password !== confirm) {
             alert("Passwords don't match")
             return
         }
 
         if (password.length < 6) {
-            alert("Password must be at least 6 characters.");
-            return;
+            alert("Password must be at least 6 characters.")
+            return
         }
 
-        const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+        const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/
         if (!basic.test(password)) {
-            alert("Password should include both letters and numbers.");
-            return;
+            alert("Password should include both letters and numbers.")
+            return
         }
 
         if (!membership) {
@@ -44,24 +52,36 @@ const SignupPage = () => {
         }
 
         if (membership === "free") {
-            // Free flow — signup immediately
+            // Free flow — create the account immediately
             try {
-                const response = await api.post("/auth/signup", {
+                const { data } = await api.post("/auth/signup", {
                     email,
+                    username: uname,
                     password,
                     membership,
                 })
-                login(response.data)
+
+                // If your backend requires email verification before issuing a token
+                if (data?.requiresVerification) {
+                    alert("Account created! Please verify your email to continue.")
+                    navigate("/login")
+                    return
+                }
+
+                // If backend returns a token directly, keep this for convenience
+                login(data)
                 navigate("/profile")
             } catch (err) {
                 console.error(err)
-                alert(err.response?.data || "Signup failed")
+                const msg = err?.response?.data?.message || err?.response?.data || "Signup failed"
+                alert(msg)
             }
         } else {
-            // Paid flow — redirect to Stripe
+            // Paid flow — start Stripe Checkout; include username so backend can use it after success
             try {
                 const { data } = await api.post("/payments/create-checkout-session", {
                     email,
+                    username: uname,
                     membership,
                 })
                 window.location.href = data.checkoutUrl
@@ -85,6 +105,22 @@ const SignupPage = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="signup-form">
+                    {/* Username */}
+                    <div className="form-group">
+                        <label htmlFor="username">Username</label>
+                        <input
+                            id="username"
+                            type="text"
+                            placeholder="Choose a username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            pattern="^[a-z0-9._-]{3,24}$"
+                            title="3–24 chars: a–z, 0–9, dot, underscore, hyphen"
+                        />
+                    </div>
+
+                    {/* Email */}
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
                         <input
@@ -97,6 +133,7 @@ const SignupPage = () => {
                         />
                     </div>
 
+                    {/* Password */}
                     <div className="form-group">
                         <label htmlFor="password">Password</label>
                         <div className="input-with-toggle">
@@ -162,6 +199,7 @@ const SignupPage = () => {
                         </div>
                     </div>
 
+                    {/* Plan selection */}
                     <div className="form-group">
                         <label htmlFor="membership">Choose Your Plan</label>
                         <div className="membership-options">

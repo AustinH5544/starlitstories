@@ -1,6 +1,7 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Services;
+using Hackathon_2025.Models.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -36,7 +37,7 @@ public class AuthController : ControllerBase
     p.Any(char.IsDigit);
 
     [HttpPost("signup")]
-    public async Task<IActionResult> Signup(AuthRequest request)
+    public async Task<IActionResult> Signup(SignupRequest request)
     {
         if (!IsPasswordValid(request.Password))
             return BadRequest(new { message = "Password must be at least 6 characters and include letters and numbers." });
@@ -44,9 +45,15 @@ public class AuthController : ControllerBase
         if (await _db.Users.AnyAsync(u => u.Email == request.Email))
             return BadRequest(new { message = "Email already in use." });
 
+        var uname = request.Username.Trim().ToLowerInvariant();
+        if (await _db.Users.AnyAsync(u => u.UsernameNormalized == uname))
+            return BadRequest(new { message = "Username already in use." });
+
         var user = new User
         {
-            Email = request.Email,
+            Email = request.Email.Trim(),
+            Username = request.Username.Trim(),
+            UsernameNormalized = uname,
             Membership = request.Membership ?? "free",
             EmailVerificationToken = Guid.NewGuid().ToString(),
             EmailVerificationExpires = DateTime.UtcNow.AddDays(1),
@@ -63,6 +70,7 @@ public class AuthController : ControllerBase
         {
             message = "Account created successfully! Please check your email to verify your account.",
             email = user.Email,
+            username = user.Username,
             requiresVerification = true
         });
     }
@@ -84,7 +92,14 @@ public class AuthController : ControllerBase
         await _db.SaveChangesAsync();
 
         var token = GenerateJwtToken(user);
-        return Ok(new { message = "Email verified successfully!", token, email = user.Email, membership = user.Membership });
+        return Ok(new
+        {
+            message = "Email verified successfully!",
+            token,
+            email = user.Email,
+            username = user.Username,
+            membership = user.Membership
+        });
     }
 
     [HttpPost("resend-verification")]
@@ -109,21 +124,31 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     [EnableRateLimiting("login-ip")]
-    public async Task<IActionResult> Login(AuthRequest request)
+    public async Task<IActionResult> Login(LoginRequest request)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        User? user;
+        if (request.Identifier.Contains("@"))
+        {
+            user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Identifier);
+        }
+        else
+        {
+            var uname = request.Identifier.Trim().ToLowerInvariant();
+            user = await _db.Users.FirstOrDefaultAsync(u => u.UsernameNormalized == uname);
+        }
+
         if (user == null)
-            return Unauthorized("Email or password is incorrect.");
+            return Unauthorized("Username/email or password is incorrect.");
 
         var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
         if (result != PasswordVerificationResult.Success)
-            return Unauthorized("Email or password is incorrect.");
+            return Unauthorized("Username/email or password is incorrect.");
 
         if (!user.IsEmailVerified)
-            return Unauthorized(new { message = "Please verify your email before logging in.", requiresVerification = true, email = request.Email });
+            return Unauthorized(new { message = "Please verify your email before logging in.", requiresVerification = true, email = user.Email });
 
         var token = GenerateJwtToken(user);
-        return Ok(new { token, email = user.Email, membership = user.Membership });
+        return Ok(new { token, email = user.Email, username = user.Username, membership = user.Membership });
     }
 
     [HttpPost("forgot-password")]
@@ -172,7 +197,8 @@ public class AuthController : ControllerBase
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim("membership", user.Membership ?? "free")
+            new Claim("membership", user.Membership ?? "free"),
+            new Claim("username", user.Username ?? "")
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));

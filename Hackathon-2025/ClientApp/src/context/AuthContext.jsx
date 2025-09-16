@@ -7,8 +7,9 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem("token"));
 
-    const login = ({ token: jwt, email, membership, profileImage, name }) => {
-        setUser({ email, membership, profileImage, name });
+    // EXPECTS backend to return { token, email, username, membership, profileImage? }
+    const login = ({ token: jwt, email, username, membership, profileImage }) => {
+        setUser({ email, username, membership, profileImage });
         setToken(jwt);
         localStorage.setItem("token", jwt);
     };
@@ -23,20 +24,20 @@ export const AuthProvider = ({ children }) => {
         if (!token) return;
         (async () => {
             try {
-                // Skip auto-logout redirect if this returns 401 so we can handle it gracefully here
+                // Rehydrate on reload: backend /api/profile/me should include username now
                 const { data } = await api.get("profile/me", { skipAuth401Handler: true });
-                setUser({
-                    email: data.email,
-                    membership: data.membership,
-                    name: data.name,
-                    profileImage: data.profileImage,
-                });
+                setUser((u) => ({
+                    ...u,
+                    email: data.email ?? u?.email,
+                    username: data.username ?? u?.username,
+                    membership: data.membership ?? u?.membership,
+                    profileImage: data.profileImage ?? u?.profileImage,
+                }));
             } catch (e) {
                 console.error("Failed to load profile", e);
-                // Optional: if unauthorized, clear token and go to login
                 localStorage.removeItem("token");
                 setToken(null);
-                // window.location.href = "/login";
+                // window.location.href = "/login"; // optional
             }
         })();
     }, [token]);
