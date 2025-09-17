@@ -168,8 +168,8 @@ const ProfilePage = () => {
         return () => { alive = false; };
     }, [user?.email, user?.membership]);
 
-    const isPaid = (user?.membership ?? "free").toLowerCase() !== "free";
-    const isPremium = String(user?.membership || "").toLowerCase() === "premium"; // NEW
+    const isPaid = ((user?.membership ?? "free").toLowerCase() !== "free") || Boolean(billing?.cancelAt);
+    const isPremium = String(user?.membership || "").toLowerCase() === "premium";
     const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
     const renewalLabel = billing?.cancelAt ? "Access until" : "Next renewal";
 
