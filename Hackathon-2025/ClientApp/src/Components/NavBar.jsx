@@ -59,6 +59,7 @@ const NavBar = () => {
     return (
         <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
             <div className="nav-container">
+                <div class="drawer-overlay"></div>
                 <div className="nav-left">
                     <Link to="/" className="logo-link">
                         <span className="logo">Starlit Stories</span>
@@ -67,43 +68,50 @@ const NavBar = () => {
                 </div>
 
                 <div className={`nav-center ${mobileMenuOpen ? "mobile-open" : ""}`}>
-                    {user && (
-                        <div className="mobile-user-avatar">
-                            <Link to="/profile">
-                                <img
-                                    src={navAvatarSrc}
-                                    alt="Profile"
-                                    onError={(e) => (e.currentTarget.src = `${BASE}avatars/default-avatar.png`)}
-                                />
-                                <div className="mobile-user-name">
-                                    {user.username || (user.email?.split("@")[0]) || "My Account"}
-                                </div>
-                            </Link>
-                        </div>
-                    )}
+                    {user ? (
+                        <>
+                            <div className="mobile-user-avatar">
+                                <Link to="/profile">
+                                    <img
+                                        src={navAvatarSrc}
+                                        alt="Profile"
+                                        onError={(e) => (e.currentTarget.src = `${BASE}avatars/default-avatar.png`)}
+                                    />
+                                    <div className="mobile-user-name">
+                                        {user.username || (user.email?.split("@")[0]) || "My Account"}
+                                    </div>
+                                </Link>
+                            </div>
 
-                    <Link
-                        to="/"
-                        className={location.pathname === "/" ? "active" : ""}
-                        onClick={handleHomeClick}
-                    >
-                        Home
-                    </Link>
-                    {user && (
-                        <Link to="/create" className={location.pathname === "/create" ? "active" : ""}>
-                            Create Story
-                        </Link>
+                            <Link to="/" onClick={handleHomeClick}
+                                className={location.pathname === "/" ? "active" : ""}>
+                                Home
+                            </Link>
+                            <Link to="/create" className={location.pathname === "/create" ? "active" : ""}>
+                                Create Story
+                            </Link>
+                            <Link to="/about" onClick={handleAboutClick}
+                                className={location.pathname === "/about" ? "active" : ""}>
+                                About
+                            </Link>
+
+                            <button className="logout-button" onClick={logout}>Logout</button>
+                        </>
+                    ) : (
+                        <>
+                            <Link to="/" onClick={handleHomeClick}
+                                className={location.pathname === "/" ? "active" : ""}>
+                                Home
+                            </Link>
+                            <Link to="/about" onClick={handleAboutClick}
+                                className={location.pathname === "/about" ? "active" : ""}>
+                                About
+                            </Link>
+
+                            <Link to="/login" className="login-button">Login</Link>
+                            <Link to="/signup" className="signup-button">Sign Up</Link>
+                        </>
                     )}
-                    <Link
-                        to="/about"
-                        className={location.pathname === "/about" ? "active" : ""}
-                        onClick={handleAboutClick}
-                    >
-                        About
-                    </Link>
-                    {/*<a href="/#how-it-works" className="nav-link">*/}
-                    {/*    How It Works*/}
-                    {/*</a>*/}
                 </div>
 
                 <div className="nav-right">
