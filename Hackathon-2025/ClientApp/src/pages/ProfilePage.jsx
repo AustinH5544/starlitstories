@@ -171,7 +171,7 @@ const ProfilePage = () => {
     const isPaid = ((user?.membership ?? "free").toLowerCase() !== "free") || Boolean(billing?.cancelAt);
     const isPremium = String(user?.membership || "").toLowerCase() === "premium";
     const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
-    const renewalLabel = billing?.cancelAt ? "Access until" : "Next renewal";
+    const renewalLabel = billing?.cancelAt ? "Ends on" : "Next renewal";
 
     useEffect(() => {
         const q = new URLSearchParams(search);
@@ -188,9 +188,12 @@ const ProfilePage = () => {
 
     const cancelMembership = async () => {
         try {
-            setWorking(true); setActionMsg("");
+            setWorking(true);
+            setActionMsg("");
             await api.post("payments/cancel");
-            setUser(u => (u ? { ...u, membership: "free" } : u));
+            const { data } = await api.get("payments/subscription");
+            setBilling(coerceBilling(data?.subscription ?? data));
+
             setShowCancelModal(false);
             setActionMsg("Cancellation scheduled. You’ll keep access until the current period ends.");
         } catch (e) {
