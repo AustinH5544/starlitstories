@@ -48,6 +48,14 @@ const NavBar = () => {
         }
     };
 
+    const handleAboutClick = (e) => {
+        if (location.pathname === "/about") {
+            e.preventDefault();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            setMobileMenuOpen(false);
+        }
+    };
+
     return (
         <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
             <div className="nav-container">
@@ -86,7 +94,11 @@ const NavBar = () => {
                             Create Story
                         </Link>
                     )}
-                    <Link to="/about" className={location.pathname === "/about" ? "active" : ""}>
+                    <Link
+                        to="/about"
+                        className={location.pathname === "/about" ? "active" : ""}
+                        onClick={handleAboutClick}
+                    >
                         About
                     </Link>
                     {/*<a href="/#how-it-works" className="nav-link">*/}
