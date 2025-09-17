@@ -22,7 +22,8 @@ public interface IPaymentGateway
 
     // NOTE: eventId FIRST so the controller can do webhook idempotency
     Task<(string eventId, int? userId, string? customerRef, string? subscriptionRef,
-           string? planKey, string? status, DateTime? periodEndUtc,
-           string? addOnSku, int addOnQty)>
-        HandleWebhookAsync(HttpRequest request);
+          string? planKey, string? status, DateTime? periodEndUtc,
+          DateTime? periodStartUtc, DateTime? cancelAtUtc,
+          string? addOnSku, int addOnQty)>
+    HandleWebhookAsync(HttpRequest request);
 }

@@ -19,28 +19,28 @@ namespace Hackathon_2025.Controllers
     {
         private readonly IPaymentGateway _gateway;
         private readonly AppDbContext _db;
-        private readonly ILogger<PaymentsController> _log; // NEW
+        private readonly ILogger<PaymentsController> _log;
 
         // NEW: policy + period services and Stripe price IDs
-        private readonly IQuotaService _quota;          // NEW
+        private readonly IQuotaService _quota;
 
-        private readonly IPeriodService _period;        // NEW
-        private readonly IOptions<StripeSettings> _stripe; // NEW
+        private readonly IPeriodService _period;
+        private readonly IOptions<StripeSettings> _stripe;
 
         public PaymentsController(
             IPaymentGateway gateway,
             AppDbContext db,
-            IQuotaService quota,                        // NEW
-            IPeriodService period,                      // NEW
+            IQuotaService quota,
+            IPeriodService period,
             IOptions<StripeSettings> stripe,
-            ILogger<PaymentsController> log)            // NEW
+            ILogger<PaymentsController> log)
         {
             _gateway = gateway;
             _db = db;
-            _log = log; // NEW
-            _quota = quota;                             // NEW
-            _period = period;                           // NEW
-            _stripe = stripe;                           // NEW
+            _log = log;
+            _quota = quota;
+            _period = period;
+            _stripe = stripe;
         }
 
         [HttpPost("create-checkout-session")]
@@ -173,6 +173,40 @@ namespace Hackathon_2025.Controllers
             }
         }
 
+        [Authorize]
+        [HttpGet("subscription")]
+        public async Task<IActionResult> GetSubscription()
+        {
+            // Resolve user id from common claim names (matches your existing pattern)
+            var userIdStr =
+                User.FindFirst("sub")?.Value ??
+                User.FindFirst("id")?.Value ??
+                User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (!int.TryParse(userIdStr, out var userId))
+                return Unauthorized("No user id claim on the request.");
+
+            var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+            if (user is null) return Unauthorized("User not found.");
+
+            // Shape the JSON exactly how the frontend expects (camelCase)
+            var payload = new
+            {
+                subscription = new
+                {
+                    status = user.PlanStatus,                 // "active", "trialing", "canceled", etc.
+                    planKey = user.PlanKey,                   // "pro", "premium", "free"
+                    currentPeriodStart = user.CurrentPeriodStartUtc?.ToUniversalTime(),
+                    currentPeriodEnd = user.CurrentPeriodEndUtc?.ToUniversalTime(),
+                    cancelAt = user.CancelAtUtc?.ToUniversalTime(),
+                    subscriptionRef = user.BillingSubscriptionRef,
+                    customerRef = user.BillingCustomerRef
+                }
+            };
+
+            return Ok(payload);
+        }
+
         [HttpPost("cancel")]
         [Authorize]
         public async Task<IActionResult> Cancel()
@@ -207,7 +241,7 @@ namespace Hackathon_2025.Controllers
         {
             try
             {
-                var (eventId, uid, custRef, subRef, planKey, status, periodEnd, addOnSku, addOnQty) =
+                var (eventId, uid, custRef, subRef, planKey, status, periodEnd, periodStart, cancelAt, addOnSku, addOnQty) =
                     await _gateway.HandleWebhookAsync(Request);
 
                 _log.LogInformation(
@@ -280,7 +314,9 @@ WHEN NOT MATCHED THEN
                     if (!string.IsNullOrEmpty(subRef)) user.BillingSubscriptionRef = subRef;
                     if (!string.IsNullOrEmpty(planKey)) { user.PlanKey = planKey; user.Membership = planKey; }
                     if (!string.IsNullOrEmpty(status)) user.PlanStatus = status;
+                    if (periodStart.HasValue) user.CurrentPeriodStartUtc = periodStart;
                     if (periodEnd.HasValue) user.CurrentPeriodEndUtc = periodEnd;
+                    user.CancelAtUtc = cancelAt;
 
                     if (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0)
                     {

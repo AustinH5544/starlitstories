@@ -23,6 +23,9 @@ public class StripeGateway : IPaymentGateway
         _log = log;
     }
 
+    static DateTime? FromUnix(long? ts) =>
+    ts.HasValue ? DateTimeOffset.FromUnixTimeSeconds(ts.Value).UtcDateTime : (DateTime?)null;
+
     private string MapPlanPrice(string planKey) => planKey switch
     {
         "pro" => _cfg.PriceIdPro,
@@ -135,6 +138,7 @@ public class StripeGateway : IPaymentGateway
 
     public async Task<(string eventId, int? userId, string? customerRef, string? subscriptionRef,
                    string? planKey, string? status, DateTime? periodEndUtc,
+                   DateTime? periodStartUtc, DateTime? cancelAtUtc,
                    string? addOnSku, int addOnQty)>
     HandleWebhookAsync(HttpRequest request)
     {
@@ -161,14 +165,33 @@ public class StripeGateway : IPaymentGateway
 
                     if (string.Equals(session.Mode, "subscription", StringComparison.OrdinalIgnoreCase))
                     {
+                        // Fetch the subscription, then pull the period from its latest invoice
+                        Subscription? sub = null;
+                        if (!string.IsNullOrEmpty(session.SubscriptionId))
+                        {
+                            var subSvc = new SubscriptionService();
+                            sub = await subSvc.GetAsync(session.SubscriptionId);
+                        }
+
+                        Invoice? latestInv = null;
+                        if (!string.IsNullOrEmpty(sub?.LatestInvoiceId))
+                        {
+                            var invSvc = new InvoiceService();
+                            latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
+                        }
+                        var line = latestInv?.Lines?.Data?.FirstOrDefault();
+                        var per = line?.Period;
+
                         return (
                             eventId: stripeEvent.Id,
                             userId: int.TryParse(uidStr, out var id) ? id : (int?)null,
                             customerRef: session.CustomerId,
                             subscriptionRef: session.SubscriptionId,
                             planKey: session.Metadata.GetValueOrDefault("plan") ?? "pro",
-                            status: "active",
-                            periodEndUtc: null,
+                            status: sub?.Status ?? "active",
+                            periodEndUtc: per?.End.ToUniversalTime(),
+                            periodStartUtc: per?.Start.ToUniversalTime(),
+                            cancelAtUtc: sub?.CancelAt, // already DateTime?
                             addOnSku: null,
                             addOnQty: 0
                         );
@@ -176,11 +199,11 @@ public class StripeGateway : IPaymentGateway
 
                     if (string.Equals(session.Mode, "payment", StringComparison.OrdinalIgnoreCase))
                     {
-                        var sku = session.Metadata.GetValueOrDefault("sku");   // "addon_plus5" | "addon_plus11" | unknown
+                        var sku = session.Metadata.GetValueOrDefault("sku");
                         var qtyStr = session.Metadata.GetValueOrDefault("qty");
                         var qty = int.TryParse(qtyStr, out var q) ? Math.Max(1, q) : 1;
 
-                        // Fallback by priceId in metadata if sku is missing/unknown
+                        // Fallback by priceId in metadata if sku missing/unknown
                         var priceIdMeta = session.Metadata.GetValueOrDefault("priceId");
                         if (string.IsNullOrEmpty(sku) || string.Equals(sku, "unknown", StringComparison.OrdinalIgnoreCase))
                         {
@@ -202,23 +225,48 @@ public class StripeGateway : IPaymentGateway
                             planKey: null,
                             status: "paid",
                             periodEndUtc: null,
+                            periodStartUtc: null,
+                            cancelAtUtc: null,
                             addOnSku: sku,
                             addOnQty: qty
                         );
                     }
 
-                    return (stripeEvent.Id, null, session.CustomerId, session.SubscriptionId, null, "ignored", null, null, 0);
+                    return (
+                        eventId: stripeEvent.Id,
+                        userId: null,
+                        customerRef: session.CustomerId,
+                        subscriptionRef: session.SubscriptionId,
+                        planKey: null,
+                        status: "ignored",
+                        periodEndUtc: null,
+                        periodStartUtc: null,
+                        cancelAtUtc: null,
+                        addOnSku: null,
+                        addOnQty: 0
+                    );
                 }
 
-            case "customer.subscription.updated":
             case "customer.subscription.created":
+            case "customer.subscription.updated":
                 {
                     var sub = (Stripe.Subscription)stripeEvent.Data.Object;
 
+                    // Map plan from price id
                     var priceId = sub.Items?.Data?.FirstOrDefault()?.Price?.Id;
                     string? planKey =
                         priceId == _cfg.PriceIdPremium ? "premium" :
                         priceId == _cfg.PriceIdPro ? "pro" : null;
+
+                    // Pull current period from latest invoice
+                    Invoice? latestInv = null;
+                    if (!string.IsNullOrEmpty(sub.LatestInvoiceId))
+                    {
+                        var invSvc = new InvoiceService();
+                        latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
+                    }
+                    var line = latestInv?.Lines?.Data?.FirstOrDefault();
+                    var per = line?.Period;
 
                     return (
                         eventId: stripeEvent.Id,
@@ -227,7 +275,9 @@ public class StripeGateway : IPaymentGateway
                         subscriptionRef: sub.Id,
                         planKey: planKey,
                         status: sub.Status,
-                        periodEndUtc: null,
+                        periodEndUtc: per?.End.ToUniversalTime(),
+                        periodStartUtc: per?.Start.ToUniversalTime(),
+                        cancelAtUtc: sub.CancelAt,
                         addOnSku: null,
                         addOnQty: 0
                     );
@@ -236,6 +286,17 @@ public class StripeGateway : IPaymentGateway
             case "customer.subscription.deleted":
                 {
                     var sub = (Stripe.Subscription)stripeEvent.Data.Object;
+
+                    // Even on delete, latest invoice holds the last billed window
+                    Invoice? latestInv = null;
+                    if (!string.IsNullOrEmpty(sub.LatestInvoiceId))
+                    {
+                        var invSvc = new InvoiceService();
+                        latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
+                    }
+                    var line = latestInv?.Lines?.Data?.FirstOrDefault();
+                    var per = line?.Period;
+
                     return (
                         eventId: stripeEvent.Id,
                         userId: null,
@@ -243,14 +304,49 @@ public class StripeGateway : IPaymentGateway
                         subscriptionRef: sub.Id,
                         planKey: "free",
                         status: "canceled",
-                        periodEndUtc: null,
+                        periodEndUtc: per?.End.ToUniversalTime(),
+                        periodStartUtc: per?.Start.ToUniversalTime(),
+                        cancelAtUtc: sub.CancelAt,
+                        addOnSku: null,
+                        addOnQty: 0
+                    );
+                }
+
+            case "invoice.payment_succeeded":
+                {
+                    var inv = (Invoice)stripeEvent.Data.Object;
+                    var line = inv.Lines?.Data?.FirstOrDefault();
+                    var p = line?.Period;
+
+                    return (
+                        eventId: stripeEvent.Id,
+                        userId: null,
+                        customerRef: inv.CustomerId,
+                        subscriptionRef: null,
+                        planKey: null,
+                        status: "active",
+                        periodEndUtc: p?.End.ToUniversalTime(),
+                        periodStartUtc: p?.Start.ToUniversalTime(),
+                        cancelAtUtc: null,
                         addOnSku: null,
                         addOnQty: 0
                     );
                 }
 
             default:
-                return (stripeEvent.Id, null, null, null, null, "ignored", null, null, 0);
+                return (
+                    eventId: stripeEvent.Id,
+                    userId: null,
+                    customerRef: null,
+                    subscriptionRef: null,
+                    planKey: null,
+                    status: "ignored",
+                    periodEndUtc: null,
+                    periodStartUtc: null,
+                    cancelAtUtc: null,
+                    addOnSku: null,
+                    addOnQty: 0
+                );
         }
     }
 }

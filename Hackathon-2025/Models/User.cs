@@ -36,4 +36,5 @@ public class User
     public string PlanStatus { get; set; } = "none";
     public DateTime? CurrentPeriodEndUtc { get; set; }
     public DateTime? CurrentPeriodStartUtc { get; set; }
+    public DateTime? CancelAtUtc { get; set; }
 }
