@@ -9,8 +9,6 @@ using Hackathon_2025.Services; // ensure this matches where IPaymentGateway is
 using Checkout = Stripe.Checkout;
 using BillingPortal = Stripe.BillingPortal;
 
-using Hackathon_2025.Services;
-
 public class StripeGateway : IPaymentGateway
 {
     private readonly StripeSettings _cfg;
