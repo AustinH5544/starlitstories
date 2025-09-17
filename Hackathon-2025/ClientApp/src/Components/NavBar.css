@@ -375,3 +375,37 @@
             max-width: 160px;
         }
 }
+
+/* desktop/tablet keeps the space for fixed nav */
+@media (min-width: 769px) {
+    body.has-fixed-nav,
+    .main.with-fixed-nav,
+    .page.with-fixed-nav {
+        padding-top: var(--nav-height, 64px);
+    }
+
+    .nav-spacer {
+        height: var(--nav-height, 64px);
+    }
+}
+
+/* mobile: no reserved space */
+@media (max-width: 768px) {
+    body.has-fixed-nav,
+    .main.with-fixed-nav,
+    .page.with-fixed-nav {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    .nav-spacer {
+        display: none !important;
+    }
+
+    .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+    }
+}
