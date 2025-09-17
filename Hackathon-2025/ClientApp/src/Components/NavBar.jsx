@@ -95,7 +95,7 @@ const NavBar = () => {
                                 About
                             </Link>
 
-                            <button className="logout-button" onClick={logout}>Logout</button>
+                            <button className="logout-button mobile-only" onClick={logout}>Logout</button>
                         </>
                     ) : (
                         <>
@@ -108,8 +108,8 @@ const NavBar = () => {
                                 About
                             </Link>
 
-                            <Link to="/login" className="login-button">Login</Link>
-                            <Link to="/signup" className="signup-button">Sign Up</Link>
+                                <Link to="/login" className="login-button mobile-only">Login</Link>
+                                <Link to="/signup" className="signup-button mobile-only">Sign Up</Link>
                         </>
                     )}
                 </div>

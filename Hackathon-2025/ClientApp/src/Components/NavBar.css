@@ -470,3 +470,10 @@
         pointer-events: auto;
     }
 }
+
+/* Hide elements on desktop/tablet; show only on mobile */
+@media (min-width: 769px) {
+    .mobile-only {
+        display: none !important;
+    }
+}
