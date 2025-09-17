@@ -286,7 +286,7 @@ const LandingPage = () => {
 
                         <div className="footer-column">
                             <h4>Resources</h4>
-                            <a href="/blog">Blog</a>
+                            {/*<a href="/blog">Blog</a>*/}
                             <a href="/faq">FAQ</a>
                             <a href="/support">Support</a>
                         </div>

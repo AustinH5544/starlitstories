@@ -375,3 +375,98 @@
             max-width: 160px;
         }
 }
+
+/* desktop/tablet keeps the space for fixed nav */
+@media (min-width: 769px) {
+    body.has-fixed-nav,
+    .main.with-fixed-nav,
+    .page.with-fixed-nav {
+        padding-top: var(--nav-height, 64px);
+    }
+
+    .nav-spacer {
+        height: var(--nav-height, 64px);
+    }
+}
+
+/* mobile: no reserved space */
+@media (max-width: 768px) {
+    body.has-fixed-nav,
+    .main.with-fixed-nav,
+    .page.with-fixed-nav {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+
+    .nav-spacer {
+        display: none !important;
+    }
+
+    .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+    }
+}
+
+/* Mobile drawer: only right half of the screen */
+@media (max-width: 768px) {
+    .nav-center,
+    .nav-right {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        /* make it a right-side panel */
+        right: 0;
+        left: auto;
+        /* width: half the viewport (cap it so it looks nice on big phones) */
+        width: min(480px, 50vw);
+        /* panel look */
+        background: rgba(12, 20, 69, 0.98);
+        backdrop-filter: blur(10px);
+        border-left: 1px solid rgba(255,255,255,0.08);
+        /* stack + animation */
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 2rem;
+        transform: translateX(100%); /* start off-canvas to the right */
+        transition: transform 0.3s ease;
+        z-index: 1000;
+    }
+
+        .nav-center.mobile-open,
+        .nav-right.mobile-open {
+            transform: translateX(0); /* slide in */
+        }
+
+        .nav-center a {
+            font-size: 1.5rem;
+        }
+
+    .user-menu {
+        flex-direction: column;
+    }
+}
+
+/* === Blur/dim everything behind the mobile drawer === */
+.drawer-overlay {
+    position: fixed;
+    inset: 0;
+    /* blur what's behind + slight dim */
+    backdrop-filter: blur(6px);
+    background: rgba(2, 6, 23, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 900; /* below the drawer (which is z-index:1000) */
+}
+
+/* When the drawer is open, show the overlay */
+@media (max-width: 768px) {
+    html:has(.nav-center.mobile-open, .nav-right.mobile-open) .drawer-overlay {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}

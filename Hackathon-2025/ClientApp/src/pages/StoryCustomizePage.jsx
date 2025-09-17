@@ -27,7 +27,8 @@ export default function StoryCustomizePage() {
     // Mobile drawers state: 'pages' | 'inspector' | null
     const [panel, setPanel] = useState(null);
     const openPages = () => setPanel("pages");
-    const openInspector = () => setPanel("inspector");
+    const toggleInspector = () =>
+        setPanel(prev => (prev === "inspector" ? null : "inspector"));
     const closePanels = () => setPanel(null);
 
     // stable helper
@@ -498,7 +499,7 @@ export default function StoryCustomizePage() {
                     {/* Mobile: open inspector drawer */}
                     <button
                         className="btn show-on-mobile"
-                        onClick={openInspector}
+                        onClick={toggleInspector}
                         disabled={!selectedBox}
                         aria-controls="drawer-inspector"
                         aria-expanded={panel === "inspector"}
