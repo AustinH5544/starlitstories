@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hackathon-2025.Tests", "Hac
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hackathon-2025", "Hackathon-2025\Hackathon-2025.csproj", "{EB58787C-111E-8904-924D-128FB7DA8BB9}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jobs_WebhookPruner", "Jobs.WebhookPruner\Jobs_WebhookPruner.csproj", "{C7B1CE17-3A33-48B5-9106-2EA3C5C59656}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{EB58787C-111E-8904-924D-128FB7DA8BB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EB58787C-111E-8904-924D-128FB7DA8BB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EB58787C-111E-8904-924D-128FB7DA8BB9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7B1CE17-3A33-48B5-9106-2EA3C5C59656}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7B1CE17-3A33-48B5-9106-2EA3C5C59656}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7B1CE17-3A33-48B5-9106-2EA3C5C59656}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7B1CE17-3A33-48B5-9106-2EA3C5C59656}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
