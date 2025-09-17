@@ -26,6 +26,7 @@ const ProfilePage = () => {
     const { search } = useLocation();
     const [flash, setFlash] = useState("");
     const [billing, setBilling] = useState(null);
+    const isCancelScheduled = Boolean(billing?.cancelAt);
 
     // NEW: usage state (stories remaining / addons)
     const [usage, setUsage] = useState(null)             // NEW
@@ -470,10 +471,15 @@ const ProfilePage = () => {
                                 <span className="button-icon">🛠️</span>
                                 <span>{working ? "Opening..." : "Change Plan"}</span>
                             </button>
-                            <button className="cancel-plan-btn" disabled={working} onClick={() => setShowCancelModal(true)}>
-                                <span className="button-icon">🗑️</span>
-                                <span>Cancel Membership</span>
-                            </button>
+                                {!isCancelScheduled && (
+                                    <button
+                                        className="btn btn-danger"
+                                        onClick={() => setShowCancelModal(true)}
+                                        disabled={working}
+                                    >
+                                        Cancel membership
+                                    </button>
+                                )}
                         </div>
                     )}
                 </div>
