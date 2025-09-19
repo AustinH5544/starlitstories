@@ -9,38 +9,81 @@ using OpenAI;
 using System.Text;
 using System.Threading.RateLimiting;
 
+// NEW: options
+using Hackathon_2025.Options;
+using Microsoft.Extensions.Options;
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     WebRootPath = "ClientApp/dist",
     Args = args
 });
 
-// --- OpenAI ---
-var apiKey = builder.Configuration["OpenAI:ApiKey"]
-           ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-if (string.IsNullOrWhiteSpace(apiKey))
-    throw new InvalidOperationException("OpenAI API key is missing.");
+// =========================
+// Options binding (fail-fast)
+// =========================
+builder.Services.AddOptions<StripeOptions>()
+    .Bind(builder.Configuration.GetSection("Stripe"))
+    .ValidateOnStart();
 
-// --- Database ---
+builder.Services.AddOptions<AzureBlobStorageOptions>()
+    .Bind(builder.Configuration.GetSection("AzureBlobStorage"))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<EmailOptions>()
+    .Bind(builder.Configuration.GetSection("Email"))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection("Jwt"))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<OpenAIOptions>()
+    .Bind(builder.Configuration.GetSection("OpenAI"))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<AppOptions>()
+    .Bind(builder.Configuration.GetSection("App"))
+    .ValidateOnStart();
+
+// =========================
+// OpenAI client (via Options, with env fallback)
+// =========================
+builder.Services.AddSingleton(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<OpenAIOptions>>().Value;
+    var key = string.IsNullOrWhiteSpace(opts.ApiKey)
+        ? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+        : opts.ApiKey;
+
+    if (string.IsNullOrWhiteSpace(key))
+        throw new InvalidOperationException("OpenAI API key is missing.");
+
+    return new OpenAIClient(key);
+});
+builder.Services.AddHttpClient();
+
+// =========================
+// Database
+// =========================
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection"),
         sql => sql.EnableRetryOnFailure(
-            maxRetryCount: 10,                    // retry a few times
+            maxRetryCount: 10,
             maxRetryDelay: TimeSpan.FromSeconds(10),
             errorNumbersToAdd: null));
 });
 
-// --- Identity / hashing ---
+// =========================
+// Identity / hashing
+// =========================
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
-// --- OpenAI DI ---
-builder.Services.Configure<OpenAISettings>(builder.Configuration.GetSection("OpenAI"));
-builder.Services.AddSingleton(_ => new OpenAIClient(apiKey));
-builder.Services.AddHttpClient();
-
-// --- App services ---
+// =========================
+// App services
+// =========================
 builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 builder.Services.AddSingleton<BlobUploadService>();
@@ -49,26 +92,31 @@ builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddScoped<IPeriodService, PeriodService>();
 
-// --- Billing / Payments ---
-// Bind Stripe settings (now also includes WebhookSecret and plan price IDs)
-builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));  // keep this
+// =========================
+/* Billing / Payments */
+// =========================
+// Keep Credits options you had:
 builder.Services.Configure<CreditsOptions>(builder.Configuration.GetSection("Credits"));
 
-// Choose billing provider via config: "stripe" (default) or another later
+// Provider toggle via config (default: stripe)
 var billingProvider = builder.Configuration["Billing:Provider"] ?? "stripe";
 if (billingProvider.Equals("stripe", StringComparison.OrdinalIgnoreCase))
 {
     // Our provider-agnostic gateway (Stripe implementation)
     builder.Services.AddScoped<IPaymentGateway, StripeGateway>();
 }
-//else
-//{
-//    // Placeholder for future provider
-//    builder.Services.AddScoped<IPaymentGateway, OtherPayGateway>();
-//}
+// else add future providers here
 
-// --- AuthN/Z ---
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+// =========================
+// AuthN/Z (JWT via Options)
+// =========================
+var jwtSection = builder.Configuration.GetSection("Jwt");
+var jwtKey = jwtSection["Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("Jwt:Key is missing.");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
@@ -77,29 +125,37 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
-            )
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
 builder.Services.AddAuthorization();
 
-// --- CORS ---
+// =========================
+// CORS (from config, not hard-coded)
+// =========================
+var allowedOrigins = (builder.Configuration["App:AllowedCorsOrigins"] ?? "")
+    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy => policy
-            .WithOrigins("http://localhost:5173", "http://localhost:5174")
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+    options.AddPolicy("AppCors", policy =>
+        policy.WithOrigins(allowedOrigins.Length > 0 ? allowedOrigins : new[] { "http://localhost:5173" })
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
+// =========================
+// Controllers, API explorer
+// =========================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// --- Rate limiting ---
+// =========================
+// Rate limiting (same as you had)
+// =========================
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -121,22 +177,53 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// --- App config / options ---
+// =========================
+// App config you already had
+// =========================
 builder.Services.Configure<StoryOptions>(builder.Configuration.GetSection("Story"));
 
-// --- Build / Pipeline ---
+// =========================
+// Build
+// =========================
 var app = builder.Build();
 
-app.UseCors("AllowFrontend");
+// =========================
+// Security headers / HTTPS
+// =========================
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();           // NEW
+}
+app.UseHttpsRedirection();   // NEW
+
+// =========================
+// Static files & routing
+// =========================
+app.UseCors("AppCors");      // CHANGED (use config-based CORS)
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
 
+// =========================
+// Rate limit + Auth
+// =========================
 app.UseRateLimiter();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
+// =========================
+// Health endpoints (NEW)
+// =========================
+app.MapGet("/healthz", () => Results.Ok("ok"));
+app.MapGet("/readyz", async (AppDbContext db) =>
+{
+    var canConnect = await db.Database.CanConnectAsync();
+    return canConnect ? Results.Ok("ready") : Results.StatusCode(503);
+});
+
+// =========================
+// MVC + SPA fallback
+// =========================
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
 
