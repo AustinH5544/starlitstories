@@ -5,46 +5,33 @@ using Microsoft.Extensions.Options;
 using Stripe;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;
-using Hackathon_2025.Options;
-using Hackathon_2025.Services; // IPaymentGateway
+using Hackathon_2025.Services; // ensure this matches where IPaymentGateway is
 using Checkout = Stripe.Checkout;
 using BillingPortal = Stripe.BillingPortal;
 
 public class StripeGateway : IPaymentGateway
 {
-    private readonly StripeOptions _cfg;
-    private readonly AppOptions _app;                 // NEW
+    private readonly StripeSettings _cfg;
     private readonly AppDbContext _db;
     private readonly ILogger<StripeGateway> _log;
-    private readonly StripeClient _client;
 
-    public StripeGateway(
-        IOptions<StripeOptions> cfg,
-        IOptions<AppOptions> app,                    // NEW
-        AppDbContext db,
-        ILogger<StripeGateway> log,
-        StripeClient client)
+    public StripeGateway(IOptions<StripeSettings> cfg, AppDbContext db, ILogger<StripeGateway> log)
     {
         _cfg = cfg.Value;
-        _app = app.Value;                           // NEW
         _db = db;
+        StripeConfiguration.ApiKey = _cfg.SecretKey;
         _log = log;
-        _client = client;                           // use this instead of StripeConfiguration.ApiKey
     }
 
-    private string MapPlanPrice(string planKey)
+    static DateTime? FromUnix(long? ts) =>
+    ts.HasValue ? DateTimeOffset.FromUnixTimeSeconds(ts.Value).UtcDateTime : (DateTime?)null;
+
+    private string MapPlanPrice(string planKey) => planKey switch
     {
-        var key = (planKey ?? string.Empty).Trim().ToLowerInvariant(); // NEW normalize
-        return key switch
-        {
-            "pro" => _cfg.PriceIdPro,
-            "premium" => _cfg.PriceIdPremium,
-            _ => throw new ArgumentOutOfRangeException(nameof(planKey), $"Unknown plan '{planKey}'")
-        };
-    }
-
-    private bool IsAllowedAddon(string priceId) =>
-        priceId == _cfg.PriceIdAddon5 || priceId == _cfg.PriceIdAddon11;
+        "pro" => _cfg.PriceIdPro,
+        "premium" => _cfg.PriceIdPremium,
+        _ => throw new ArgumentOutOfRangeException(nameof(planKey))
+    };
 
     // ---------- Subscriptions ----------
 
@@ -74,7 +61,7 @@ public class StripeGateway : IPaymentGateway
             CancelUrl = cancelUrl
         };
 
-        var sessSvc = new Checkout.SessionService(_client);      // CHANGED: pass client
+        var sessSvc = new Checkout.SessionService();
         var session = await sessSvc.CreateAsync(create);
         return new CheckoutSession(session.Url);
     }
@@ -85,11 +72,11 @@ public class StripeGateway : IPaymentGateway
         if (string.IsNullOrEmpty(user.BillingCustomerRef))
             throw new InvalidOperationException("No Stripe customer on file.");
 
-        var svc = new BillingPortal.SessionService(_client);     // CHANGED: pass client
+        var svc = new BillingPortal.SessionService();
         var ps = await svc.CreateAsync(new BillingPortal.SessionCreateOptions
         {
             Customer = user.BillingCustomerRef,
-            ReturnUrl = $"{_app.BaseUrl.TrimEnd('/')}/profile"  // CHANGED: from AppOptions
+            ReturnUrl = "http://localhost:5173/profile" // TODO: move to config
         });
         return new PortalSession(ps.Url);
     }
@@ -100,7 +87,7 @@ public class StripeGateway : IPaymentGateway
         if (string.IsNullOrEmpty(user.BillingSubscriptionRef))
             throw new InvalidOperationException("No active subscription.");
 
-        var subSvc = new SubscriptionService(_client);           // CHANGED: pass client
+        var subSvc = new SubscriptionService();
         await subSvc.UpdateAsync(user.BillingSubscriptionRef,
             new SubscriptionUpdateOptions { CancelAtPeriodEnd = true });
     }
@@ -108,17 +95,16 @@ public class StripeGateway : IPaymentGateway
     // ---------- One-time add-on checkout ----------
 
     public async Task<CheckoutSession> CreateOneTimeCheckoutAsync(
-        int userId, string userEmail, string priceId, int quantity, string successUrl, string cancelUrl)
+    int userId, string userEmail, string priceId, int quantity, string successUrl, string cancelUrl)
     {
-        if (!IsAllowedAddon(priceId))                            // NEW: guard
-            throw new ArgumentException("Unknown add-on priceId.", nameof(priceId));
-
-        string sku = priceId == _cfg.PriceIdAddon5 ? "addon_plus5" : "addon_plus11";
+        string sku =
+            priceId == _cfg.PriceIdAddon5 ? "addon_plus5" :
+            priceId == _cfg.PriceIdAddon11 ? "addon_plus11" : "unknown";
 
         var lineItem = new Checkout.SessionLineItemOptions
         {
             Price = priceId,
-            Quantity = Math.Max(1, quantity)                     // small safety
+            Quantity = quantity
         };
 
         var create = new Checkout.SessionCreateOptions
@@ -133,17 +119,17 @@ public class StripeGateway : IPaymentGateway
                 ["userId"] = userId.ToString(),
                 ["email"] = userEmail,
                 ["sku"] = sku,
-                ["qty"] = lineItem.Quantity?.ToString() ?? "1",
-                ["priceId"] = priceId
+                ["qty"] = quantity.ToString(),
+                ["priceId"] = priceId              // <-- NEW safety net
             },
             SuccessUrl = successUrl,
             CancelUrl = cancelUrl
         };
 
         _log.LogInformation("CreateOneTimeCheckout: user {UserId} priceId={PriceId} sku={Sku} qty={Qty}",
-            userId, priceId, sku, lineItem.Quantity);
+            userId, priceId, sku, quantity);
 
-        var sessSvc = new Checkout.SessionService(_client);      // CHANGED: pass client
+        var sessSvc = new Checkout.SessionService();
         var session = await sessSvc.CreateAsync(create);
         return new CheckoutSession(session.Url);
     }
@@ -151,10 +137,10 @@ public class StripeGateway : IPaymentGateway
     // ---------- Webhook ----------
 
     public async Task<(string eventId, int? userId, string? customerRef, string? subscriptionRef,
-                       string? planKey, string? status, DateTime? periodEndUtc,
-                       DateTime? periodStartUtc, DateTime? cancelAtUtc,
-                       string? addOnSku, int addOnQty)>
-        HandleWebhookAsync(HttpRequest request)
+                   string? planKey, string? status, DateTime? periodEndUtc,
+                   DateTime? periodStartUtc, DateTime? cancelAtUtc,
+                   string? addOnSku, int addOnQty)>
+    HandleWebhookAsync(HttpRequest request)
     {
         var json = await new StreamReader(request.Body).ReadToEndAsync();
         Event stripeEvent;
@@ -179,18 +165,18 @@ public class StripeGateway : IPaymentGateway
 
                     if (string.Equals(session.Mode, "subscription", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Fetch subscription + latest invoice to derive current period
+                        // Fetch the subscription, then pull the period from its latest invoice
                         Subscription? sub = null;
                         if (!string.IsNullOrEmpty(session.SubscriptionId))
                         {
-                            var subSvc = new SubscriptionService(_client);      // CHANGED
+                            var subSvc = new SubscriptionService();
                             sub = await subSvc.GetAsync(session.SubscriptionId);
                         }
 
                         Invoice? latestInv = null;
                         if (!string.IsNullOrEmpty(sub?.LatestInvoiceId))
                         {
-                            var invSvc = new InvoiceService(_client);          // CHANGED
+                            var invSvc = new InvoiceService();
                             latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
                         }
                         var line = latestInv?.Lines?.Data?.FirstOrDefault();
@@ -205,7 +191,7 @@ public class StripeGateway : IPaymentGateway
                             status: sub?.Status ?? "active",
                             periodEndUtc: per?.End.ToUniversalTime(),
                             periodStartUtc: per?.Start.ToUniversalTime(),
-                            cancelAtUtc: sub?.CancelAt,
+                            cancelAtUtc: sub?.CancelAt, // already DateTime?
                             addOnSku: null,
                             addOnQty: 0
                         );
@@ -264,7 +250,7 @@ public class StripeGateway : IPaymentGateway
             case "customer.subscription.created":
             case "customer.subscription.updated":
                 {
-                    var sub = (Subscription)stripeEvent.Data.Object;
+                    var sub = (Stripe.Subscription)stripeEvent.Data.Object;
 
                     // Map plan from price id
                     var priceId = sub.Items?.Data?.FirstOrDefault()?.Price?.Id;
@@ -276,7 +262,7 @@ public class StripeGateway : IPaymentGateway
                     Invoice? latestInv = null;
                     if (!string.IsNullOrEmpty(sub.LatestInvoiceId))
                     {
-                        var invSvc = new InvoiceService(_client);              // CHANGED
+                        var invSvc = new InvoiceService();
                         latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
                     }
                     var line = latestInv?.Lines?.Data?.FirstOrDefault();
@@ -299,13 +285,13 @@ public class StripeGateway : IPaymentGateway
 
             case "customer.subscription.deleted":
                 {
-                    var sub = (Subscription)stripeEvent.Data.Object;
+                    var sub = (Stripe.Subscription)stripeEvent.Data.Object;
 
                     // Even on delete, latest invoice holds the last billed window
                     Invoice? latestInv = null;
                     if (!string.IsNullOrEmpty(sub.LatestInvoiceId))
                     {
-                        var invSvc = new InvoiceService(_client);              // CHANGED
+                        var invSvc = new InvoiceService();
                         latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
                     }
                     var line = latestInv?.Lines?.Data?.FirstOrDefault();
