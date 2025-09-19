@@ -1,15 +1,14 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
-using Hackathon_2025.Services;                 // NEW: IQuotaService, IPeriodService, IPaymentGateway
+using Hackathon_2025.Services;
+using Hackathon_2025.Options;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;            // NEW: IOptions<StripeSettings>
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Stripe;
 using System.Security.Claims;
-using Microsoft.Extensions.Logging; // at top
-
-// so IPaymentGateway resolves
 
 namespace Hackathon_2025.Controllers
 {
@@ -21,18 +20,21 @@ namespace Hackathon_2025.Controllers
         private readonly AppDbContext _db;
         private readonly ILogger<PaymentsController> _log;
 
-        // NEW: policy + period services and Stripe price IDs
         private readonly IQuotaService _quota;
-
         private readonly IPeriodService _period;
-        private readonly IOptions<StripeSettings> _stripe;
+
+        // Use concrete options values for easy access
+        private readonly StripeOptions _stripe;
+
+        private readonly AppOptions _app;
 
         public PaymentsController(
             IPaymentGateway gateway,
             AppDbContext db,
             IQuotaService quota,
             IPeriodService period,
-            IOptions<StripeSettings> stripe,
+            IOptions<StripeOptions> stripe,
+            IOptions<AppOptions> app,
             ILogger<PaymentsController> log)
         {
             _gateway = gateway;
@@ -40,16 +42,18 @@ namespace Hackathon_2025.Controllers
             _log = log;
             _quota = quota;
             _period = period;
-            _stripe = stripe;
+            _stripe = stripe.Value;   // <— StripeOptions
+            _app = app.Value;         // <— AppOptions (BaseUrl, etc.)
         }
 
         [HttpPost("create-checkout-session")]
+        [Authorize] // recommended: you rely on user claims
         public async Task<IActionResult> CreateCheckoutSession([FromBody] CheckoutRequest request)
         {
             if (request is null || string.IsNullOrWhiteSpace(request.Membership))
                 return BadRequest("Membership is required.");
 
-            // Get user id from any of the usual claim names
+            // Resolve user id
             var userIdStr =
                 User.FindFirst("sub")?.Value ??
                 User.FindFirst("id")?.Value ??
@@ -67,17 +71,18 @@ namespace Hackathon_2025.Controllers
                 email = userFromDb.Email;
             }
 
-            // Use your real frontend domain here when ready
-            var domain = "http://localhost:5173"; // dev
-            var successUrl = $"{domain}/profile?upgraded=1&plan={request.Membership}";
-            var cancelUrl = $"{domain}/upgrade?cancelled=1";
+            // Build absolute URLs from AppOptions.BaseUrl
+            var baseUrl = (_app.BaseUrl ?? "http://localhost:5173").TrimEnd('/');
+            var successUrl = $"{baseUrl}/profile?upgraded=1&plan={request.Membership}";
+            var cancelUrl = $"{baseUrl}/upgrade?cancelled=1";
 
-            var session = await _gateway.CreateCheckoutSessionAsync(userId, email, request.Membership, successUrl, cancelUrl);
+            var session = await _gateway.CreateCheckoutSessionAsync(
+                userId, email, request.Membership, successUrl, cancelUrl);
 
             return Ok(new { checkoutUrl = session.Url });
         }
 
-        // NEW: one-time add-on credit purchase (premium-only, optionally only when base is exhausted)
+        // One-time add-on credit purchase
         [HttpPost("buy-credits")]
         [Authorize]
         public async Task<IActionResult> BuyCredits([FromBody] BuyCreditsRequest req)
@@ -94,7 +99,7 @@ namespace Hackathon_2025.Controllers
             var user = await _db.Users.FindAsync(userId);
             if (user is null) return Unauthorized("User not found.");
 
-            // 2) Period rollover (ensures BooksGenerated is current)
+            // 2) Period rollover
             var now = DateTime.UtcNow;
             if (_period.IsPeriodBoundary(user, now))
             {
@@ -103,7 +108,7 @@ namespace Hackathon_2025.Controllers
                 await _db.SaveChangesAsync();
             }
 
-            // 3) Policy gates: premium-only + only-when-exhausted (configurable)
+            // 3) Policy gates
             var baseQuota = _quota.BaseQuotaFor(user.Membership);
             var baseRemaining = Math.Max(baseQuota - user.BooksGenerated, 0);
 
@@ -118,36 +123,34 @@ namespace Hackathon_2025.Controllers
                 return BadRequest($"You still have {baseRemaining} base story slot(s) remaining this period.");
             }
 
-            // 4) Map pack -> Stripe Price ID
+            // 4) Map pack -> Stripe Price ID (from StripeOptions)
             var pack = (req?.Pack ?? "plus5").ToLowerInvariant();
             var quantity = Math.Max(1, req?.Quantity ?? 1);
 
             string? priceId = pack switch
             {
-                "plus5" => _stripe.Value.PriceIdAddon5,
-                "plus11" => _stripe.Value.PriceIdAddon11,
+                "plus5" => _stripe.PriceIdAddon5,
+                "plus11" => _stripe.PriceIdAddon11,
                 _ => null
             };
             if (priceId is null) return BadRequest("Unknown credit pack.");
 
-            // Get an email (prefer claim, else DB)
+            // Get email
             var email = User.FindFirst("email")?.Value ?? user.Email;
 
-            // 5) Create a one-time Checkout Session
-            var domain = "http://localhost:5173"; // dev; replace in prod
-            var successUrl = $"{domain}/profile?credits=1";
-            var cancelUrl = $"{domain}/profile?cancelled=1";
+            // 5) Build URLs from AppOptions
+            var baseUrl = (_app.BaseUrl ?? "http://localhost:5173").TrimEnd('/');
+            var successUrl = $"{baseUrl}/profile?credits=1";
+            var cancelUrl = $"{baseUrl}/profile?cancelled=1";
 
             var session = await _gateway.CreateOneTimeCheckoutAsync(userId, email, priceId, quantity, successUrl, cancelUrl);
-
             return Ok(new { checkoutUrl = session.Url });
         }
 
         [HttpGet("billing/portal")]
-        [Authorize] // ensure only signed-in users hit this
+        [Authorize]
         public async Task<IActionResult> BillingPortal()
         {
-            // Get user id from any of the common claim names
             var userIdStr =
                 User.FindFirst("sub")?.Value ??
                 User.FindFirst("id")?.Value ??
@@ -163,12 +166,10 @@ namespace Hackathon_2025.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                // e.g., no BillingCustomerRef yet
                 return BadRequest(ex.Message);
             }
             catch (Exception)
             {
-                // log ex as needed
                 return Problem("Could not create billing portal session.");
             }
         }
@@ -177,7 +178,6 @@ namespace Hackathon_2025.Controllers
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscription()
         {
-            // Resolve user id from common claim names (matches your existing pattern)
             var userIdStr =
                 User.FindFirst("sub")?.Value ??
                 User.FindFirst("id")?.Value ??
@@ -189,13 +189,12 @@ namespace Hackathon_2025.Controllers
             var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
             if (user is null) return Unauthorized("User not found.");
 
-            // Shape the JSON exactly how the frontend expects (camelCase)
             var payload = new
             {
                 subscription = new
                 {
-                    status = user.PlanStatus,                 // "active", "trialing", "canceled", etc.
-                    planKey = user.PlanKey,                   // "pro", "premium", "free"
+                    status = user.PlanStatus,
+                    planKey = user.PlanKey,
                     currentPeriodStart = user.CurrentPeriodStartUtc?.ToUniversalTime(),
                     currentPeriodEnd = user.CurrentPeriodEndUtc?.ToUniversalTime(),
                     cancelAt = user.CancelAtUtc?.ToUniversalTime(),
@@ -226,7 +225,6 @@ namespace Hackathon_2025.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                // e.g., no active subscription
                 return BadRequest(ex.Message);
             }
             catch (Exception)
