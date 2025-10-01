@@ -150,7 +150,8 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins.Length > 0 ? allowedOrigins : new[] { "http://localhost:5173" })
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials());
+              //.AllowCredentials()
+              );
 });
 
 // =========================
@@ -205,10 +206,10 @@ app.UseHttpsRedirection();   // NEW
 // =========================
 // Static files & routing
 // =========================
-app.UseCors("AppCors");      // CHANGED (use config-based CORS)
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
+app.UseCors("AppCors");      // CHANGED (use config-based CORS)
 
 // =========================
 // Rate limit + Auth
