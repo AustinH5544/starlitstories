@@ -4,10 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev": "vite", // uses .env.development
+    "build": "vite build", // uses .env.production
+    "build:staging": "vite build --mode staging", // uses .env.staging
+    "preview": "vite preview",
+    "preview:staging": "npm run build:staging && vite preview"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^3.7.0",

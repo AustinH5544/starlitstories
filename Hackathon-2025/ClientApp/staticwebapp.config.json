@@ -1,0 +1,26 @@
+﻿{
+  "routes": [
+    {
+      "route": "/*",
+      "serve": "/index.html",
+      "statusCode": 200
+    }
+  ],
+  "responseOverrides": {
+    "404": {
+      "serve": "/index.html",
+      "statusCode": 200
+    }
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  }
+}
+// May want to add this later to prevent indexing by search engines for staging.
+
+//{
+//  "globalHeaders": {
+//    "X-Robots-Tag": "noindex, nofollow"
+//  }
+//}
