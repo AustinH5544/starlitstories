@@ -1,9 +1,10 @@
-﻿import axios from 'axios';
+﻿import axios from "axios";
+import { API_URL } from "./config"; // ← from your config.js
 
 const api = axios.create({
-    baseURL: '/api',
+    baseURL: `${API_URL}/api`,   // <- always hit the real API origin
     timeout: 500000,
-    headers: { 'Content-Type': 'application/json' }
+    headers: { "Content-Type": "application/json" }
 });
 
 // Attach token before requests

@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build:staging": "vite build --mode staging",
+    "preview": "vite preview",
+    "preview:staging": "npm run build:staging && vite preview",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^3.7.0",
