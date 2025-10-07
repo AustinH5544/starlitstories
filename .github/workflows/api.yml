@@ -15,22 +15,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     env:
-      WEBAPP_NAME: starlitstories-api-dev
+      API_PROJECT: Hackathon-2025/Hackathon-2025.csproj   # <-- your actual csproj path
+      WEBAPP_NAME: starlitstories-api-dev                 # <-- exact dev App Service name
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
 
-      # --- Detect API .csproj ---
-      - name: Detect API project
-        run: |
-          echo "Searching for *Api.csproj..."
-          API_PROJECT=$(git ls-files | grep -E '\.csproj$' | grep -i 'api' | head -n1)
-          if [ -z "$API_PROJECT" ]; then
-            echo "No *Api.csproj found"; exit 1
-          fi
-          echo "Found: $API_PROJECT"
-          echo "API_PROJECT=$API_PROJECT" >> $GITHUB_ENV
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
       - name: Restore
         run: dotnet restore "$API_PROJECT"
@@ -50,27 +42,21 @@ jobs:
         with:
           app-name: ${{ env.WEBAPP_NAME }}
           package: publish
+          # slot-name: staging  # uncomment only if you deploy to a slot
 
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
     env:
-      WEBAPP_NAME: starlitstories-api-prod
+      API_PROJECT: Hackathon-2025/Hackathon-2025.csproj   # <-- your actual csproj path
+      WEBAPP_NAME: starlitstories-api-prod                # <-- exact prod App Service name
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
 
-      - name: Detect API project
-        run: |
-          echo "Searching for *Api.csproj..."
-          API_PROJECT=$(git ls-files | grep -E '\.csproj$' | grep -i 'api' | head -n1)
-          if [ -z "$API_PROJECT" ]; then
-            echo "No *Api.csproj found"; exit 1
-          fi
-          echo "Found: $API_PROJECT"
-          echo "API_PROJECT=$API_PROJECT" >> $GITHUB_ENV
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
       - name: Restore
         run: dotnet restore "$API_PROJECT"
@@ -90,3 +76,4 @@ jobs:
         with:
           app-name: ${{ env.WEBAPP_NAME }}
           package: publish
+          # slot-name: production  # only if you use slots
