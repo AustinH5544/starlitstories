@@ -15,13 +15,13 @@ jobs:
           - branch: staging
             env_name: staging
             build_mode: staging
-            swa_name: YOUR_SWA_RESOURCE_NAME_STAGING
-            swa_location: YOUR_SWA_LOCATION
+            swa_name: swa-starlitstories-dev
+            swa_location: westus2
           - branch: main
             env_name: production
             build_mode: production
-            swa_name: YOUR_SWA_RESOURCE_NAME_PROD
-            swa_location: YOUR_SWA_LOCATION
+            swa_name: swa-starlitstories-prod
+            swa_location: westus2
 
     if: github.ref == format('refs/heads/{0}', matrix.branch)
     environment: ${{ matrix.env_name }}
@@ -43,7 +43,7 @@ jobs:
         working-directory: ClientApp
         run: |
           if [ "${{ matrix.build_mode }}" = "staging" ]; then
-            npm run build:staging
+            npm run build:staging || npm run build
           else
             npm run build
           fi
@@ -54,5 +54,7 @@ jobs:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
           action: "upload"
           app_location: "ClientApp"
-          output_location: "ClientApp/dist"
+          output_location: "dist"
           skip_app_build: true
+          # optional: swa_name and location are autodetected; include only if needed:
+          # app_build_command: "npm ci && npm run build"  # (not needed because skip_app_build=true)
