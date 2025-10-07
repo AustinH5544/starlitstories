@@ -1,0 +1,58 @@
+name: Frontend (SWA)
+
+on:
+  push:
+    branches: [ main, staging ]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - branch: staging
+            env_name: staging
+            build_mode: staging
+            swa_name: YOUR_SWA_RESOURCE_NAME_STAGING
+            swa_location: YOUR_SWA_LOCATION
+          - branch: main
+            env_name: production
+            build_mode: production
+            swa_name: YOUR_SWA_RESOURCE_NAME_PROD
+            swa_location: YOUR_SWA_LOCATION
+
+    if: github.ref == format('refs/heads/{0}', matrix.branch)
+    environment: ${{ matrix.env_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        working-directory: ClientApp
+        run: npm ci
+
+      - name: Build
+        working-directory: ClientApp
+        run: |
+          if [ "${{ matrix.build_mode }}" = "staging" ]; then
+            npm run build:staging
+          else
+            npm run build
+          fi
+
+      - name: Deploy to Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          action: "upload"
+          app_location: "ClientApp"
+          output_location: "ClientApp/dist"
+          skip_app_build: true

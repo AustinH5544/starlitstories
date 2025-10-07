@@ -1,0 +1,69 @@
+name: API (App Service)
+
+on:
+  push:
+    branches: [ main, staging ]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - branch: staging
+            env_name: staging
+            app_service_name: YOUR_APP_SERVICE_NAME_STAGING
+            resource_group: YOUR_RESOURCE_GROUP
+          - branch: main
+            env_name: production
+            app_service_name: YOUR_APP_SERVICE_NAME_PROD
+            resource_group: YOUR_RESOURCE_GROUP
+
+    if: github.ref == format('refs/heads/{0}', matrix.branch)
+
+    environment: ${{ matrix.env_name }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish --configuration Release -o ./publish
+
+      - name: Archive package
+        run: |
+          cd publish
+          zip -r ../app.zip .
+          cd ..
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to App Service
+        run: |
+          az webapp deploy \
+            --resource-group "${{ matrix.resource_group }}" \
+            --name "${{ matrix.app_service_name }}" \
+            --src-path "app.zip" \
+            --type zip
