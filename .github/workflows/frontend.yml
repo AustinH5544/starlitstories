@@ -10,164 +10,48 @@ jobs:
     if: ${{ github.ref_name == 'staging' }}
     runs-on: ubuntu-latest
     environment: staging
-    env:
-      FRONTEND_DIR: Hackathon-2025/ClientApp
-      BUILD_OUT: dist
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug repo layout (top 3 levels)
-        run: |
-          pwd
-          ls -la
-          find . -maxdepth 3 -type d | sed 's#^\./##'
-
+      # optional: quick sanity check
       - name: Verify frontend folder exists
         run: |
-          if [ ! -d "${{ env.FRONTEND_DIR }}" ]; then
-            echo "ERROR: '${{ env.FRONTEND_DIR }}' not found. Update FRONTEND_DIR."
+          if [ ! -d "Hackathon-2025/ClientApp" ]; then
+            echo "ERROR: Hackathon-2025/ClientApp not found."
             exit 1
           fi
-          ls -la "${{ env.FRONTEND_DIR }}"
+          ls -la Hackathon-2025/ClientApp
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install deps
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: npm ci
-
-      - name: Build (staging)
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: npm run build:staging || npm run build
-
-      - name: Detect build output folder(s)
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: |
-          echo "Searching for likely build outputs..."
-          FOUND=$(find . -path ./node_modules -prune -o \
-            -type f -name index.html -mmin -10 -print | sed 's#/index.html$##' | sort -u)
-          if [ -z "$FOUND" ]; then
-            echo "No recent index.html found; listing candidates modified today:"
-            find . -path ./node_modules -prune -o -type f -name index.html -daystart -mtime -1 -print | sed 's#/index.html$##' | sort -u
-          else
-            echo "Recent output candidates:"
-            echo "$FOUND"
-          fi
-
-      - name: Verify configured output_location exists
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: |
-          echo "Configured output_location is '${{ env.BUILD_OUT }}'"
-          if [ ! -d "${{ env.BUILD_OUT }}" ]; then
-            echo "ERROR: '${{ env.BUILD_OUT }}' not found. Build may have failed or outDir differs by mode."
-            echo "Listing current dir:"
-            ls -la
-            echo "Listing one level down:"
-            find . -maxdepth 2 -type d -printf '%T@ %p\n' | sort -nr | head -20
-            exit 1
-          fi
-          echo "'${{ env.BUILD_OUT }}' exists:"
-          ls -la "${{ env.BUILD_OUT }}"
-
-      - name: Check build size (portable)
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: |
-          echo "Total size:"
-          du -sh "${{ env.BUILD_OUT }}" || true
-
-          echo "File count:"
-          find "${{ env.BUILD_OUT }}" -type f | wc -l
-
-          echo "Top 50 largest files:"
-          find "${{ env.BUILD_OUT }}" -type f -exec stat -c '%s %n' {} + 2>/dev/null \
-            | sort -nr | head -50 \
-            | awk '{ s=$1; u="B"; if(s>1024){s/=1024;u="KB"} if(s>1024){s/=1024;u="MB"} printf "%.1f %s\t%s\n", s,u,substr($0,index($0,$2)) }'
-
-          echo "Any files >10MB:"
-          find "${{ env.BUILD_OUT }}" -type f -size +10M -exec ls -lh {} \; | awk '{print $5 "\t" $9}'
-
-      - name: Guard rail fail if dist missing or > 200MB
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: |
-          test -d "${{ env.BUILD_OUT }}" || (echo "Missing '${{ env.BUILD_OUT }}'"; exit 1)
-          SIZE=$(du -sb "${{ env.BUILD_OUT }}" | awk '{print $1}')
-          echo "Byte-size: $SIZE"
-          LIMIT=$((200*1024*1024))
-          if [ "$SIZE" -gt "$LIMIT" ]; then
-            echo "ERROR: build output exceeds 200MB. Refusing deploy so SWA doesn't try to upload the whole app."
-            exit 1
-          fi
-
-      - name: Deploy to Static Web Apps
+      # Let the SWA action build + deploy (staging build)
+      - name: Deploy to Static Web Apps (staging)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: upload
-          app_location: ${{ env.FRONTEND_DIR }}
-          output_location: ${{ env.BUILD_OUT }}
-          skip_app_build: true
+          app_location: Hackathon-2025/ClientApp
+          output_location: dist
+          app_build_command: npm ci && npm run build:staging
 
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
-    env:
-      FRONTEND_DIR: Hackathon-2025/ClientApp
-      BUILD_OUT: dist
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
 
+      # optional: quick sanity check
       - name: Verify frontend folder exists
         run: |
-          if [ ! -d "${{ env.FRONTEND_DIR }}" ]; then
-            echo "ERROR: '${{ env.FRONTEND_DIR }}' not found. Update FRONTEND_DIR."
+          if [ ! -d "Hackathon-2025/ClientApp" ]; then
+            echo "ERROR: Hackathon-2025/ClientApp not found."
             exit 1
           fi
+          ls -la Hackathon-2025/ClientApp
 
-      - name: Install deps
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: npm ci
-
-      - name: Build (prod)
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: npm run build
-
-      - name: Verify and check build output
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: |
-          echo "Configured output_location is '${{ env.BUILD_OUT }}'"
-          if [ ! -d "${{ env.BUILD_OUT }}" ]; then
-            echo "ERROR: '${{ env.BUILD_OUT }}' not found."
-            exit 1
-          fi
-          du -sh "${{ env.BUILD_OUT }}" || true
-          echo "Top 20 largest files:"
-          find "${{ env.BUILD_OUT }}" -type f -exec stat -c '%s %n' {} + 2>/dev/null \
-            | sort -nr | head -20 \
-            | awk '{ s=$1; u="B"; if(s>1024){s/=1024;u="KB"} if(s>1024){s/=1024;u="MB"} printf "%.1f %s\t%s\n", s,u,substr($0,index($0,$2)) }'
-
-      - name: Guard rail fail if dist missing or > 200MB
-        working-directory: ${{ env.FRONTEND_DIR }}
-        run: |
-          test -d "${{ env.BUILD_OUT }}" || (echo "Missing '${{ env.BUILD_OUT }}'"; exit 1)
-          SIZE=$(du -sb "${{ env.BUILD_OUT }}" | awk '{print $1}')
-          echo "Byte-size: $SIZE"
-          LIMIT=$((200*1024*1024))
-          if [ "$SIZE" -gt "$LIMIT" ]; then
-            echo "ERROR: build output exceeds 200MB. Refusing deploy so SWA doesn't try to upload the whole app."
-            exit 1
-          fi
-
-      - name: Deploy to Static Web Apps
+      # Let the SWA action build + deploy (production build)
+      - name: Deploy to Static Web Apps (prod)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: upload
-          app_location: ${{ env.FRONTEND_DIR }}
-          output_location: ${{ env.BUILD_OUT }}
-          skip_app_build: true
+          app_location: Hackathon-2025/ClientApp
+          output_location: dist
+          app_build_command: npm ci && npm run build
