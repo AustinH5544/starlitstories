@@ -15,22 +15,29 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     env:
-      API_PROJECT: Hackathon-2025/Api/Hackathon_2025.Api.csproj   # <— update if different
-      WEBAPP_NAME: starlitstories-api-dev                         # <— exact App Service name
+      WEBAPP_NAME: starlitstories-api-dev
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+        with: { dotnet-version: '8.0.x' }
 
-      # Build ONLY the API project and emit to ./publish
+      # --- Detect API .csproj ---
+      - name: Detect API project
+        run: |
+          echo "Searching for *Api.csproj..."
+          API_PROJECT=$(git ls-files | grep -E '\.csproj$' | grep -i 'api' | head -n1)
+          if [ -z "$API_PROJECT" ]; then
+            echo "No *Api.csproj found"; exit 1
+          fi
+          echo "Found: $API_PROJECT"
+          echo "API_PROJECT=$API_PROJECT" >> $GITHUB_ENV
+
       - name: Restore
-        run: dotnet restore $API_PROJECT
-      - name: Publish
-        run: dotnet publish $API_PROJECT -c Release -o publish
+        run: dotnet restore "$API_PROJECT"
 
-      # OIDC login to Azure
+      - name: Publish
+        run: dotnet publish "$API_PROJECT" -c Release -o publish
+
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
@@ -38,32 +45,38 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # Deploy the publish folder (no manual zipping)
       - name: Deploy to App Service (staging)
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.WEBAPP_NAME }}
           package: publish
-          # slot-name: staging   # <— uncomment if you deploy to a slot
 
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
     env:
-      API_PROJECT: Hackathon-2025/Api/Hackathon_2025.Api.csproj   # <— update if different
-      WEBAPP_NAME: starlitstories-api-prod                        # <— exact App Service name
+      WEBAPP_NAME: starlitstories-api-prod
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+        with: { dotnet-version: '8.0.x' }
+
+      - name: Detect API project
+        run: |
+          echo "Searching for *Api.csproj..."
+          API_PROJECT=$(git ls-files | grep -E '\.csproj$' | grep -i 'api' | head -n1)
+          if [ -z "$API_PROJECT" ]; then
+            echo "No *Api.csproj found"; exit 1
+          fi
+          echo "Found: $API_PROJECT"
+          echo "API_PROJECT=$API_PROJECT" >> $GITHUB_ENV
 
       - name: Restore
-        run: dotnet restore $API_PROJECT
+        run: dotnet restore "$API_PROJECT"
+
       - name: Publish
-        run: dotnet publish $API_PROJECT -c Release -o publish
+        run: dotnet publish "$API_PROJECT" -c Release -o publish
 
       - name: Azure login (OIDC)
         uses: azure/login@v2
@@ -77,4 +90,3 @@ jobs:
         with:
           app-name: ${{ env.WEBAPP_NAME }}
           package: publish
-          # slot-name: production # only if you use slots
