@@ -18,11 +18,7 @@ using Microsoft.Extensions.Options;
 using OpenAI;
 using Stripe;
 
-var builder = WebApplication.CreateBuilder(new WebApplicationOptions
-{
-    WebRootPath = "ClientApp/dist",
-    Args = args
-});
+var builder = WebApplication.CreateBuilder(args);
 
 // -----------------------------
 // Configuration (Key Vault first)
@@ -144,6 +140,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddScoped<IPeriodService, PeriodService>();
+builder.Services.AddHealthChecks();
 
 // Payments provider toggle (default: stripe)
 var billingProvider = builder.Configuration["Billing:Provider"] ?? "stripe";
@@ -232,8 +229,8 @@ app.UseHttpsRedirection();
 // =========================
 // Static files & routing
 // =========================
-app.UseDefaultFiles();
-app.UseStaticFiles();
+//app.UseDefaultFiles();
+//app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AppCors");
 
@@ -247,6 +244,7 @@ app.UseAuthorization();
 // =========================
 // Health endpoints
 // =========================
+app.MapHealthChecks("/healthz");
 app.MapGet("/healthz", () => Results.Ok("ok"));
 app.MapGet("/readyz", async (AppDbContext db) =>
 {
@@ -258,6 +256,6 @@ app.MapGet("/readyz", async (AppDbContext db) =>
 // MVC + SPA fallback
 // =========================
 app.MapControllers();
-app.MapFallbackToFile("/index.html");
+//app.MapFallbackToFile("/index.html");
 
 app.Run();
