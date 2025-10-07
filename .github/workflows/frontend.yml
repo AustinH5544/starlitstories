@@ -51,6 +51,13 @@ jobs:
           output_location: ${{ env.BUILD_OUT }}
           skip_app_build: true
 
+- name: Check build size
+  working-directory: Hackathon-2025/ClientApp
+  run: |
+    du -sh dist || true
+    echo "Top 50 largest files:"
+    find dist -type f -printf '%s\t%p\n' | sort -nr | head -50 | awk '{ s=$1; u="B"; if(s>1024){s/=1024;u="KB"} if(s>1024){s/=1024;u="MB"} printf "%.1f %s\t%s\n", s,u,$2 }'
+
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
