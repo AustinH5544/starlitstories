@@ -5,65 +5,76 @@ on:
     branches: [ main, staging ]
   workflow_dispatch: {}
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy-staging:
     if: ${{ github.ref_name == 'staging' }}
     runs-on: ubuntu-latest
     environment: staging
-    permissions: { id-token: write, contents: read }
+    env:
+      API_PROJECT: Hackathon-2025/Api/Hackathon_2025.Api.csproj   # <— update if different
+      WEBAPP_NAME: starlitstories-api-dev                         # <— exact App Service name
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
-      - run: dotnet restore
-      - run: dotnet build --configuration Release --no-restore
-      - run: dotnet publish --configuration Release -o ./publish
-      - name: Archive package
-        run: |
-          cd publish
-          zip -r ../app.zip .
-          cd ..
+        with:
+          dotnet-version: '8.0.x'
+
+      # Build ONLY the API project and emit to ./publish
+      - name: Restore
+        run: dotnet restore $API_PROJECT
+      - name: Publish
+        run: dotnet publish $API_PROJECT -c Release -o publish
+
+      # OIDC login to Azure
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Deploy the publish folder (no manual zipping)
       - name: Deploy to App Service (staging)
-        run: |
-          az webapp deploy \
-            --resource-group "StoryBookAppRG" \
-            --name "starlitstories-api-dev" \
-            --src-path "app.zip" \
-            --type zip
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          package: publish
+          # slot-name: staging   # <— uncomment if you deploy to a slot
 
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
-    permissions: { id-token: write, contents: read }
+    env:
+      API_PROJECT: Hackathon-2025/Api/Hackathon_2025.Api.csproj   # <— update if different
+      WEBAPP_NAME: starlitstories-api-prod                        # <— exact App Service name
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
-      - run: dotnet restore
-      - run: dotnet build --configuration Release --no-restore
-      - run: dotnet publish --configuration Release -o ./publish
-      - name: Archive package
-        run: |
-          cd publish
-          zip -r ../app.zip .
-          cd ..
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore $API_PROJECT
+      - name: Publish
+        run: dotnet publish $API_PROJECT -c Release -o publish
+
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Deploy to App Service (prod)
-        run: |
-          az webapp deploy \
-            --resource-group "StoryBookAppRG" \
-            --name "starlitstories-api-prod" \
-            --src-path "app.zip" \
-            --type zip
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP_NAME }}
+          package: publish
+          # slot-name: production # only if you use slots
