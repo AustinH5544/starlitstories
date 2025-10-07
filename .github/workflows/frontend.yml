@@ -151,7 +151,7 @@ jobs:
             | sort -nr | head -20 \
             | awk '{ s=$1; u="B"; if(s>1024){s/=1024;u="KB"} if(s>1024){s/=1024;u="MB"} printf "%.1f %s\t%s\n", s,u,substr($0,index($0,$2)) }'
 
-      - name: Guard rail: fail if dist missing or > 200MB
+      - name: Guard rail fail if dist missing or > 200MB
         working-directory: ${{ env.FRONTEND_DIR }}
         run: |
           test -d "${{ env.BUILD_OUT }}" || (echo "Missing '${{ env.BUILD_OUT }}'"; exit 1)
