@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { AuthProvider } from "./context/AuthContext"
 
-import NavBar from "./components/NavBar"
+import NavBar from "./Components/NavBar"
 import LandingPage from "./pages/LandingPage"
 import CreatePage from "./pages/CreatePage"
 import AboutPage from "./pages/AboutPage"
