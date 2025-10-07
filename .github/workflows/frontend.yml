@@ -7,45 +7,65 @@ on:
 
 jobs:
   deploy-staging:
+    name: Frontend deploy (staging)
     if: ${{ github.ref_name == 'staging' }}
     runs-on: ubuntu-latest
     environment: staging
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify frontend folder exists
-        run: |
-          test -d "Hackathon-2025/ClientApp" || { echo "Hackathon-2025/ClientApp not found"; exit 1; }
-          ls -la Hackathon-2025/ClientApp
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: Hackathon-2025/ClientApp/package-lock.json
+
+      - name: Install deps
+        working-directory: Hackathon-2025/ClientApp
+        run: npm ci
+
+      - name: Build (staging)
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run build:staging
 
       - name: Deploy to Static Web Apps (staging)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: "upload"
+          action: upload
           app_location: Hackathon-2025/ClientApp
           output_location: dist
-          app_build_command: npm ci && npm run build:staging
+          skip_app_build: true
           skip_api_build: true
 
   deploy-prod:
+    name: Frontend deploy (prod)
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify frontend folder exists
-        run: |
-          test -d "Hackathon-2025/ClientApp" || { echo "Hackathon-2025/ClientApp not found"; exit 1; }
-          ls -la Hackathon-2025/ClientApp
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: Hackathon-2025/ClientApp/package-lock.json
+
+      - name: Install deps
+        working-directory: Hackathon-2025/ClientApp
+        run: npm ci
+
+      - name: Build (prod)
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run build
 
       - name: Deploy to Static Web Apps (prod)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: "upload"
+          action: upload
           app_location: Hackathon-2025/ClientApp
           output_location: dist
-          app_build_command: npm ci && npm run build
+          skip_app_build: true
           skip_api_build: true
