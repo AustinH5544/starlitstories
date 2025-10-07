@@ -6,63 +6,64 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build-and-deploy:
+  deploy-staging:
+    if: ${{ github.ref_name == 'staging' }}
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        include:
-          - branch: staging
-            env_name: staging
-            app_service_name: starlitstories-api-dev
-            resource_group: StoryBookAppRG
-          - branch: main
-            env_name: production
-            app_service_name: starlitstories-api-prod
-            resource_group: StoryBookAppRG
-
-    if: ${{ github.ref_name == matrix.branch }}
-    environment: ${{ matrix.env_name }}
-
-    permissions:
-      id-token: write
-      contents: read
-
+    environment: staging
+    permissions: { id-token: write, contents: read }
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore
-        run: dotnet restore
-
-      - name: Build (Release)
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Publish
-        run: dotnet publish --configuration Release -o ./publish
-
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - run: dotnet publish --configuration Release -o ./publish
       - name: Archive package
         run: |
           cd publish
           zip -r ../app.zip .
           cd ..
-
       - name: Azure login (OIDC)
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Deploy to App Service
+      - name: Deploy to App Service (staging)
         run: |
           az webapp deploy \
-            --resource-group "${{ matrix.resource_group }}" \
-            --name "${{ matrix.app_service_name }}" \
+            --resource-group "StoryBookAppRG" \
+            --name "starlitstories-api-dev" \
+            --src-path "app.zip" \
+            --type zip
+
+  deploy-prod:
+    if: ${{ github.ref_name == 'main' }}
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { id-token: write, contents: read }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: '8.0.x' }
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+      - run: dotnet publish --configuration Release -o ./publish
+      - name: Archive package
+        run: |
+          cd publish
+          zip -r ../app.zip .
+          cd ..
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy to App Service (prod)
+        run: |
+          az webapp deploy \
+            --resource-group "StoryBookAppRG" \
+            --name "starlitstories-api-prod" \
             --src-path "app.zip" \
             --type zip
