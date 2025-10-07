@@ -14,15 +14,14 @@ jobs:
         include:
           - branch: staging
             env_name: staging
-            app_service_name: YOUR_APP_SERVICE_NAME_STAGING
-            resource_group: YOUR_RESOURCE_GROUP
+            app_service_name: starlitstories-api-dev
+            resource_group: StoryBookAppRG
           - branch: main
             env_name: production
-            app_service_name: YOUR_APP_SERVICE_NAME_PROD
-            resource_group: YOUR_RESOURCE_GROUP
+            app_service_name: starlitstories-api-prod
+            resource_group: StoryBookAppRG
 
     if: github.ref == format('refs/heads/{0}', matrix.branch)
-
     environment: ${{ matrix.env_name }}
 
     permissions:
