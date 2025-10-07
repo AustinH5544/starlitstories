@@ -88,7 +88,7 @@ jobs:
           echo "Any files >10MB:"
           find "${{ env.BUILD_OUT }}" -type f -size +10M -exec ls -lh {} \; | awk '{print $5 "\t" $9}'
 
-      - name: Guard rail: fail if dist missing or > 200MB
+      - name: Guard rail fail if dist missing or > 200MB
         working-directory: ${{ env.FRONTEND_DIR }}
         run: |
           test -d "${{ env.BUILD_OUT }}" || (echo "Missing '${{ env.BUILD_OUT }}'"; exit 1)
