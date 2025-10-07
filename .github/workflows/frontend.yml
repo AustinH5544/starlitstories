@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: staging
     env:
-      FRONTEND_DIR: ClientApp
+      FRONTEND_DIR: Hackathon-2025/ClientApp
       BUILD_OUT: dist
     steps:
       - uses: actions/checkout@v4
