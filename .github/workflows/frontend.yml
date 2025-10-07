@@ -13,23 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # optional: quick sanity check
       - name: Verify frontend folder exists
         run: |
-          if [ ! -d "Hackathon-2025/ClientApp" ]; then
-            echo "ERROR: Hackathon-2025/ClientApp not found."
-            exit 1
-          fi
+          test -d "Hackathon-2025/ClientApp" || { echo "Hackathon-2025/ClientApp not found"; exit 1; }
           ls -la Hackathon-2025/ClientApp
 
-      # Let the SWA action build + deploy (staging build)
       - name: Deploy to Static Web Apps (staging)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          action: "upload"
           app_location: Hackathon-2025/ClientApp
           output_location: dist
           app_build_command: npm ci && npm run build:staging
+          skip_api_build: true
 
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
@@ -38,20 +35,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # optional: quick sanity check
       - name: Verify frontend folder exists
         run: |
-          if [ ! -d "Hackathon-2025/ClientApp" ]; then
-            echo "ERROR: Hackathon-2025/ClientApp not found."
-            exit 1
-          fi
+          test -d "Hackathon-2025/ClientApp" || { echo "Hackathon-2025/ClientApp not found"; exit 1; }
           ls -la Hackathon-2025/ClientApp
 
-      # Let the SWA action build + deploy (production build)
       - name: Deploy to Static Web Apps (prod)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          action: "upload"
           app_location: Hackathon-2025/ClientApp
           output_location: dist
           app_build_command: npm ci && npm run build
+          skip_api_build: true
