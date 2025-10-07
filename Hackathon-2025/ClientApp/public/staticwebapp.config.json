@@ -1,14 +1,28 @@
 ﻿{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/api/*",
+      "/assets/*",
+      "/*.js",
+      "/*.css",
+      "/favicon*",
+      "/images/*"
+    ]
+  },
   "routes": [
     {
-      "route": "/*",
-      "serve": "/index.html",
-      "statusCode": 200
+      "route": "/login",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/signup",
+      "rewrite": "/index.html"
     }
   ],
   "responseOverrides": {
     "404": {
-      "serve": "/index.html",
+      "rewrite": "/index.html",
       "statusCode": 200
     }
   },
@@ -17,10 +31,3 @@
     "Referrer-Policy": "strict-origin-when-cross-origin"
   }
 }
-// May want to add this later to prevent indexing by search engines for staging.
-
-//{
-//  "globalHeaders": {
-//    "X-Robots-Tag": "noindex, nofollow"
-//  }
-//}
