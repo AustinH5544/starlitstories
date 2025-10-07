@@ -13,7 +13,6 @@ public class CheckoutRequestTests
         var request = new CheckoutRequest();
 
         // Assert
-        Assert.AreEqual("", request.Email);
         Assert.AreEqual("", request.Membership);
     }
 
@@ -23,12 +22,10 @@ public class CheckoutRequestTests
         // Arrange
         var request = new CheckoutRequest
         {
-            Email = "test@example.com",
-            Membership = "Pro"
+            Membership = "Premium"
         };
 
         // Assert
-        Assert.AreEqual("test@example.com", request.Email);
-        Assert.AreEqual("Pro", request.Membership);
+        Assert.AreEqual("Premium", request.Membership);
     }
 }

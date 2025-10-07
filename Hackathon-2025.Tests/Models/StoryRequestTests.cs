@@ -13,16 +13,15 @@ public class StoryRequestTests
         // Arrange
         var request = new StoryRequest();
 
-        // Act
-        var email = request.Email;
-        var theme = request.Theme;
-        var characters = request.Characters;
-
         // Assert
-        Assert.AreEqual("", email);
-        Assert.AreEqual("", theme);
-        Assert.IsNotNull(characters);
-        Assert.AreEqual(0, characters.Count);
+        Assert.AreEqual("", request.Theme);
+        Assert.IsNotNull(request.Characters);
+        Assert.AreEqual(0, request.Characters.Count);
+        Assert.IsNull(request.ReadingLevel);
+        Assert.IsNull(request.ArtStyle);
+        Assert.IsNull(request.PageCount);
+        Assert.IsNull(request.LessonLearned);
+        Assert.IsNull(request.StoryLength);
     }
 
     [TestMethod]
@@ -46,22 +45,27 @@ public class StoryRequestTests
 
         var request = new StoryRequest
         {
-            Email = "luna@example.com",
+            ReadingLevel = "early",
+            ArtStyle = "watercolor",
             Theme = "friendship",
-            Characters = characterList
+            Characters = characterList,
+            PageCount = 12,
+            LessonLearned = "teamwork matters",
+            StoryLength = "medium"
         };
 
-        // Act
-        var email = request.Email;
-        var theme = request.Theme;
-        var characters = request.Characters;
-
         // Assert
-        Assert.AreEqual("luna@example.com", email);
-        Assert.AreEqual("friendship", theme);
-        Assert.AreEqual(1, characters.Count);
-        Assert.AreEqual("Luna", characters[0].Name);
-        Assert.IsTrue(characters[0].IsAnimal);
-        Assert.AreEqual("fox", characters[0].DescriptionFields["species"]);
+        Assert.AreEqual("early", request.ReadingLevel);
+        Assert.AreEqual("watercolor", request.ArtStyle);
+        Assert.AreEqual("friendship", request.Theme);
+        Assert.AreEqual(12, request.PageCount);
+        Assert.AreEqual("teamwork matters", request.LessonLearned);
+        Assert.AreEqual("medium", request.StoryLength);
+
+        Assert.IsNotNull(request.Characters);
+        Assert.AreEqual(1, request.Characters.Count);
+        Assert.AreEqual("Luna", request.Characters[0].Name);
+        Assert.IsTrue(request.Characters[0].IsAnimal);
+        Assert.AreEqual("fox", request.Characters[0].DescriptionFields["species"]);
     }
 }
