@@ -10,44 +10,81 @@ jobs:
     if: ${{ github.ref_name == 'staging' }}
     runs-on: ubuntu-latest
     environment: staging
+    env:
+      FRONTEND_DIR: ClientApp
+      BUILD_OUT: dist
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug repo layout (top 3 levels)
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 3 -type d | sed 's#^\./##'
+
+      - name: Verify frontend folder exists
+        run: |
+          if [ ! -d "${{ env.FRONTEND_DIR }}" ]; then
+            echo "ERROR: '${{ env.FRONTEND_DIR }}' not found. Update FRONTEND_DIR."
+            exit 1
+          fi
+          ls -la "${{ env.FRONTEND_DIR }}"
+
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with:
+          node-version: 20
+
       - name: Install deps
-        working-directory: ClientApp
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: npm ci
+
       - name: Build (staging)
-        working-directory: ClientApp
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: npm run build:staging || npm run build
+
       - name: Deploy to Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: "upload"
-          app_location: "ClientApp"
-          output_location: "dist"
+          action: upload
+          app_location: ${{ env.FRONTEND_DIR }}
+          output_location: ${{ env.BUILD_OUT }}
           skip_app_build: true
 
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
+    env:
+      FRONTEND_DIR: ClientApp
+      BUILD_OUT: dist
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify frontend folder exists
+        run: |
+          if [ ! -d "${{ env.FRONTEND_DIR }}" ]; then
+            echo "ERROR: '${{ env.FRONTEND_DIR }}' not found. Update FRONTEND_DIR."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with:
+          node-version: 20
+
       - name: Install deps
-        working-directory: ClientApp
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: npm ci
+
       - name: Build (prod)
-        working-directory: ClientApp
+        working-directory: ${{ env.FRONTEND_DIR }}
         run: npm run build
+
       - name: Deploy to Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: "upload"
-          app_location: "ClientApp"
-          output_location: "dist"
+          action: upload
+          app_location: ${{ env.FRONTEND_DIR }}
+          output_location: ${{ env.BUILD_OUT }}
           skip_app_build: true
