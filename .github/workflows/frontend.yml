@@ -42,6 +42,13 @@ jobs:
         working-directory: ${{ env.FRONTEND_DIR }}
         run: npm run build:staging || npm run build
 
+      - name: Check build size
+        working-directory: ${{ env.FRONTEND_DIR }}
+        run: |
+          du -sh dist || true
+          echo "Top 50 largest files:"
+          find dist -type f -printf '%s\t%p\n' | sort -nr | head -50 | awk '{ s=$1; u="B"; if(s>1024){s/=1024;u="KB"} if(s>1024){s/=1024;u="MB"} printf "%.1f %s\t%s\n", s,u,$2 }'
+
       - name: Deploy to Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
@@ -51,42 +58,30 @@ jobs:
           output_location: ${{ env.BUILD_OUT }}
           skip_app_build: true
 
-- name: Check build size
-  working-directory: Hackathon-2025/ClientApp
-  run: |
-    du -sh dist || true
-    echo "Top 50 largest files:"
-    find dist -type f -printf '%s\t%p\n' | sort -nr | head -50 | awk '{ s=$1; u="B"; if(s>1024){s/=1024;u="KB"} if(s>1024){s/=1024;u="MB"} printf "%.1f %s\t%s\n", s,u,$2 }'
-
   deploy-prod:
     if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
     env:
-      FRONTEND_DIR: ClientApp
+      FRONTEND_DIR: Hackathon-2025/ClientApp
       BUILD_OUT: dist
     steps:
       - uses: actions/checkout@v4
-
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Verify frontend folder exists
         run: |
           if [ ! -d "${{ env.FRONTEND_DIR }}" ]; then
             echo "ERROR: '${{ env.FRONTEND_DIR }}' not found. Update FRONTEND_DIR."
             exit 1
           fi
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - name: Install deps
         working-directory: ${{ env.FRONTEND_DIR }}
         run: npm ci
-
       - name: Build (prod)
         working-directory: ${{ env.FRONTEND_DIR }}
         run: npm run build
-
       - name: Deploy to Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
         with:
