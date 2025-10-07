@@ -21,7 +21,7 @@ jobs:
             app_service_name: starlitstories-api-prod
             resource_group: StoryBookAppRG
 
-    if: github.ref == format('refs/heads/{0}', matrix.branch)
+    if: ${{ github.ref_name == matrix.branch }}
     environment: ${{ matrix.env_name }}
 
     permissions:

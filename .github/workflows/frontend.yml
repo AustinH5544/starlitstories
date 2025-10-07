@@ -23,7 +23,7 @@ jobs:
             swa_name: swa-starlitstories-prod
             swa_location: westus2
 
-    if: github.ref == format('refs/heads/{0}', matrix.branch)
+    if: ${{ github.ref_name == matrix.branch }}
     environment: ${{ matrix.env_name }}
 
     steps:
@@ -56,5 +56,3 @@ jobs:
           app_location: "ClientApp"
           output_location: "dist"
           skip_app_build: true
-          # optional: swa_name and location are autodetected; include only if needed:
-          # app_build_command: "npm ci && npm run build"  # (not needed because skip_app_build=true)
