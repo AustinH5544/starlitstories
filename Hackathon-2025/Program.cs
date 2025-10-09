@@ -155,51 +155,51 @@ if (billingProvider.Equals("stripe", StringComparison.OrdinalIgnoreCase))
 // -----------------------------
 // CORS (from App:AllowedCorsOrigins; semicolon-separated)
 // -----------------------------
-string[] ParseCors(string? raw) =>
-    string.IsNullOrWhiteSpace(raw)
-        ? Array.Empty<string>()
-        : raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-var appOptions = builder.Configuration.GetSection("App").Get<AppOptions>() ?? new AppOptions();
-var corsOrigins = ParseCors(appOptions.AllowedCorsOrigins);
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AppCors", policy =>
-        policy.WithOrigins(corsOrigins.Length > 0 ? corsOrigins : new[] { "http://localhost:5173" })
-              .AllowAnyHeader()
-              .AllowAnyMethod());
-    // .AllowCredentials()  // add if needed AND using specific origins
-});
-
-// -----------------------------
-// CORS (temporary explicit allowlist)
-// -----------------------------
 //string[] ParseCors(string? raw) =>
 //    string.IsNullOrWhiteSpace(raw)
 //        ? Array.Empty<string>()
 //        : raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-//// Keep reading from config, but if it's empty, fall back to these:
 //var appOptions = builder.Configuration.GetSection("App").Get<AppOptions>() ?? new AppOptions();
-//var corsOriginsFromConfig = ParseCors(appOptions.AllowedCorsOrigins);
-
-//var allowedOrigins = corsOriginsFromConfig.Length > 0
-//    ? corsOriginsFromConfig
-//    : new[] {
-//        "https://staging.starlitstories.app",
-//        "http://localhost:5173"
-//      };
+//var corsOrigins = ParseCors(appOptions.AllowedCorsOrigins);
 
 //builder.Services.AddCors(options =>
 //{
 //    options.AddPolicy("AppCors", policy =>
-//        policy.WithOrigins(allowedOrigins)
+//        policy.WithOrigins(corsOrigins.Length > 0 ? corsOrigins : new[] { "http://localhost:5173" })
 //              .AllowAnyHeader()
-//              .AllowAnyMethod()
-//        // .AllowCredentials() // ONLY if you use cookies for auth
-//        );
+//              .AllowAnyMethod());
+//    // .AllowCredentials()  // add if needed AND using specific origins
 //});
+
+// -----------------------------
+// CORS (temporary explicit allowlist)
+// -----------------------------
+string[] ParseCors(string? raw) =>
+    string.IsNullOrWhiteSpace(raw)
+        ? Array.Empty<string>()
+        : raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+// Keep reading from config, but if it's empty, fall back to these:
+var appOptions = builder.Configuration.GetSection("App").Get<AppOptions>() ?? new AppOptions();
+var corsOriginsFromConfig = ParseCors(appOptions.AllowedCorsOrigins);
+
+var allowedOrigins = corsOriginsFromConfig.Length > 0
+    ? corsOriginsFromConfig
+    : new[] {
+        "https://staging.starlitstories.app",
+        "http://localhost:5173"
+      };
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AppCors", policy =>
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+        // .AllowCredentials() // ONLY if you use cookies for auth
+        );
+});
 
 // -----------------------------
 // Rate limiting (your login policy + a global cap if desired)
