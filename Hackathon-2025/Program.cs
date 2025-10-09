@@ -280,8 +280,10 @@ app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
 // =========================
 // Health endpoints
 // =========================
+app.MapGet("/__ping", () => Results.Text("pong from this build"));
+
 app.MapHealthChecks("/healthz");
-//app.MapGet("/healthz", () => Results.Ok("ok"));
+app.MapGet("/healthz", () => Results.Ok("ok"));
 app.MapGet("/readyz", async (AppDbContext db) =>
 {
     var canConnect = await db.Database.CanConnectAsync();
