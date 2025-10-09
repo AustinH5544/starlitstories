@@ -273,16 +273,16 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Handle all preflight requests under /api/* so CORS headers are emitted
-app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
-   .RequireCors("AppCors");
-
 // =========================
 // Health endpoints
 // =========================
-app.MapGet("/__ping", () => Results.Text("pong from this build"));
+app.MapGet("/__ping", () => Results.Text("pong"));
 
 app.MapHealthChecks("/healthz");
+
+app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
+   .RequireCors("AppCors");
+
 app.MapGet("/healthz", () => Results.Ok("ok"));
 app.MapGet("/readyz", async (AppDbContext db) =>
 {
