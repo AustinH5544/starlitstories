@@ -246,6 +246,9 @@ builder.Services.AddControllers();
 // =========================
 var app = builder.Build();
 
+var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+logger.LogInformation("CORS origins: {origins}", string.Join(", ", allowedOrigins));
+
 // =========================
 // Security headers / HTTPS
 // =========================
@@ -270,11 +273,15 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Handle all preflight requests under /api/* so CORS headers are emitted
+app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
+   .RequireCors("AppCors");
+
 // =========================
 // Health endpoints
 // =========================
 app.MapHealthChecks("/healthz");
-app.MapGet("/healthz", () => Results.Ok("ok"));
+//app.MapGet("/healthz", () => Results.Ok("ok"));
 app.MapGet("/readyz", async (AppDbContext db) =>
 {
     var canConnect = await db.Database.CanConnectAsync();
