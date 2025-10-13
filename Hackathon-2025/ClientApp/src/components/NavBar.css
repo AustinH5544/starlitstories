@@ -411,34 +411,36 @@
 }
 
 /* Mobile drawer: only right half of the screen */
+/* Mobile drawer: fixed panel that stays put and scrolls independently */
 @media (max-width: 768px) {
     .nav-center,
     .nav-right {
         position: fixed;
         top: 0;
-        bottom: 0;
-        /* make it a right-side panel */
         right: 0;
         left: auto;
-        /* width: half the viewport (cap it so it looks nice on big phones) */
+        bottom: auto; /* don't anchor to bottom */
+        height: 100dvh; /* full dynamic viewport height */
         width: min(480px, 50vw);
-        /* panel look */
         background: rgba(12, 20, 69, 0.98);
         backdrop-filter: blur(10px);
         border-left: 1px solid rgba(255,255,255,0.08);
-        /* stack + animation */
+        display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         gap: 2rem;
-        transform: translateX(100%); /* start off-canvas to the right */
+        transform: translateX(100%); /* off-canvas to the right */
         transition: transform 0.3s ease;
         z-index: 1000;
+        /* drawer scrolls if content is taller than the viewport */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
         .nav-center.mobile-open,
         .nav-right.mobile-open {
-            transform: translateX(0); /* slide in */
+            transform: translateX(0);
         }
 
         .nav-center a {
@@ -454,13 +456,13 @@
 .drawer-overlay {
     position: fixed;
     inset: 0;
-    /* blur what's behind + slight dim */
+    height: 100dvh; /* match the drawer’s viewport height */
     backdrop-filter: blur(6px);
     background: rgba(2, 6, 23, 0.35);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s ease;
-    z-index: 900; /* below the drawer (which is z-index:1000) */
+    z-index: 900; /* below the drawer (z-index:1000) */
 }
 
 /* When the drawer is open, show the overlay */

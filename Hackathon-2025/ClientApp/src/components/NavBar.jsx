@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import { createPortal } from "react-dom";
 import "./NavBar.css"
 
 const NavBar = () => {
@@ -31,6 +32,23 @@ const NavBar = () => {
         return () => window.removeEventListener("scroll", handleScroll)
     }, [scrolled])
 
+    // Lock/unlock page scroll + enable overlay when drawer is open
+    useEffect(() => {
+        const root = document.documentElement;
+        const body = document.body;
+        if (mobileMenuOpen) {
+            root.classList.add("drawer-open");
+            body.classList.add("drawer-open");
+        } else {
+            root.classList.remove("drawer-open");
+            body.classList.remove("drawer-open");
+        }
+        return () => {
+            root.classList.remove("drawer-open");
+            body.classList.remove("drawer-open");
+        };
+    }, [mobileMenuOpen]);
+
     // Close mobile menu when changing routes
     useEffect(() => {
         setMobileMenuOpen(false)
@@ -57,9 +75,15 @@ const NavBar = () => {
     };
 
     return (
+        <>
+        {mobileMenuOpen &&
+          createPortal(
+            <div className="drawer-overlay" onClick={() => setMobileMenuOpen(false)} />,
+            document.body
+          )
+        }
         <nav className={`navbar ${scrolled ? "scrolled" : ""}`}>
             <div className="nav-container">
-                <div class="drawer-overlay"></div>
                 <div className="nav-left">
                     <Link to="/" className="logo-link">
                         <span className="logo">Starlit Stories</span>
@@ -148,7 +172,8 @@ const NavBar = () => {
                     </div>
                 </button>
             </div>
-        </nav>
+            </nav>
+        </>
     )
 }
 

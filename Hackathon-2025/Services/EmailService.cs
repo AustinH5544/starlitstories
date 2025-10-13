@@ -1,4 +1,6 @@
-﻿using Hackathon_2025.Services;
+﻿using Azure;
+using Azure.Communication.Email;
+using Hackathon_2025.Services;
 using System.Net;
 using System.Net.Mail;
 
@@ -109,41 +111,96 @@ public class EmailService : IEmailService
     {
         try
         {
+            var fromEmail = _config["Email:FromEmail"];
+            var replyTo = _config["Email:ReplyTo"];             // optional
+            var provider = (_config["Email:Provider"] ?? "").ToLowerInvariant();
+            var acsConnString = _config["Email:ConnectionString"];
+
+            // SAFETY CHECK for missing FromEmail
+            if (string.IsNullOrWhiteSpace(fromEmail))
+            {
+                _logger.LogError("Email:FromEmail not configured; aborting send to {Email}", to);
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(acsConnString) || provider == "acs" || provider == "azureacs")
+            {
+                var client = new EmailClient(acsConnString);
+
+                var content = new EmailContent(subject)
+                {
+                    Html = body,
+                    PlainText = StripHtml(body)
+                };
+
+                var recipients = new EmailRecipients(new[] { new EmailAddress(to) });
+                var message = new EmailMessage(fromEmail, recipients, content);
+
+                if (!string.IsNullOrWhiteSpace(replyTo))
+                    message.ReplyTo.Add(new EmailAddress(replyTo));
+
+                try
+                {
+                    // NESTED try-catch just around ACS send
+                    var operation = await client.SendAsync(WaitUntil.Completed, message);
+                    var result = operation.Value;
+
+                    _logger.LogInformation(
+                        "ACS email sent to {Email}. Status={Status}, OperationId={OperationId}",
+                        to,
+                        result?.Status.ToString(),
+                        operation.Id
+                    );
+                }
+                catch (Azure.RequestFailedException rfe)
+                {
+                    _logger.LogError(rfe, "ACS send failed for {Email}. Code={Code}", to, rfe.ErrorCode);
+                }
+
+                return;
+            }
+
+            // --- SMTP fallback (unchanged) ---
             var smtpHost = _config["Email:SmtpHost"];
             var smtpPort = int.Parse(_config["Email:SmtpPort"] ?? "587");
             var smtpUsername = _config["Email:SmtpUsername"];
             var smtpPassword = _config["Email:SmtpPassword"];
-            var fromEmail = _config["Email:FromEmail"];
             var fromName = _config["Email:FromName"] ?? "Starlit Stories";
 
             if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
-                _logger.LogWarning("Email configuration is missing. Email not sent to {Email}", to);
-                _logger.LogInformation("Email would have been sent to {Email} with subject: {Subject}", to, subject);
+                _logger.LogWarning("Email configuration missing; not sending email to {Email}", to);
                 return;
             }
 
-            using var client = new SmtpClient(smtpHost, smtpPort);
-            client.EnableSsl = true;
-            client.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-
-            var message = new MailMessage
+            using var clientSmtp = new System.Net.Mail.SmtpClient(smtpHost, smtpPort)
             {
-                From = new MailAddress(fromEmail!, fromName),
+                EnableSsl = true,
+                Credentials = new System.Net.NetworkCredential(smtpUsername, smtpPassword),
+            };
+
+            var msg = new System.Net.Mail.MailMessage
+            {
+                From = new System.Net.Mail.MailAddress(fromEmail!, fromName),
                 Subject = subject,
                 Body = body,
                 IsBodyHtml = true
             };
+            if (!string.IsNullOrWhiteSpace(replyTo))
+                msg.ReplyToList.Add(new System.Net.Mail.MailAddress(replyTo));
 
-            message.To.Add(to);
+            msg.To.Add(to);
 
-            await client.SendMailAsync(message);
-            _logger.LogInformation("Verification email sent successfully to {Email}", to);
+            await clientSmtp.SendMailAsync(msg);
+            _logger.LogInformation("SMTP email sent to {Email}", to);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {Email}", to);
-            // Don't throw - we don't want email failures to break the signup process
         }
     }
+
+    // very small helper; can replace with something fancier
+    private static string StripHtml(string html)
+        => System.Text.RegularExpressions.Regex.Replace(html ?? "", "<.*?>", " ");
 }
