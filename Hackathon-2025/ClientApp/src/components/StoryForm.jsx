@@ -10,83 +10,96 @@ const StoryForm = ({ onSubmit }) => {
     const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
     const [artStyle, setArtStyle] = useState("watercolor")
     const [theme, setTheme] = useState("")
-    const [lesson, setLesson] = useState("");
-    const membership = (user?.membership || "free").toLowerCase();
-    const [lengthHintEnabled, setLengthHintEnabled] = useState(false);
-    const API_BASE = import.meta.env.VITE_API_BASE ?? "";
-    const [storyLength, setStoryLength] = useState("short");
+    const [lesson, setLesson] = useState("")
+    const [selectedCategory, setSelectedCategory] = useState("")
+
+    const membership = (user?.membership || "free").toLowerCase()
+    const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
+    const API_BASE = import.meta.env.VITE_API_BASE ?? ""
+    const [storyLength, setStoryLength] = useState("short")
 
     const lengthOptionsByMembership = {
         free: [{ value: "short", label: "Short (about 4 pages)" }],
-        pro: [{ value: "short", label: "Short (about 4 pages)" },
-        { value: "medium", label: "Medium (about 8 pages)" }],
-        premium: [{ value: "short", label: "Short (about 4 pages)" },
-        { value: "medium", label: "Medium (about 8 pages)" },
-        { value: "long", label: "Long (about 12 pages)" }],
-    };
+        pro: [
+            { value: "short", label: "Short (about 4 pages)" },
+            { value: "medium", label: "Medium (about 8 pages)" },
+        ],
+        premium: [
+            { value: "short", label: "Short (about 4 pages)" },
+            { value: "medium", label: "Medium (about 8 pages)" },
+            { value: "long", label: "Long (about 12 pages)" },
+        ],
+    }
 
     useEffect(() => {
-        const url = `${API_BASE}/api/config`;
+        const url = `${API_BASE}/api/config`
         fetch(url, { credentials: "omit" })
             .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.json();
+                if (!res.ok) throw new Error(`HTTP ${res.status}`)
+                return res.json()
             })
             .then(data => setLengthHintEnabled(!!data.lengthHintEnabled))
             .catch(err => {
-                console.error("Failed to load /api/config:", err);
-                setLengthHintEnabled(false);
-            });
-    }, []);
+                console.error("Failed to load /api/config:", err)
+                setLengthHintEnabled(false)
+            })
+    }, [])
 
-    const availableLengths = lengthOptionsByMembership[membership] || lengthOptionsByMembership.free;
-    const isLengthAllowed = (v) => availableLengths.some(o => o.value === v);
-    const defaultLessons = [
-        // Kindness & Social
-        "Always be kind to others",
-        "Sharing makes everyone happier",
-        "Honesty is the best policy",
-        "Friends help each other in good times and bad",
-        "Listening is as important as speaking",
-        "Being different makes you special",
-        "Teamwork makes us stronger",
-        "Helping others makes you feel good too",
-        "Generosity brings joy",
-        "Kind words can brighten someone’s day",
+    const availableLengths = lengthOptionsByMembership[membership] || lengthOptionsByMembership.free
+    const isLengthAllowed = (v) => availableLengths.some(o => o.value === v)
 
-        // Courage & Perseverance
-        "Bravery means doing the right thing even when it’s hard",
-        "It’s okay to make mistakes and learn from them",
-        "Perseverance helps you reach your goals",
-        "Courage comes in small steps",
-        "Believe in yourself",
-        "Always try your best",
-        "Patience brings good things",
+    // --- Lessons split into categories (two-step UI) ---
+    const lessonsByCategory = {
+        "🌸 Kindness & Social": [
+            "Always be kind to others",
+            "Sharing makes everyone happier",
+            "Honesty is the best policy",
+            "Friends help each other in good times and bad",
+            "Listening is as important as speaking",
+            "Being different makes you special",
+            "Teamwork makes us stronger",
+            "Helping others makes you feel good too",
+            "Generosity brings joy",
+            "Kind words can brighten someone’s day",
+        ],
+        "⚡ Courage & Perseverance": [
+            "Bravery means doing the right thing even when it’s hard",
+            "It’s okay to make mistakes and learn from them",
+            "Perseverance helps you reach your goals",
+            "Courage comes in small steps",
+            "Believe in yourself",
+            "Always try your best",
+            "Patience brings good things",
+        ],
+        "🌍 Respect & Gratitude": [
+            "Respect the world around you",
+            "Be grateful for what you have",
+            "Take care of animals and nature",
+        ],
+        "🛁 Daily Habits & Routines": [
+            "Brush your teeth every morning and night",
+            "Wash your hands before eating and after playing",
+            "Always flush and wash after using the bathroom",
+            "Keeping your room tidy helps you find things",
+            "Washing your face keeps you fresh and healthy",
+            "Getting good sleep makes you strong and happy",
+            "Eating vegetables helps you grow healthy and strong",
+            "Drinking water keeps your body happy",
+            "Exercise and play keep you strong",
+            "Putting toys away keeps your space safe",
+        ],
+        "🚦 Safety": [
+            "Look both ways before crossing the street",
+            "Stay close to a trusted adult in public",
+            "Always wear your seatbelt",
+            "Wear a helmet when riding a bike or scooter",
+            "Ask before talking to strangers",
+        ],
+    }
 
-        // Respect & Gratitude
-        "Respect the world around you",
-        "Be grateful for what you have",
-        "Take care of animals and nature",
+    const allPresetLessons = Object.values(lessonsByCategory).flat()
+    const isPresetLesson = (val) => allPresetLessons.includes(val)
 
-        // Daily Habits & Routines
-        "Brush your teeth every morning and night",
-        "Wash your hands before eating and after playing",
-        "Always flush and wash after using the bathroom",
-        "Keeping your room tidy helps you find things",
-        "Washing your face keeps you fresh and healthy",
-        "Getting good sleep makes you strong and happy",
-        "Eating vegetables helps you grow healthy and strong",
-        "Drinking water keeps your body happy",
-        "Exercise and play keep you strong",
-        "Putting toys away keeps your space safe",
-
-        // Safety
-        "Look both ways before crossing the street",
-        "Stay close to a trusted adult in public",
-        "Always wear your seatbelt",
-        "Wear a helmet when riding a bike or scooter",
-        "Ask before talking to strangers",
-    ];
     const [characters, setCharacters] = useState([
         {
             role: "main",
@@ -99,13 +112,14 @@ const StoryForm = ({ onSubmit }) => {
 
     const defaultOptions = {
         age: Array.from({ length: 17 }, (_, i) => (i + 2).toString()),
-        gender: ["boy", "girl"],
+        gender: ["boy", "girl"], // keep just boy/girl
 
+        // Alphabetically sorted style options
         skinTone: ["brown", "dark", "freckled", "light", "olive", "pale", "tan"].sort(),
         hairColor: [
             "auburn", "black", "blonde", "blue", "brown", "dark brown",
             "dirty blonde", "gray", "green", "light brown", "pink",
-            "purple", "red", "white"
+            "purple", "red", "white",
         ].sort(),
         eyeColor: ["amber", "blue", "brown", "gray", "green", "hazel", "violet"].sort(),
         shirtColor: ["black", "blue", "green", "orange", "pink", "purple", "red", "white", "yellow"].sort(),
@@ -122,19 +136,19 @@ const StoryForm = ({ onSubmit }) => {
         bodyCovering: ["feathers", "fur", "scales", "shell", "skin"].sort(),
         bodyColor: [
             "black", "blue", "brown", "glowing", "golden", "gray",
-            "green", "orange", "pink", "red", "spotted", "striped", "white"
+            "green", "orange", "pink", "red", "spotted", "striped", "white",
         ].sort(),
 
         humanAccessories: [
             "backpack", "boots", "bowtie", "bracelet", "cape", "crown",
-            "glasses", "hat", "necklace", "scarf", "sneakers", "wand", "watch"
+            "glasses", "hat", "necklace", "scarf", "sneakers", "wand", "watch",
         ].sort(),
 
         animalAccessories: [
             "armor", "bandana", "bell", "bow", "collar", "feather accessory",
-            "ribbon", "tiny hat", "wing clips"
+            "ribbon", "tiny hat", "wing clips",
         ].sort(),
-    };
+    }
 
     const defaultThemes = [
         "Magical Forest",
@@ -360,6 +374,7 @@ const StoryForm = ({ onSubmit }) => {
                 </div>
             )}
 
+            {/* Lesson Learned (two-step) */}
             <div className="form-section">
                 <h3 className="section-title">
                     <span className="section-icon">🌟</span>
@@ -367,73 +382,48 @@ const StoryForm = ({ onSubmit }) => {
                 </h3>
                 <div className="field-group">
                     <label className="field-label">What lesson should the story teach?</label>
+
+                    {/* Category selector */}
                     <div className="dual-input-container">
                         <select
-                            value={defaultLessons.includes(lesson) ? lesson : ""}
-                            onChange={(e) => setLesson(e.target.value)}
                             className="form-select"
-                            disabled={lesson.trim() !== "" && !defaultLessons.includes(lesson)}
+                            value={selectedCategory}
+                            onChange={(e) => {
+                                setSelectedCategory(e.target.value)
+                                setLesson("") // reset lesson when switching category
+                            }}
                         >
-                            <option value="">Select a Lesson</option>
-
-                            <optgroup label="🌸 Kindness & Social">
-                                <option value="Always be kind to others">Always be kind to others</option>
-                                <option value="Sharing makes everyone happier">Sharing makes everyone happier</option>
-                                <option value="Honesty is the best policy">Honesty is the best policy</option>
-                                <option value="Friends help each other in good times and bad">Friends help each other in good times and bad</option>
-                                <option value="Listening is as important as speaking">Listening is as important as speaking</option>
-                                <option value="Being different makes you special">Being different makes you special</option>
-                                <option value="Teamwork makes us stronger">Teamwork makes us stronger</option>
-                                <option value="Helping others makes you feel good too">Helping others makes you feel good too</option>
-                                <option value="Generosity brings joy">Generosity brings joy</option>
-                                <option value="Kind words can brighten someone’s day">Kind words can brighten someone’s day</option>
-                            </optgroup>
-
-                            <optgroup label="⚡ Courage & Perseverance">
-                                <option value="Bravery means doing the right thing even when it’s hard">Bravery means doing the right thing even when it’s hard</option>
-                                <option value="It’s okay to make mistakes and learn from them">It’s okay to make mistakes and learn from them</option>
-                                <option value="Perseverance helps you reach your goals">Perseverance helps you reach your goals</option>
-                                <option value="Courage comes in small steps">Courage comes in small steps</option>
-                                <option value="Believe in yourself">Believe in yourself</option>
-                                <option value="Always try your best">Always try your best</option>
-                                <option value="Patience brings good things">Patience brings good things</option>
-                            </optgroup>
-
-                            <optgroup label="🌍 Respect & Gratitude">
-                                <option value="Respect the world around you">Respect the world around you</option>
-                                <option value="Be grateful for what you have">Be grateful for what you have</option>
-                                <option value="Take care of animals and nature">Take care of animals and nature</option>
-                            </optgroup>
-
-                            <optgroup label="🛁 Daily Habits & Routines">
-                                <option value="Brush your teeth every morning and night">Brush your teeth every morning and night</option>
-                                <option value="Wash your hands before eating and after playing">Wash your hands before eating and after playing</option>
-                                <option value="Always flush and wash after using the bathroom">Always flush and wash after using the bathroom</option>
-                                <option value="Keeping your room tidy helps you find things">Keeping your room tidy helps you find things</option>
-                                <option value="Washing your face keeps you fresh and healthy">Washing your face keeps you fresh and healthy</option>
-                                <option value="Getting good sleep makes you strong and happy">Getting good sleep makes you strong and happy</option>
-                                <option value="Eating vegetables helps you grow healthy and strong">Eating vegetables helps you grow healthy and strong</option>
-                                <option value="Drinking water keeps your body happy">Drinking water keeps your body happy</option>
-                                <option value="Exercise and play keep you strong">Exercise and play keep you strong</option>
-                                <option value="Putting toys away keeps your space safe">Putting toys away keeps your space safe</option>
-                            </optgroup>
-
-                            <optgroup label="🚦 Safety">
-                                <option value="Look both ways before crossing the street">Look both ways before crossing the street</option>
-                                <option value="Stay close to a trusted adult in public">Stay close to a trusted adult in public</option>
-                                <option value="Always wear your seatbelt">Always wear your seatbelt</option>
-                                <option value="Wear a helmet when riding a bike or scooter">Wear a helmet when riding a bike or scooter</option>
-                                <option value="Ask before talking to strangers">Ask before talking to strangers</option>
-                            </optgroup>
+                            <option value="">Select Category</option>
+                            {Object.keys(lessonsByCategory).map((cat) => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
                         </select>
 
+                        {/* If user types a custom lesson, lock the dropdown to avoid conflicts */}
                         <input
                             placeholder="Or enter your own lesson"
-                            value={!defaultLessons.includes(lesson) ? lesson : ""}
+                            value={!isPresetLesson(lesson) ? lesson : ""}
                             onChange={(e) => setLesson(e.target.value)}
                             className="form-input"
                         />
                     </div>
+
+                    {/* Lesson selector appears once a category is chosen */}
+                    {selectedCategory && (
+                        <div className="dual-input-container" style={{ marginTop: "0.5rem" }}>
+                            <select
+                                className="form-select"
+                                value={isPresetLesson(lesson) ? lesson : ""}
+                                onChange={(e) => setLesson(e.target.value)}
+                                disabled={!!(!isPresetLesson(lesson) && lesson.trim() !== "")}
+                            >
+                                <option value="">Select Lesson</option>
+                                {lessonsByCategory[selectedCategory].map((l) => (
+                                    <option key={l} value={l}>{l}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
