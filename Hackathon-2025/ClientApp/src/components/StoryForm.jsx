@@ -538,10 +538,26 @@ const StoryForm = ({ onSubmit }) => {
                                 {renderDropdownWithCustom(i, "age", "Age", defaultOptions.age)}
                                 {renderDropdownWithCustom(i, "gender", "Gender", defaultOptions.gender)}
                                 {(() => {
-                                    const gender = char.descriptionFields.gender || ""
-                                    const options = defaultOptions.hairstylesByGender[gender] || defaultOptions.hairstylesByGender.default
-                                    return renderDropdownWithCustom(i, "hairStyle", "Hair Style", options)
+                                  const genderDropdown = (char.descriptionFields.gender || "").trim();
+                                  const genderCustom = (char.descriptionFields.genderCustom || "").trim();
+                                  const isStandard = genderDropdown === "boy" || genderDropdown === "girl";
+
+                                  let hairOptions = [];
+                                  if (isStandard) {
+                                    hairOptions = defaultOptions.hairstylesByGender[genderDropdown];
+                                  } else if (genderCustom) {
+                                    // Custom gender provided → use the neutral/default hairstyles
+                                    hairOptions = defaultOptions.hairstylesByGender.default;
+                                  } else {
+                                    // No gender selected or typed yet → don't show hairstyle picker
+                                    hairOptions = [];
+                                  }
+
+                                  return hairOptions.length > 0
+                                    ? renderDropdownWithCustom(i, "hairStyle", "Hair Style", hairOptions)
+                                    : null;
                                 })()}
+
                                 {renderDropdownWithCustom(i, "skinTone", "Skin Tone", defaultOptions.skinTone)}
                                 {renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)}
                                 {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
