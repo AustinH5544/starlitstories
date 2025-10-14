@@ -7,8 +7,10 @@ import { useNavigate } from "react-router-dom"
 import "./SignupPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
+import useWarmup from "../hooks/useWarmup";
 
 const SignupPage = () => {
+    useWarmup();
     const [username, setUsername] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")

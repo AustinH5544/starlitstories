@@ -293,6 +293,44 @@ app.MapGet("/readyz", async (AppDbContext db) =>
 });
 
 // =========================
+// Warm-up Endpoints
+// =========================
+
+// Quick health check (pings app container)
+app.MapGet("/api/healthz", () => Results.Ok(new { ok = true }))
+   .AllowAnonymous();
+
+// DB + EF Core warm-up (pings SQL + builds model)
+app.MapPost("/api/warmup", async (AppDbContext db, ILoggerFactory loggerFactory) =>
+{
+    var logger = loggerFactory.CreateLogger("Warmup");
+
+    try
+    {
+        // Touch database connection (super-cheap)
+        await db.Database.ExecuteSqlRawAsync("SELECT 1");
+        logger.LogInformation("SQL warm-up successful");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "SQL warm-up failed");
+    }
+
+    try
+    {
+        // Force EF model load (cached for lifetime)
+        await db.Users.AsNoTracking().FirstOrDefaultAsync();
+        logger.LogInformation("EF warm-up successful");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "EF warm-up failed");
+    }
+
+    return Results.NoContent();
+}).AllowAnonymous();
+
+// =========================
 // MVC + SPA fallback
 // =========================
 app.MapControllers();

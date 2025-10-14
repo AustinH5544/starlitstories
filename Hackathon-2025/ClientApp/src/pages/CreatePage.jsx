@@ -5,8 +5,10 @@ import api from "../api"
 import "./CreatePage.css"
 import { useNavigate } from "react-router-dom"
 import useUserProfile from "../hooks/useUserProfile"
+import useWarmup from "../hooks/useWarmup";
 
 const CreatePage = () => {
+    useWarmup();
     const { user } = useAuth()
     const [story, setStory] = useState(null)
     const [isLoading, setIsLoading] = useState(false)

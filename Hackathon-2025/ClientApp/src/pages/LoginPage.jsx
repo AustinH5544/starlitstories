@@ -5,10 +5,12 @@ import { Link, useNavigate } from "react-router-dom"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import "./LoginPage.css"
+import useWarmup from "../hooks/useWarmup";
 
 const SESSION_KEY = "needsVerification"
 
 const LoginPage = () => {
+    useWarmup();
     const [identifier, setIdentifier] = useState("")      // email OR username
     const [email, setEmail] = useState("")                // used for resend verification
     const [password, setPassword] = useState("")
