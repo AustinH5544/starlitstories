@@ -152,7 +152,7 @@ const StoryForm = ({ onSubmit }) => {
         "Time Travel",
         "Circus Mystery",
         "Dreamland",
-    ]
+    ].sort()
 
     const handleCharacterChange = (index, key, value) => {
         const updated = [...characters]
