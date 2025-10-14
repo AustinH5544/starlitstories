@@ -18,79 +18,91 @@ const SignupPage = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const { login } = useAuth()
     const navigate = useNavigate()
+    const [isLoading, setIsLoading] = useState(false);
+    const [status, setStatus] = useState("");
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
+        e.preventDefault();
 
-        // Client-side validation (mirrors server rules)
-        const uname = username.trim()
-        const usernameRe = /^[a-z0-9._-]{3,24}$/ // a–z, 0–9, dot, underscore, hyphen
-        if (!usernameRe.test(uname)) {
-            alert("Username must be 3–24 chars: a–z, 0–9, dot, underscore or hyphen.")
-            return
-        }
+        // prevent multiple clicks
+        if (isLoading) return;
 
-        if (password !== confirm) {
-            alert("Passwords don't match")
-            return
-        }
+        setIsLoading(true);
+        setStatus("");
 
-        if (password.length < 6) {
-            alert("Password must be at least 6 characters.")
-            return
-        }
+        try {
+            const uname = username.trim();
+            const usernameRe = /^[a-z0-9._-]{3,24}$/;
 
-        const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/
-        if (!basic.test(password)) {
-            alert("Password should include both letters and numbers.")
-            return
-        }
+            if (!usernameRe.test(uname)) {
+                alert("Username must be 3–24 chars: a–z, 0–9, dot, underscore or hyphen.");
+                return;
+            }
 
-        if (!membership) {
-            alert("Please select a membership plan.")
-            return
-        }
+            if (password !== confirm) {
+                alert("Passwords don't match");
+                return;
+            }
 
-        if (membership === "free") {
-            // Free flow — create the account immediately
-            try {
+            if (password.length < 6) {
+                alert("Password must be at least 6 characters.");
+                return;
+            }
+
+            const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/;
+            if (!basic.test(password)) {
+                alert("Password should include both letters and numbers.");
+                return;
+            }
+
+            if (!membership) {
+                alert("Please select a membership plan.");
+                return;
+            }
+
+            if (membership === "free") {
                 const { data } = await api.post("/auth/signup", {
                     email,
                     username: uname,
                     password,
                     membership,
-                })
+                });
 
-                // If your backend requires email verification before issuing a token
                 if (data?.requiresVerification) {
-                    alert("Account created! Please verify your email to continue.")
-                    navigate("/login")
-                    return
+                    alert("Account created! Please verify your email to continue.");
+                    navigate("/login");
+                    return;
                 }
 
-                // If backend returns a token directly, keep this for convenience
-                login(data)
-                navigate("/profile")
-            } catch (err) {
-                console.error(err)
-                const msg = err?.response?.data?.message || err?.response?.data || "Signup failed"
-                alert(msg)
-            }
-        } else {
-            // Paid flow — start Stripe Checkout; include username so backend can use it after success
-            try {
+                login(data);
+                navigate("/profile");
+            } else {
                 const { data } = await api.post("/payments/create-checkout-session", {
                     email,
                     username: uname,
                     membership,
-                })
-                window.location.href = data.checkoutUrl
-            } catch (err) {
-                console.error(err)
-                alert("Error starting payment session")
+                });
+                window.location.href = data.checkoutUrl;
             }
+        } catch (err) {
+            console.error(err);
+            if (!err.response) {
+                // handle cold start case
+                if (err.code === "ECONNABORTED") {
+                    setStatus("Our servers are waking up. Please try again in a few seconds.");
+                } else {
+                    setStatus("Server is starting up or unavailable. Please try again shortly.");
+                }
+            } else if ([502, 503, 504].includes(err.response.status)) {
+                setStatus("Server is waking up. Please wait a moment and retry.");
+            } else {
+                const msg = err.response?.data?.message || err.response?.data || "Signup failed";
+                setStatus(msg);
+            }
+        } finally {
+            setIsLoading(false);
         }
-    }
+    };
 
     return (
         <div className="signup-page">
@@ -278,9 +290,10 @@ const SignupPage = () => {
                         </div>
                     </div>
 
-                    <button type="submit" className="signup-button">
-                        <span className="button-icon">🚀</span>
-                        <span>Start My Journey</span>
+                    {status && <div className="signup-status">{status}</div>}
+                    <button type="submit" className="signup-button" disabled={isLoading}>
+                        <span className="button-icon">{isLoading ? "⏳" : "🚀"}</span>
+                        <span>{isLoading ? "Warming Up..." : "Start My Journey"}</span>
                     </button>
                 </form>
 

@@ -467,3 +467,22 @@
 .icon-eye {
     filter: invert(1) brightness(1.4);
 }
+
+.signup-status {
+    margin-top: 1rem;
+    text-align: center;
+    color: #ffd700;
+    font-weight: 500;
+    font-size: 0.95rem;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
