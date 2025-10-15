@@ -665,6 +665,7 @@
 }
 
 /* --- Responsive --- */
+
 @media (max-width: 1024px) {
     .page-container {
         grid-template-columns: 1fr;
@@ -702,8 +703,8 @@
     }
 
     .nav-button {
-        min-width: 104px;
-        padding: .6rem 1rem;
+        min-width: 40px;
+        padding: .55rem .75rem;
     }
 
     .nav-text {

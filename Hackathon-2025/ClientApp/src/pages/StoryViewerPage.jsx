@@ -318,11 +318,11 @@ export default function StoryViewerPage({ mode = "private" }) {
             )}
 
             {/* Reading Instructions */}
-            {!isReading && !isCover && (
-                <div className="reading-hint">
-                    <p>💡 Tap anywhere to show/hide controls</p>
-                </div>
-            )}
+            {/*{!isReading && !isCover && (*/}
+            {/*    <div className="reading-hint">*/}
+            {/*        <p>💡 Tap anywhere to show/hide controls</p>*/}
+            {/*    </div>*/}
+            {/*)}*/}
         </div>
     );
 }
