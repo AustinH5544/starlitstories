@@ -707,6 +707,11 @@
         padding: .55rem .75rem;
     }
 
+    .story-navigation {
+        padding: 0rem;
+        justify-content: space-evenly;
+    }
+
     .nav-text {
         display: none;
     }
