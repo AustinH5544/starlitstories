@@ -8,7 +8,7 @@ import "./LandingPage.css"
 const LandingPage = () => {
     const disableFancy =
         window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
-        window.matchMedia?.('(max-width: 768px)').matches;
+        window.matchMedia?.('(max-width: 1024px)').matches;
     const navigate = useNavigate()
     const { user } = useAuth()
     const [showWarning, setShowWarning] = useState(false)
@@ -104,12 +104,13 @@ const LandingPage = () => {
                     </div>
                 </div>
 
-                <div className="scroll-indicator">
-                    <div className="mouse">
-                        <div className="wheel"></div>
+                {/* Scroll Indicator */}
+                {!disableFancy && (
+                    <div className="scroll-indicator">
+                        <div className="mouse"><div className="wheel"></div></div>
+                        <div className="arrow-down"></div>
                     </div>
-                    <div className="arrow-down"></div>
-                </div>
+                )}
             </section>
             <div className="gradient-block">
                 {/* How It Works Section */}
