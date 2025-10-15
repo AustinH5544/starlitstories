@@ -1,35 +1,51 @@
-﻿/* --- Story Viewer (lean) --- */
+﻿/* =========================
+   Story Viewer (static layout)
+   - Page itself doesn't scroll
+   - Only the text pane scrolls when needed
+   - Progress pill hidden on mobile
+   ========================= */
+
+/* --- Global knobs --- */
+:root {
+    /* Height of your site navs (adjust if your nav changes) */
+    --site-nav-h: 64px;
+    --site-nav-h-mobile: 72px;
+    /* Viewer chrome */
+    --viewer-header-h: 68px; /* desktop progress pill “height budget” */
+    --viewer-header-h-mobile: 0px; /* hidden on phones, so no space reserved */
+    --viewer-nav-h: 84px; /* bottom control bar height */
+}
+
+/* --- Container --- */
 .story-viewer {
     position: relative;
-    min-height: 100vh;
+    height: 100dvh; /* avoids iOS 100vh bugs */
+    min-height: 100dvh;
     width: 100%;
+    overflow: hidden; /* lock page scroll */
     display: flex;
     flex-direction: column;
     color: #fff;
-    overflow: hidden;
     user-select: none;
     cursor: pointer;
+    overscroll-behavior: contain;
 }
 
-@keyframes move-twinkle {
+/* --- Background layers --- */
+@keyframes move-clouds {
     from {
-        background-position: 0 0
+        background-position: 0 0;
     }
 
     to {
-        background-position: -10000px 5000px
+        background-position: 10000px 0;
     }
 }
 
-/* Animated background elements */
 .story-viewer .stars,
-/*.small-clouds,*/
 .story-viewer .clouds {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
     display: block;
@@ -50,48 +66,33 @@
     height: 50%;
 }
 
-@keyframes move-small-clouds {
-    from {
-        background-position: 0 0;
-    }
-
-    to {
-        background-position: 10000px 0;
-    }
-}
-
-@keyframes move-clouds {
-    from {
-        background-position: 0 0;
-    }
-
-    to {
-        background-position: 10000px 0;
-    }
-}
-
-/* Header: progress only, centered, transparent, sits below site nav */
+/* --- Progress header (centered pill) --- */
 .story-header {
     position: fixed;
     left: 0;
     right: 0;
-    z-index: 100;
+    z-index: 90; /* below very-high nav if needed */
     display: flex;
     justify-content: center;
     pointer-events: none; /* let clicks pass through */
     transition: transform .25s ease, opacity .25s ease;
+    top: calc(var(--site-nav-h) + env(safe-area-inset-top, 0px) + 12px);
 }
 
     .story-header.only-progress .story-progress {
-        pointer-events: auto; /* allow hovering text if needed */
+        pointer-events: auto;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: .4rem;
-        min-width: 200px;
-        padding: .4rem .8rem;
-        border-radius: 12px;
-        background: rgba(0,0,0,.15); /* subtle pad; feel free to remove */
+        min-width: 220px;
+        padding: .5rem .9rem;
+        border-radius: 999px;
+        background: rgba(12,20,69,.58);
+        backdrop-filter: saturate(120%) blur(10px);
+        -webkit-backdrop-filter: saturate(120%) blur(10px);
+        border: 1px solid rgba(255,255,255,.18);
+        box-shadow: 0 6px 24px rgba(0,0,0,.25);
     }
 
     .story-header.hidden {
@@ -103,47 +104,6 @@
         transform: translateY(0);
         opacity: 1;
     }
-
-/* === Progress header: safe-area aware, distinct pill, below nav === */
-:root {
-    --site-nav-h: 64px;
-    --site-nav-h-mobile: 72px;
-}
-
-.story-header {
-    position: fixed;
-    left: 0;
-    right: 0;
-    z-index: 90;
-    display: flex;
-    justify-content: center;
-    pointer-events: none;
-    transition: transform .25s ease, opacity .25s ease;
-    top: calc(var(--site-nav-h) + env(safe-area-inset-top, 0px) + 12px);
-}
-
-@media (max-width: 768px) {
-    .story-header {
-        display: none !important;
-        top: calc(var(--site-nav-h-mobile) + env(safe-area-inset-top, 0px) + 14px);
-    }
-}
-
-.story-header.only-progress .story-progress {
-    pointer-events: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: .4rem;
-    min-width: 220px;
-    padding: .5rem .9rem;
-    border-radius: 999px;
-    background: rgba(12,20,69,.58);
-    backdrop-filter: saturate(120%) blur(10px);
-    -webkit-backdrop-filter: saturate(120%) blur(10px);
-    border: 1px solid rgba(255,255,255,.18);
-    box-shadow: 0 6px 24px rgba(0,0,0,.25);
-}
 
 .progress-text {
     color: rgba(255,255,255,.92);
@@ -166,17 +126,32 @@
     transition: width .25s ease;
 }
 
-/* Main content wrapper */
+/* Hide the progress pill entirely on phones */
+@media (max-width: 768px) {
+    .story-header {
+        display: none !important;
+    }
+}
+
+/* --- Main content area: fills between header & bottom nav --- */
 .story-content {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem 1rem;
-    min-height: 100vh;
+    padding: 1rem; /* lighter; the container fills height now */
+    min-height: 0; /* allow children to size */
+    height: calc( 100dvh - var(--viewer-nav-h) - var(--viewer-header-h) );
 }
 
-/* Cover */
+/* On mobile we hide the header; reclaim its space */
+@media (max-width: 768px) {
+    .story-content {
+        height: calc( 100dvh - var(--viewer-nav-h) - var(--viewer-header-h-mobile) );
+    }
+}
+
+/* --- Cover page --- */
 .cover-page {
     width: 100%;
     max-width: 800px;
@@ -188,7 +163,7 @@
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
     border-radius: 20px;
-    padding: 2.5rem;
+    padding: 2.0rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
 }
@@ -196,7 +171,7 @@
 .story-title {
     font-size: 2.2rem;
     font-weight: 800;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
     background: linear-gradient(45deg,#f5b8ff,#a18cd1);
     -webkit-background-clip: text;
     background-clip: text;
@@ -207,7 +182,7 @@
     position: relative;
     border-radius: 15px;
     overflow: hidden;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
     box-shadow: 0 10px 30px rgba(0,0,0,.3);
 }
 
@@ -259,50 +234,57 @@
 
 .story-info {
     color: rgba(255,255,255,.85);
-    margin-bottom: .8rem;
+    margin-bottom: .6rem;
 }
 
 .story-stats {
     display: flex;
     justify-content: center;
-    gap: 1.25rem;
+    gap: 1rem;
     flex-wrap: wrap;
     color: rgba(255,255,255,.75);
 }
 
-/* Reading page */
+/* --- Reading page layout --- */
 .story-page {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
+    height: 100%;
+    min-height: 0;
 }
 
 .page-container {
     display: grid;
-    grid-template-columns: 1.2fr .8fr;
+    grid-template-columns: 1.2fr minmax(0, .8fr);
     gap: 2rem;
-    align-items: center;
+    align-items: stretch; /* stretch children vertically */
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
     border-radius: 20px;
     padding: 2rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
-    min-height: 560px;
+    height: 100%; /* fill story-content height */
+    min-height: 0; /* allow inner overflow */
 }
 
+/* Left side: image */
 .page-image-container {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 0;
+    height: 100%;
 }
 
 .page-image {
     width: 100%;
     max-width: 600px;
     height: auto;
-    min-height: 420px;
+    max-height: 100%; /* don't overflow container */
+    min-height: 0; /* avoid forcing small screens */
     object-fit: cover;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0,0,0,.3);
@@ -331,12 +313,20 @@
     opacity: 1;
 }
 
+/* Right side: TEXT pane (scrollable) */
 .page-text-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1.2rem;
     padding: 1rem;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: auto; /* <-- the scroller */
+    -webkit-overflow-scrolling: touch; /* smooth iOS */
+    scrollbar-gutter: stable both-edges; /* avoid layout shift when scrollbar appears */
+    touch-action: pan-y;
 }
 
 .page-text {
@@ -346,6 +336,8 @@
     font-family: Georgia, serif;
     text-shadow: 0 1px 3px rgba(0,0,0,.3);
     margin: 0;
+    width: 100%;
+    word-break: break-word;
 }
 
 .finish-story-section {
@@ -373,7 +365,7 @@
         box-shadow: 0 7px 20px rgba(76,175,80,.5);
     }
 
-/* Navigation (bottom) */
+/* --- Bottom navigation bar (fixed) --- */
 .story-navigation {
     position: fixed;
     left: 0;
@@ -383,7 +375,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
+    height: var(--viewer-nav-h);
+    padding: .75rem 1rem;
     background: linear-gradient(to top, rgba(12,20,69,.9), transparent);
     backdrop-filter: blur(10px);
     transition: transform .25s ease, opacity .25s ease;
@@ -403,7 +396,7 @@
     display: inline-flex;
     align-items: center;
     gap: .5rem;
-    padding: .7rem 1.2rem;
+    padding: .7rem .95rem;
     min-width: 120px;
     border-radius: 24px;
     border: 1px solid rgba(255,255,255,.2);
@@ -462,7 +455,7 @@
         box-shadow: 0 4px 15px rgba(161,140,209,.35);
     }
 
-/* Image modal */
+/* --- Image Modal --- */
 .story-viewer .image-modal {
     position: fixed;
     inset: 0;
@@ -519,7 +512,7 @@
     color: rgba(255,255,255,.75);
 }
 
-/* Completion overlay */
+/* --- Completion overlay --- */
 .completion-overlay {
     position: fixed;
     inset: 0;
@@ -607,9 +600,9 @@
         transform: translateY(-2px);
     }
 
-/* Error state (kept simple) */
+/* --- Error state --- */
 .error-container {
-    min-height: 100vh;
+    height: 100dvh;
     display: grid;
     place-items: center;
     padding: 2rem;
@@ -649,7 +642,7 @@
     border: 1px solid rgba(255,255,255,.2);
 }
 
-/* Reading hint */
+/* --- Reading hint --- */
 .reading-hint {
     position: fixed;
     left: 50%;
@@ -664,18 +657,26 @@
     z-index: 50;
 }
 
-/* --- Responsive --- */
+/* =========================
+   Responsive adjustments
+   ========================= */
 
 @media (max-width: 1024px) {
     .page-container {
         grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(0, 1fr); /* image natural height, text fills rest */
         max-width: 820px;
         margin: 0 auto;
+        gap: 1rem;
+    }
+
+    .page-image-container {
+        height: auto;
     }
 
     .page-image {
-        max-width: 520px;
-        min-height: 360px;
+        width: 100%;
+        max-height: 50vh;
     }
 
     .page-text {
@@ -685,10 +686,6 @@
 }
 
 @media (max-width: 768px) {
-    .story-content {
-        padding: 1rem;
-    }
-
     .cover-container, .page-container {
         padding: 1.5rem;
     }
@@ -697,11 +694,7 @@
         font-size: 1.8rem;
     }
 
-    .page-image {
-        max-width: 420px;
-        min-height: 300px;
-    }
-
+    /* Smaller nav buttons on mobile */
     .nav-button {
         min-width: 40px;
         padding: .55rem .75rem;
@@ -719,6 +712,11 @@
     .page-indicators {
         max-width: 260px;
     }
+
+    .image-enlarge-hint {
+        display: none;
+    }
+    /* reduce clutter */
 }
 
 @media (max-width: 480px) {
@@ -732,7 +730,6 @@
 
     .page-image {
         max-width: 340px;
-        min-height: 240px;
     }
 
     .page-dot {
