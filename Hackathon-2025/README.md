@@ -169,5 +169,11 @@ The API will be available at:
 
 ## 📜 License
 
-MIT License © 2025 [@AustinH5544](https://github.com/AustinH5544) and [@twoody0](https://github.com/twoody0)  
-Backend component of the Starlit Stories application.
+Copyright © 2025 [@AustinH5544](https://github.com/AustinH5544) and [@twoody0](https://github.com/twoody0)  
+All rights reserved.
+
+The Starlit Stories backend is proprietary software developed by Austin H. and Tyler Woody.  
+It is provided publicly for portfolio and demonstration purposes only.  
+No part of this project, including code, assets, or documentation, may be copied, modified, distributed, or used for commercial purposes without prior written permission from the authors.
+
+For licensing or partnership inquiries, contact **support@starlitstories.app**.
