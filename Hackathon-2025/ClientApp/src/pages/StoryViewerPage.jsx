@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./StoryViewerPage.css";
 import { useAuth } from "../context/AuthContext";
@@ -20,6 +20,8 @@ export default function StoryViewerPage({ mode = "private" }) {
     const [showControls, setShowControls] = useState(true);
     const [enlargedImage, setEnlargedImage] = useState(null);
     const [showCompletion, setShowCompletion] = useState(false);
+    const indicatorsRef = useRef(null);
+    const dotRefs = useRef([]);
 
     // Load story: public (by token) or private (from state/localStorage)
     useEffect(() => {
@@ -55,6 +57,16 @@ export default function StoryViewerPage({ mode = "private" }) {
         load();
         return () => { alive = false; };
     }, [mode, token, state]);
+
+    // Scroll active dot into view
+    useEffect(() => {
+        // index 0 = Cover dot, then 1..N = page 1..N
+        const activeIndex = currentPage === -1 ? 0 : currentPage + 1;
+        const el = dotRefs.current[activeIndex];
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+        }
+    }, [currentPage]);
 
     // Auto-hide controls (only when reading)
     useEffect(() => {
@@ -255,13 +267,20 @@ export default function StoryViewerPage({ mode = "private" }) {
                     <span className="nav-text">Previous</span>
                 </button>
 
-                <div className="page-indicators">
-                    <button onClick={() => goToPage(-1)} className={`page-dot ${isCover ? "active" : ""}`} title="Cover">
+                <div className="page-indicators" ref={indicatorsRef}>
+                    <button
+                        ref={el => (dotRefs.current[0] = el)}
+                        onClick={() => goToPage(-1)}
+                        className={`page-dot ${isCover ? "active" : ""}`}
+                        title="Cover"
+                    >
                         <span className="dot-icon">📖</span>
                     </button>
+
                     {story.pages.map((_, index) => (
                         <button
                             key={index}
+                            ref={el => (dotRefs.current[index + 1] = el)}
                             onClick={() => goToPage(index)}
                             className={`page-dot ${currentPage === index ? "active" : ""}`}
                             title={`Page ${index + 1}`}
