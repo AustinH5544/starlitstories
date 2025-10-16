@@ -1,25 +1,30 @@
 ﻿/* =========================
    Story Viewer (static layout)
-   - Page itself doesn't scroll
-   - Only the text pane scrolls when needed
+   - Page doesn't scroll
+   - Only the text pane scrolls
    - Progress pill hidden on mobile
    ========================= */
 
 /* --- Global knobs --- */
 :root {
-    /* Height of your site navs (adjust if your nav changes) */
+    /* Site nav heights */
     --site-nav-h: 64px;
     --site-nav-h-mobile: 72px;
     /* Viewer chrome */
-    --viewer-header-h: 68px; /* desktop progress pill “height budget” */
-    --viewer-header-h-mobile: 0px; /* hidden on phones, so no space reserved */
-    --viewer-nav-h: 84px; /* bottom control bar height */
+    --viewer-header-h: 68px; /* desktop progress pill */
+    --viewer-header-h-mobile: 0px; /* hidden on phones */
+    --viewer-nav-h: 72px; /* bottom control bar */
+    --gap-top: 72px; /* space under site nav */
+    --gap-bottom: -130px; /* space above story nav */
+    --progress-clearance: 72px; /* extra space under the progress pill (desktop only) */
+    --page-text-size: 1.125rem; /* ~18px on mobile */
+    --page-line: 1.8;
 }
 
 /* --- Container --- */
 .story-viewer {
     position: relative;
-    height: 100dvh; /* avoids iOS 100vh bugs */
+    height: 100dvh;
     min-height: 100dvh;
     width: 100%;
     overflow: hidden; /* lock page scroll */
@@ -71,10 +76,10 @@
     position: fixed;
     left: 0;
     right: 0;
-    z-index: 90; /* below very-high nav if needed */
+    z-index: 90;
     display: flex;
     justify-content: center;
-    pointer-events: none; /* let clicks pass through */
+    pointer-events: none;
     transition: transform .25s ease, opacity .25s ease;
     top: calc(var(--site-nav-h) + env(safe-area-inset-top, 0px) + 12px);
 }
@@ -126,29 +131,22 @@
     transition: width .25s ease;
 }
 
-/* Hide the progress pill entirely on phones */
+/* Hide progress pill on phones */
 @media (max-width: 768px) {
     .story-header {
         display: none !important;
     }
 }
 
-/* --- Main content area: fills between header & bottom nav --- */
+/* --- Main content (between top & bottom chrome) --- */
 .story-content {
-    flex: 1;
+    padding: calc(var(--gap-top) + var(--progress-clearance) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
+    /* Reserve space for navs + progress pill + gaps */
+    height: calc(100dvh - var(--site-nav-h) - var(--viewer-header-h) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem; /* lighter; the container fills height now */
-    min-height: 0; /* allow children to size */
-    height: calc( 100dvh - var(--viewer-nav-h) - var(--viewer-header-h) );
-}
-
-/* On mobile we hide the header; reclaim its space */
-@media (max-width: 768px) {
-    .story-content {
-        height: calc( 100dvh - var(--viewer-nav-h) - var(--viewer-header-h-mobile) );
-    }
 }
 
 /* --- Cover page --- */
@@ -163,7 +161,7 @@
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
     border-radius: 20px;
-    padding: 2.0rem;
+    padding: 2rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
 }
@@ -245,7 +243,7 @@
     color: rgba(255,255,255,.75);
 }
 
-/* --- Reading page layout --- */
+/* --- Reading page layout (stack image over text on desktop too) --- */
 .story-page {
     width: 100%;
     max-width: 1200px;
@@ -254,38 +252,39 @@
     min-height: 0;
 }
 
+/* Default = single column (image above text) */
 .page-container {
     display: grid;
-    grid-template-columns: 1.2fr minmax(0, .8fr);
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr); /* image natural height, text fills rest */
     gap: 2rem;
-    align-items: stretch; /* stretch children vertically */
+    align-items: stretch;
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
     border-radius: 20px;
     padding: 2rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
-    height: 100%; /* fill story-content height */
-    min-height: 0; /* allow inner overflow */
+    height: 100%;
+    min-height: 0;
 }
 
-/* Left side: image */
+/* Left/top: image */
 .page-image-container {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 0;
-    height: 100%;
+    height: auto;
 }
 
 .page-image {
     width: 100%;
     max-width: 600px;
     height: auto;
-    max-height: 100%; /* don't overflow container */
-    min-height: 0; /* avoid forcing small screens */
-    object-fit: cover;
+    max-height: 60vh; /* keeps room for text */
+    object-fit: contain;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0,0,0,.3);
     transition: transform .2s ease;
@@ -313,7 +312,7 @@
     opacity: 1;
 }
 
-/* Right side: TEXT pane (scrollable) */
+/* Right/bottom: TEXT pane (scrollable) */
 .page-text-container {
     display: flex;
     flex-direction: column;
@@ -323,9 +322,9 @@
     height: 100%;
     max-height: 100%;
     min-height: 0;
-    overflow: auto; /* <-- the scroller */
-    -webkit-overflow-scrolling: touch; /* smooth iOS */
-    scrollbar-gutter: stable both-edges; /* avoid layout shift when scrollbar appears */
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
     touch-action: pan-y;
 }
 
@@ -661,17 +660,25 @@
    Responsive adjustments
    ========================= */
 
+/* 4) Very large screens (optional) */
+@media (min-width: 1440px) {
+    :root {
+        --page-text-size: 1.65rem; /* ~26.4px */
+        --page-line: 2.0;
+    }
+}
+
+/* Tablet and below (minor sizing tweaks) */
 @media (max-width: 1024px) {
+    :root {
+        --page-text-size: 1.5rem; /* 24px */
+        --page-line: 1.9;
+    }
+
     .page-container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto minmax(0, 1fr); /* image natural height, text fills rest */
         max-width: 820px;
         margin: 0 auto;
         gap: 1rem;
-    }
-
-    .page-image-container {
-        height: auto;
     }
 
     .page-image {
@@ -681,11 +688,19 @@
 
     .page-text {
         text-align: center;
-        font-size: 1.15rem;
+        font-size: var(--page-text-size);
+        line-height: var(--page-line);
     }
 }
 
+/* Phones */
 @media (max-width: 768px) {
+    :root {
+        --page-text-size: 1.00rem; /* ~21.6px */
+        --page-line: 1.85;
+        --progress-clearance: 10px;
+    }
+
     .cover-container, .page-container {
         padding: 1.5rem;
     }
@@ -694,15 +709,16 @@
         font-size: 1.8rem;
     }
 
-    /* Smaller nav buttons on mobile */
+    /* Smaller nav buttons & tighter bar */
     .nav-button {
         min-width: 40px;
         padding: .55rem .75rem;
     }
 
     .story-navigation {
-        padding: 0rem;
         justify-content: space-evenly;
+        height: var(--viewer-nav-h);
+        padding: .5rem 1rem;
     }
 
     .nav-text {
@@ -716,9 +732,15 @@
     .image-enlarge-hint {
         display: none;
     }
-    /* reduce clutter */
+
+    /* Recompute story-content height for mobile nav sizes */
+    .story-content {
+        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
+        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+    }
 }
 
+/* Small phones */
 @media (max-width: 480px) {
     .story-title {
         font-size: 1.6rem;
