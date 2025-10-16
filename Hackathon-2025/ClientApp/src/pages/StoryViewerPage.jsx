@@ -130,9 +130,10 @@ export default function StoryViewerPage({ mode = "private" }) {
             e.target.closest(".page-image-container")
         ) return;
 
-        if (isReading && currentPage >= 0) {
-            setShowControls((v) => !v);
-        }
+        // Toggle controls visibility when reading
+        //if (isReading && currentPage >= 0) {
+        //    setShowControls((v) => !v);
+        //}
     };
 
     // Loading / error states

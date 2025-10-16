@@ -693,6 +693,75 @@
     }
 }
 
+/* --- Wide but short screens (e.g., 1024x600) --- */
+@media (min-width: 900px) and (max-height: 900px) {
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* image left, text right */
+        align-items: stretch; /* let children fill height */
+        gap: 1.5rem;
+        height: 100%; /* keep fixed viewer height */
+        min-height: 0; /* crucial for scrollable children */
+        overflow: hidden; /* clip child overflow */
+        border-radius: 20px; /* ensures clipping shape */
+        padding: 1.5rem; /* less padding = more room */
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden; /* clip image + shadow */
+        border-radius: inherit; /* match card rounding */
+        height: 100%; /* full height for column */
+        min-height: 0; /* allow proper sizing */
+        display: flex;
+        padding: 0;
+    }
+
+    .page-image {
+        height: 100%; /* fill column height */
+        max-height: 100%;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain; /* preserve aspect ratio */
+        transform: none !important; /* cancel hover zoom */
+    }
+
+        .page-image:hover {
+            transform: none !important;
+        }
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        text-align: left;
+        padding: 1rem 2rem;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0; /* allow scrolling inside */
+        overflow: auto; /* scroll the text, not the page */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .image-enlarge-hint {
+        display: none; /* optional, avoids extra spacing */
+    }
+}
+
+@media (min-width: 900px) and (max-height: 900px) {
+    .page-text-container:has(.page-text) {
+        font-size: 1.15rem;
+    }
+
+    /* If the text block is short, enlarge further */
+    .page-text-container:has(.page-text:only-child) .page-text {
+        font-size: 1.35rem;
+        line-height: 1.9;
+    }
+}
+
 /* Phones */
 @media (max-width: 768px) {
     :root {
