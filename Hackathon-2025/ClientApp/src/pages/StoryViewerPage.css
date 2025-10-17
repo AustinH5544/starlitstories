@@ -791,6 +791,128 @@
     }
 }
 
+@media (max-width: 950px) and (max-height: 500px) {
+    .story-content:has(.story-page) {
+        --gap-bottom: -190px; /* extend downward */
+    }
+
+    .cover-container {
+        padding: 1rem 1.2rem; /* tighter padding */
+        transform: scale(0.75) translateY(90px); /* smaller & moved down */
+        transform-origin: top center; /* shrink downward */
+    }
+
+    .story-title {
+        font-size: 1.4rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .cover-image {
+        height: 200px; /* smaller image height */
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .story-info {
+        font-size: 0.9rem;
+    }
+
+    .story-stats {
+        flex-direction: column; /* stack for narrow height */
+        gap: 0.3rem;
+        font-size: 0.8rem;
+    }
+
+    .start-reading-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .page-text {
+        font-size: 1rem !important; /* smaller text for low height */
+        line-height: 1.6; /* tighter lines */
+        text-align: left; /* prevent center crowding */
+    }
+}
+
+/* --- Landscape phone layout (≈667x375) --- */
+@media (max-width: 700px) and (max-height: 400px) {
+    .story-content:has(.story-page) {
+        --gap-bottom: -200px; /* extend reading area a bit */
+    }
+
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* image left, text right */
+        align-items: stretch;
+        gap: 0.8rem;
+        height: 100%;
+        min-height: 0;
+        padding: 0.8rem;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        flex: 0.9;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: inherit;
+        min-height: 0;
+    }
+
+/*    .page-image {
+        width: 100%;
+        height: auto;
+        max-height: 60vh;
+        object-fit: contain;
+        transform: none !important;
+    }*/
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        padding: 0.6rem 1rem;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .page-text {
+        font-size: 0.85rem !important;
+        line-height: 1.4;
+        text-align: left;
+    }
+
+    .finish-story-btn {
+        padding: 0.5rem 0.9rem;
+        font-size: 0.8rem;
+    }
+
+    /* Optional: shrink nav bar for landscape */
+    .story-navigation {
+        height: 56px;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .nav-button {
+        min-width: 80px;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.8rem;
+    }
+
+    .page-dot {
+        width: 32px;
+        height: 32px;
+        font-size: 0.7rem;
+    }
+}
+
+
 /* Phones */
 @media (max-width: 768px) {
     :root {
