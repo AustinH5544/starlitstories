@@ -21,6 +21,9 @@ const CreatePage = () => {
 
     const { profile: userProfile, loading: profileLoading, error: profileError } = useUserProfile()
     const navigate = useNavigate()
+    const inFlightRef = useRef(false);
+    const startedJobRef = useRef(null);
+    const finalizedRef = useRef(false);
 
     // Keep a ref to the current SSE connection to close it on unmount / finish
     const esRef = useRef(null)
@@ -33,6 +36,29 @@ const CreatePage = () => {
             }
         }
     }, [])
+
+    // Put near the top of CreatePage.jsx
+    const buildApiUrl = (path) => {
+        // Prefer the axios baseURL (same host your other API calls use)
+        const base = (api && api.defaults && api.defaults.baseURL) || "";
+        if (!base) return path; // fall back to relative if no base
+        return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+    };
+
+    // ADDED: simple polling if SSE drops after a job has started
+    const pollResult = async (jobId, timeoutMs = 60000, intervalMs = 1000) => {
+        const end = Date.now() + timeoutMs;
+        while (Date.now() < end) {
+            try {
+                const resp = await api.get(`/story/result/${encodeURIComponent(jobId)}`, { timeout: 5000 });
+                if (resp?.data) return resp.data;
+            } catch (e) {
+                // ignore & keep polling
+            }
+            await new Promise((resolve) => setTimeout(resolve, intervalMs));
+        }
+        return null;
+    };
 
     const resetProgress = () => {
         setProgress(0)
@@ -48,157 +74,192 @@ const CreatePage = () => {
      *
      * If any step fails (endpoint not found, SSE blocked, etc.), fall back to the single-call flow.
      */
+    // CHANGED
     const generateStory = async (formData) => {
-        setLastFormData(formData);
-        setIsLoading(true)
-        setStoryReady(false)
-        setError(null)
-        setStory(null)
-        resetProgress()
+        // ADDED: hard block double-submits
+        if (inFlightRef.current) return;
+        inFlightRef.current = true;
 
-        const payload = { ...formData }
+        // ADDED: reset guards each run
+        startedJobRef.current = null;
+        finalizedRef.current = false;
+
+        setLastFormData(formData);
+        setIsLoading(true);
+        setStoryReady(false);
+        setError(null);
+        setStory(null);
+        resetProgress();
+
+        const payload = { ...formData };
 
         try {
             // ---- Attempt SSE job flow ----
-            const startRes = await api.post("/story/generate-full/start", payload, { timeout: 20000 })
-            const jobId = startRes?.data?.jobId
-
-            if (jobId) {
-                await runSSE(jobId)
-                return
-            }
-
-            // If no jobId returned, go to fallback
-            await runSingleCallFallback(payload)
-        } catch (err) {
-            // If /start endpoint is missing or errors, do the fallback single-call path
-            console.warn("SSE start failed; falling back to single-call:", err)
             try {
-                await runSingleCallFallback(payload)
-            } catch (fallbackErr) {
-                console.error("Fallback API Error:", fallbackErr)
-                const message = fallbackErr?.response?.data ?? "Oops! Something went wrong generating your story."
-                setError(message)
+                const startRes = await api.post("/story/generate-full/start", payload, { timeout: 20000 });
+                const jobId = startRes?.data?.jobId;
+
+                if (jobId) {
+                    startedJobRef.current = jobId;
+
+                    // CHANGED: poll longer (2 minutes) before giving up
+                    try {
+                        await runSSE(jobId);        // normal SSE completion path
+                        return;                     // finalizeSSE will set story + UI
+                    } catch (sseErr) {
+                        console.warn("SSE dropped after job started; polling result:", sseErr);
+                        const result = await pollResult(jobId, 120000, 1000); // 2 min window
+                        if (result) {
+                            setProgressPhase("done");
+                            setProgress(100);
+                            setProgressHint("Done!");
+                            setStory(result);
+                            setStoryReady(true);
+                            return;
+                        }
+                        // softer message: story is likely saved even if we couldn’t fetch it
+                        setError("We lost the live connection while generating your story. Your story should be in your Profile.");
+                        return;
+                    }
+                }
+
+                // If no jobId returned, use the single-call fallback
+                await runSingleCallFallback(payload);
+            } catch (startErr) {
+                // If /start itself failed outright (404, 5xx, etc.), use the single-call fallback
+                console.warn("SSE start failed; using single-call fallback:", startErr);
+                await runSingleCallFallback(payload);
             }
+        } catch (fallbackErr) {
+            console.error("Fallback API Error:", fallbackErr);
+            const message = fallbackErr?.response?.data ?? "Oops! Something went wrong generating your story.";
+            setError(message);
         } finally {
-            setIsLoading(false)
+            // ADDED: release the submit lock
+            inFlightRef.current = false;
+            setIsLoading(false);
         }
-    }
+    };
 
     // ---- SSE runner ----
+    // CHANGED
+    // CHANGED: only reject on error if we haven't finalized yet
     const runSSE = (jobId) =>
         new Promise((resolve, reject) => {
-            setProgressPhase("generating")
-            setProgressHint("Creating your magical pages…")
-            setProgress((p) => Math.max(p, 5)) // nudge off 0
+            setProgressPhase("generating");
+            setProgressHint("Creating your magical pages…");
+            setProgress((p) => Math.max(p, 5));
 
-            // Close any existing stream
             if (esRef.current) {
-                esRef.current.close()
-                esRef.current = null
+                try { esRef.current.close(); } catch { }
+                esRef.current = null;
             }
 
-            // IMPORTANT: path should match your server route
-            const url = `/api/story/progress/${encodeURIComponent(jobId)}`
-            const es = new EventSource(url)
-            esRef.current = es
+            const url = buildApiUrl(`/story/progress/${encodeURIComponent(jobId)}`);
+            const es = new EventSource(url);
+            esRef.current = es;
 
-            // Helper: map stages when server doesn't send a percent
-            // Rough allocation:
-            // - text generation:   0% -> 30%
-            // - image generation: 30% -> 95% (based on index/total)
-            // - db save:          95% -> 100%
             const stageToPercent = (stage, index, total) => {
-                if (!stage) return null
-                const s = String(stage).toLowerCase()
-                if (s.includes("text") || s.includes("chat")) {
-                    return 10 + Math.min(30, (index ?? 1) * 10) // coarse bumps during multiple text calls
-                }
+                if (!stage) return null;
+                const s = String(stage).toLowerCase();
+                if (s.includes("text") || s.includes("chat")) return 10 + Math.min(30, (index ?? 1) * 10);
                 if (s.includes("image")) {
-                    if (!total || total <= 0) return 60
-                    const done = Math.max(0, Math.min(total, (index ?? 0)))
-                    const frac = done / total
-                    return Math.round(30 + frac * 65) // 30 -> 95
+                    if (!total || total <= 0) return 60;
+                    const done = Math.max(0, Math.min(total, (index ?? 0)));
+                    const frac = done / total;
+                    return Math.round(30 + frac * 65); // 30 -> 95
                 }
-                if (s.includes("db") || s.includes("save") || s.includes("persist")) {
-                    return 97
-                }
-                if (s.includes("finish") || s.includes("done") || s.includes("complete")) {
-                    return 100
-                }
-                return null
-            }
+                if (s.includes("db") || s.includes("save") || s.includes("persist")) return 97;
+                if (s.includes("finish") || s.includes("done") || s.includes("complete")) return 100;
+                return null;
+            };
 
             es.onmessage = async (evt) => {
                 try {
-                    const data = JSON.parse(evt.data || "{}")
+                    const data = JSON.parse(evt.data || "{}");
+                    if (data.message) setProgressHint(data.message);
 
-                    // If server emits a friendly message string
-                    if (data.message) setProgressHint(data.message)
+                    const markDoneOnce = async () => {
+                        if (finalizedRef.current) return;
+                        finalizedRef.current = true;
+                        await finalizeSSE(data, jobId);
+                        try { es.close(); } catch { }
+                        esRef.current = null;
+                        resolve();
+                    };
 
-                    // Prefer server-provided percent if present
                     if (typeof data.percent === "number") {
-                        const safe = Math.max(0, Math.min(100, data.percent))
-                        setProgress((p) => Math.max(p, safe))
-                        if (safe >= 100 || data.done) {
-                            await finalizeSSE(data, jobId)
-                            resolve()
-                        }
-                        return
+                        const safe = Math.max(0, Math.min(100, data.percent));
+                        setProgress((p) => Math.max(p, safe));
+                        if (safe >= 100 || data.done) await markDoneOnce();
+                        return;
                     }
 
-                    // Otherwise, estimate based on stage/index/total
-                    const est = stageToPercent(data.stage, data.index, data.total)
+                    const est = stageToPercent(data.stage, data.index, data.total);
                     if (est != null) {
-                        setProgress((p) => Math.max(p, Math.min(99, est)))
-                        if (est >= 100 || data.done) {
-                            await finalizeSSE(data, jobId)
-                            resolve()
-                        }
+                        setProgress((p) => Math.max(p, Math.min(99, est)));
+                        if (est >= 100 || data.done) await markDoneOnce();
                     }
                 } catch (e) {
-                    console.warn("SSE parse error:", e)
+                    console.warn("SSE parse error:", e);
                 }
-            }
+            };
 
             es.onerror = (e) => {
-                console.error("SSE error:", e)
-                try {
-                    es.close()
-                } catch { }
-                esRef.current = null
-                reject(new Error("SSE connection error"))
-            }
-        })
+                // CHANGED: if we already finalized, ignore late errors
+                if (finalizedRef.current) {
+                    try { es.close(); } catch { }
+                    esRef.current = null;
+                    return;
+                }
+                console.error("SSE error:", e);
+                try { es.close(); } catch { }
+                esRef.current = null;
+                reject(new Error("SSE connection error"));
+            };
+        });
 
+    // CHANGED: retry result fetch a few times before giving up
     const finalizeSSE = async (data, jobId) => {
-        // Close stream
         if (esRef.current) {
-            try {
-                esRef.current.close()
-            } catch { }
-            esRef.current = null
+            try { esRef.current.close(); } catch { }
+            esRef.current = null;
         }
 
-        // If server already sent the story, use it; otherwise fetch the result
-        let result = data?.story
+        let result = data?.story;
+
+        // ADDED: small retry window in case SetResult/DB write is a tick behind
+        const tryFetchResult = async () => {
+            const maxTries = 6;        // ~3s total
+            const delayMs = 500;
+            for (let i = 0; i < maxTries; i++) {
+                try {
+                    const r = await api.get(`/story/result/${encodeURIComponent(jobId)}`, { timeout: 5000 });
+                    if (r?.data) return r.data;
+                } catch { /* ignore */ }
+                await new Promise(res => setTimeout(res, delayMs));
+            }
+            return null;
+        };
+
         if (!result) {
-            try {
-                const resultRes = await api.get(`/story/result/${encodeURIComponent(jobId)}`, { timeout: 60000 })
-                result = resultRes?.data
-            } catch (e) {
-                console.error("Fetching story result failed:", e)
-                setError("We finished generating, but couldn’t fetch your story. Please check your profile.")
-                return
+            result = await tryFetchResult();
+            if (!result) {
+                // still nothing—show a soft message but don’t block the user
+                setError("We lost the live connection. Your story should be in your Profile.");
+                setProgressPhase("done");
+                setProgress(100);
+                setProgressHint("Done!");
+                return;
             }
         }
 
-        setProgressPhase("done")
-        setProgress(100)
-        setProgressHint("Done!")
-        setStory(result)
-        setStoryReady(true)
-    }
+        setProgressPhase("done");
+        setProgress(100);
+        setProgressHint("Done!");
+        setStory(result);
+        setStoryReady(true);
+    };
 
     // ---- Existing single-call fallback (kept, improved) ----
     const runSingleCallFallback = async (payload) => {

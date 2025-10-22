@@ -25,7 +25,6 @@ const SignupPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         // prevent multiple clicks
         if (isLoading) return;
 
