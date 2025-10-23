@@ -13,6 +13,13 @@ import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passw
 import PasswordChecklist from "../components/PasswordChecklist"
 import PasswordMatch from "../components/PasswordMatch"
 
+// NEW: JS username rules
+import {
+    checkUsername,
+    usernameRequirementLabels,
+    defaultUsernameRuleSet,
+} from "../utils/usernameRules"
+
 const SignupPage = () => {
     useWarmup();
     const [username, setUsername] = useState("")
@@ -27,11 +34,16 @@ const SignupPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [status, setStatus] = useState("");
 
-    // Use shared password rules
+    // Password rules
     const ruleSet = { ...defaultRuleSet };
     const { requirements, allMet: allRequirementsMet } = checkPassword(password, ruleSet);
     const labels = requirementLabels(ruleSet);
     const passwordsMatch = confirm.length > 0 && password === confirm;
+
+    // Username rules (live checklist like password)
+    const usernameRuleSet = { ...defaultUsernameRuleSet };
+    const { requirements: usernameReqs, allMet: isUsernameValid } = checkUsername(username, usernameRuleSet);
+    const usernameLabels = usernameRequirementLabels(usernameRuleSet);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -41,11 +53,11 @@ const SignupPage = () => {
         setStatus("");
 
         try {
-            const uname = username.trim();
-            const usernameRe = /^[a-z0-9._-]{3,24}$/;
+            // Accept mixed case input, but normalize to lowercase for storage/uniqueness
+            const uname = username.trim().toLowerCase();
 
-            if (!usernameRe.test(uname)) {
-                alert("Username must be 3–24 chars: a–z, 0–9, dot, underscore or hyphen.");
+            if (!isUsernameValid) {
+                alert("Please meet all username requirements before continuing.");
                 return;
             }
 
@@ -91,7 +103,6 @@ const SignupPage = () => {
         } catch (err) {
             console.error(err);
             if (!err.response) {
-                // handle cold start case
                 if (err.code === "ECONNABORTED") {
                     setStatus("Our servers are waking up. Please try again in a few seconds.");
                 } else {
@@ -131,8 +142,15 @@ const SignupPage = () => {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            pattern="^[a-z0-9._-]{3,24}$"
-                            title="3–24 chars: a–z, 0–9, dot, underscore, hyphen"
+                            pattern="^[A-Za-z0-9._-]{3,24}$"
+                            title="3–24 chars: letters (A–Z or a–z), numbers (0–9), dot, underscore, hyphen"
+                            aria-describedby="username-reqs"
+                            autoComplete="username"
+                        />
+                        <PasswordChecklist
+                            requirements={usernameReqs}
+                            labels={usernameLabels}
+                            id="username-reqs"
                         />
                     </div>
 
@@ -146,6 +164,7 @@ const SignupPage = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            autoComplete="email"
                         />
                     </div>
 
@@ -162,6 +181,7 @@ const SignupPage = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 aria-describedby="password-reqs"
+                                autoComplete="new-password"
                             />
                             <button
                                 type="button"
@@ -181,7 +201,6 @@ const SignupPage = () => {
                             </button>
                         </div>
 
-                        {/* DRY: shared checklist */}
                         <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
                     </div>
 
@@ -197,6 +216,7 @@ const SignupPage = () => {
                                 value={confirm}
                                 onChange={(e) => setConfirm(e.target.value)}
                                 required
+                                autoComplete="new-password"
                             />
                             <button
                                 type="button"
@@ -218,11 +238,9 @@ const SignupPage = () => {
                             </button>
                         </div>
 
-                        {/* DRY: shared match indicator */}
                         <PasswordMatch confirmValue={confirm} isMatch={passwordsMatch} />
                     </div>
 
-                    {/* Plan selection */}
                     <div className="form-group">
                         <label htmlFor="membership">Choose Your Plan</label>
                         <div className="membership-options">
@@ -315,15 +333,23 @@ const SignupPage = () => {
                     <button
                         type="submit"
                         className="signup-button"
-                        disabled={isLoading || !allRequirementsMet || !passwordsMatch || !membership}
+                        disabled={
+                            isLoading ||
+                            !isUsernameValid ||       // block until username passes
+                            !allRequirementsMet ||
+                            !passwordsMatch ||
+                            !membership
+                        }
                         title={
                             !membership
                                 ? "Select a plan to continue"
-                                : !allRequirementsMet
-                                    ? "Meet all password requirements to continue"
-                                    : !passwordsMatch
-                                        ? "Passwords must match to continue"
-                                        : undefined
+                                : !isUsernameValid
+                                    ? "Meet all username requirements to continue"
+                                    : !allRequirementsMet
+                                        ? "Meet all password requirements to continue"
+                                        : !passwordsMatch
+                                            ? "Passwords must match to continue"
+                                            : undefined
                         }
                     >
                         <span className="button-icon">{isLoading ? "⏳" : "🚀"}</span>
