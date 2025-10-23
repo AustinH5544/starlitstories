@@ -22,8 +22,7 @@ const ResetPasswordPage = () => {
     const [isSuccess, setIsSuccess] = useState(false)
     const [error, setError] = useState("")
 
-    const { requirements, allMet } = checkPassword(newPassword, defaultRuleSet);
-
+    const resetPageRuleSet = { ...defaultRuleSet };
     const { requirements, allMet } = checkPassword(newPassword, resetPageRuleSet);
     const labels = requirementLabels(resetPageRuleSet);
     const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
