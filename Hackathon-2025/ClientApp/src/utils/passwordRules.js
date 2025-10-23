@@ -36,12 +36,14 @@ export function checkPassword(password, ruleSet = defaultRuleSet) {
 // You can localize/adjust these in one place.
 export function requirementLabels(ruleSet = defaultRuleSet) {
     const rs = { ...defaultRuleSet, ...ruleSet };
-    return {
-        length: `At least ${rs.minLength} characters`,
-        upper: "Contains an uppercase letter",
-        lower: "Contains a lowercase letter",
-        number: "Contains a number",
-        special: "Contains a special character",
-        nospace: "No spaces",
-    };
+    const labels = {};
+
+    if (rs.minLength) labels.length = `At least ${rs.minLength} characters`;
+    if (rs.requireUpper) labels.upper = "Contains an uppercase letter";
+    if (rs.requireLower) labels.lower = "Contains a lowercase letter";
+    if (rs.requireNumber) labels.number = "Contains a number";
+    if (rs.requireSpecial) labels.special = "Contains a special character";
+    if (rs.disallowSpaces) labels.nospace = "No spaces";
+
+    return labels;
 }
