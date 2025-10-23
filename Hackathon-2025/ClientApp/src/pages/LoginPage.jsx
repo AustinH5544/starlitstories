@@ -21,6 +21,21 @@ const LoginPage = () => {
     const { login } = useAuth()
     const navigate = useNavigate()
 
+    const [dots, setDots] = useState("");
+
+    useEffect(() => {
+        if (!isLoading) {
+            setDots("");
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setDots((prev) => (prev.length < 3 ? prev + "." : ""));
+        }, 500);
+
+        return () => clearInterval(interval);
+    }, [isLoading]);
+
     // Restore "needs verification" on mount; clear it when leaving the page
     useEffect(() => {
         const persisted = sessionStorage.getItem(SESSION_KEY)
@@ -184,7 +199,7 @@ const LoginPage = () => {
 
                     <button type="submit" className="login-button" disabled={isLoading}>
                         <span className="button-icon">{isLoading ? "⏳" : "🔮"}</span>
-                        <span>{isLoading ? "Signing In..." : "Sign In"}</span>
+                        <span>{isLoading ? `Signing in${dots}` : "Sign In"}</span>
                     </button>
                 </form>
 
