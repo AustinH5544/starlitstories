@@ -1,6 +1,4 @@
-﻿"use client";
-
-import api from "../api";
+﻿import api from "../api";
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./StoryViewerPage.css";
