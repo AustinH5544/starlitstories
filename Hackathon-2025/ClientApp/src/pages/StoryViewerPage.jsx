@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import api from "../api";
 import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./StoryViewerPage.css";
@@ -30,12 +31,13 @@ export default function StoryViewerPage({ mode = "private" }) {
         async function load() {
             if (mode === "public" && token) {
                 try {
-                    const res = await fetch(`/api/share/${token}`);
-                    if (!res.ok) throw new Error("Link expired or not found.");
-                    const data = await res.json(); // { id, title, coverImageUrl, pages:[...] }
+                    const { data } = await api.get(`/share/${token}`, {
+                        skipAuth401Handler: true, // prevents redirect if token not authed
+                    });
                     if (alive) setStory(data);
                 } catch (e) {
-                    if (alive) setError(e.message || String(e));
+                    if (alive) setError("This shared story link is invalid or expired.");
+                    console.error("Share load failed:", e);
                 } finally {
                     if (alive) setLoading(false);
                 }
