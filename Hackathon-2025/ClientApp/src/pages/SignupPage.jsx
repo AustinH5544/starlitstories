@@ -13,7 +13,6 @@ import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passw
 import PasswordChecklist from "../components/PasswordChecklist"
 import PasswordMatch from "../components/PasswordMatch"
 
-// NEW: JS username rules
 import {
     checkUsername,
     usernameRequirementLabels,
@@ -40,7 +39,7 @@ const SignupPage = () => {
     const labels = requirementLabels(ruleSet);
     const passwordsMatch = confirm.length > 0 && password === confirm;
 
-    // Username rules (live checklist like password)
+    // Username rules
     const usernameRuleSet = { ...defaultUsernameRuleSet };
     const { requirements: usernameReqs, allMet: isUsernameValid } = checkUsername(username, usernameRuleSet);
     const usernameLabels = usernameRequirementLabels(usernameRuleSet);
@@ -49,33 +48,32 @@ const SignupPage = () => {
         e.preventDefault();
         if (isLoading) return;
 
-        setIsLoading(true);
         setStatus("");
 
+        // Normalize to lowercase for storage/uniqueness, but allow mixed-case input
+        const uname = username.trim().toLowerCase();
+
+        // Validate BEFORE setting isLoading to avoid sticky disabled button
+        if (!isUsernameValid) {
+            setStatus("Please meet all username requirements before continuing.");
+            return;
+        }
+        if (!allRequirementsMet) {
+            setStatus("Please meet all password requirements before continuing.");
+            return;
+        }
+        if (!passwordsMatch) {
+            setStatus("Passwords don't match.");
+            return;
+        }
+        if (!membership) {
+            setStatus("Please select a membership plan.");
+            return;
+        }
+
+        setIsLoading(true);
+
         try {
-            // Accept mixed case input, but normalize to lowercase for storage/uniqueness
-            const uname = username.trim().toLowerCase();
-
-            if (!isUsernameValid) {
-                alert("Please meet all username requirements before continuing.");
-                return;
-            }
-
-            if (!allRequirementsMet) {
-                alert("Please meet all password requirements before continuing.");
-                return;
-            }
-
-            if (!passwordsMatch) {
-                alert("Passwords don't match.");
-                return;
-            }
-
-            if (!membership) {
-                alert("Please select a membership plan.");
-                return;
-            }
-
             if (membership === "free") {
                 const { data } = await api.post("/auth/signup", {
                     email,
@@ -144,14 +142,16 @@ const SignupPage = () => {
                             required
                             pattern="^[A-Za-z0-9._-]{3,24}$"
                             title="3–24 chars: letters (A–Z or a–z), numbers (0–9), dot, underscore, hyphen"
-                            aria-describedby="username-reqs"
+                            aria-describedby={username.length > 0 ? "username-reqs" : undefined}
                             autoComplete="username"
                         />
-                        <PasswordChecklist
-                            requirements={usernameReqs}
-                            labels={usernameLabels}
-                            id="username-reqs"
-                        />
+                        {username.length > 0 && (
+                            <PasswordChecklist
+                                requirements={usernameReqs}
+                                labels={usernameLabels}
+                                id="username-reqs"
+                            />
+                        )}
                     </div>
 
                     {/* Email */}
@@ -180,7 +180,7 @@ const SignupPage = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                aria-describedby="password-reqs"
+                                aria-describedby={password.length > 0 ? "password-reqs" : undefined}
                                 autoComplete="new-password"
                             />
                             <button
@@ -201,7 +201,9 @@ const SignupPage = () => {
                             </button>
                         </div>
 
-                        <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
+                        {password.length > 0 && (
+                            <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
+                        )}
                     </div>
 
                     {/* Confirm Password */}
@@ -335,7 +337,7 @@ const SignupPage = () => {
                         className="signup-button"
                         disabled={
                             isLoading ||
-                            !isUsernameValid ||       // block until username passes
+                            !isUsernameValid ||
                             !allRequirementsMet ||
                             !passwordsMatch ||
                             !membership

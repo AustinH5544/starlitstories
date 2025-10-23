@@ -22,6 +22,7 @@ const ResetPasswordPage = () => {
     const [isSuccess, setIsSuccess] = useState(false)
     const [error, setError] = useState("")
 
+    // Use defaults; you can override here later if you want stricter reset rules
     const resetPageRuleSet = { ...defaultRuleSet };
     const { requirements, allMet } = checkPassword(newPassword, resetPageRuleSet);
     const labels = requirementLabels(resetPageRuleSet);
@@ -117,7 +118,14 @@ const ResetPasswordPage = () => {
                 <form onSubmit={handleSubmit} className="reset-password-form">
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
-                        <input id="email" type="email" value={email} disabled className="form-input disabled" />
+                        <input
+                            id="email"
+                            type="email"
+                            value={email}
+                            disabled
+                            className="form-input disabled"
+                            autoComplete="email"
+                        />
                     </div>
 
                     <div className="form-group">
@@ -131,10 +139,14 @@ const ResetPasswordPage = () => {
                             required
                             className="form-input"
                             disabled={isLoading}
-                            aria-describedby="password-reqs"
+                            autoComplete="new-password"
+                            aria-describedby={newPassword.length > 0 ? "password-reqs" : undefined}
                         />
 
-                        <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
+                        {/* Show checklist ONLY while user is typing */}
+                        {newPassword.length > 0 && (
+                            <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -148,8 +160,10 @@ const ResetPasswordPage = () => {
                             required
                             className="form-input"
                             disabled={isLoading}
+                            autoComplete="new-password"
                         />
 
+                        {/* Match indicator ALWAYS visible */}
                         <PasswordMatch confirmValue={confirmPassword} isMatch={passwordsMatch} />
                     </div>
 
