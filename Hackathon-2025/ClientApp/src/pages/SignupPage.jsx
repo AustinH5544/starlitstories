@@ -9,6 +9,10 @@ import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
 import useWarmup from "../hooks/useWarmup";
 
+import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passwordRules"
+import PasswordChecklist from "../components/PasswordChecklist"
+import PasswordMatch from "../components/PasswordMatch"
+
 const SignupPage = () => {
     useWarmup();
     const [username, setUsername] = useState("")
@@ -23,9 +27,14 @@ const SignupPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [status, setStatus] = useState("");
 
+    // Use shared password rules
+    const ruleSet = { ...defaultRuleSet };
+    const { requirements, allMet: allRequirementsMet } = checkPassword(password, ruleSet);
+    const labels = requirementLabels(ruleSet);
+    const passwordsMatch = confirm.length > 0 && password === confirm;
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        // prevent multiple clicks
         if (isLoading) return;
 
         setIsLoading(true);
@@ -40,19 +49,13 @@ const SignupPage = () => {
                 return;
             }
 
-            if (password !== confirm) {
-                alert("Passwords don't match");
+            if (!allRequirementsMet) {
+                alert("Please meet all password requirements before continuing.");
                 return;
             }
 
-            if (password.length < 6) {
-                alert("Password must be at least 6 characters.");
-                return;
-            }
-
-            const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/;
-            if (!basic.test(password)) {
-                alert("Password should include both letters and numbers.");
+            if (!passwordsMatch) {
+                alert("Passwords don't match.");
                 return;
             }
 
@@ -158,6 +161,7 @@ const SignupPage = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
+                                aria-describedby="password-reqs"
                             />
                             <button
                                 type="button"
@@ -176,6 +180,9 @@ const SignupPage = () => {
                                 />
                             </button>
                         </div>
+
+                        {/* DRY: shared checklist */}
+                        <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
                     </div>
 
                     {/* Confirm Password */}
@@ -210,6 +217,9 @@ const SignupPage = () => {
                                 />
                             </button>
                         </div>
+
+                        {/* DRY: shared match indicator */}
+                        <PasswordMatch confirmValue={confirm} isMatch={passwordsMatch} />
                     </div>
 
                     {/* Plan selection */}
@@ -219,6 +229,9 @@ const SignupPage = () => {
                             <div
                                 className={`membership-card ${membership === "free" ? "selected" : ""}`}
                                 onClick={() => setMembership("free")}
+                                role="radio"
+                                aria-checked={membership === "free"}
+                                tabIndex={0}
                             >
                                 <div className="plan-icon">📖</div>
                                 <h3>Free</h3>
@@ -242,6 +255,9 @@ const SignupPage = () => {
                             <div
                                 className={`membership-card ${membership === "pro" ? "selected" : ""}`}
                                 onClick={() => setMembership("pro")}
+                                role="radio"
+                                aria-checked={membership === "pro"}
+                                tabIndex={0}
                             >
                                 <div className="plan-icon">✨</div>
                                 <h3>Pro</h3>
@@ -266,6 +282,9 @@ const SignupPage = () => {
                             <div
                                 className={`membership-card premium ${membership === "premium" ? "selected" : ""}`}
                                 onClick={() => setMembership("premium")}
+                                role="radio"
+                                aria-checked={membership === "premium"}
+                                tabIndex={0}
                             >
                                 <div className="plan-badge">Most Popular</div>
                                 <div className="plan-icon">🌟</div>
@@ -291,8 +310,22 @@ const SignupPage = () => {
                         </div>
                     </div>
 
-                    {status && <div className="signup-status">{status}</div>}
-                    <button type="submit" className="signup-button" disabled={isLoading}>
+                    {status && <div className="signup-status" aria-live="polite">{status}</div>}
+
+                    <button
+                        type="submit"
+                        className="signup-button"
+                        disabled={isLoading || !allRequirementsMet || !passwordsMatch || !membership}
+                        title={
+                            !membership
+                                ? "Select a plan to continue"
+                                : !allRequirementsMet
+                                    ? "Meet all password requirements to continue"
+                                    : !passwordsMatch
+                                        ? "Passwords must match to continue"
+                                        : undefined
+                        }
+                    >
                         <span className="button-icon">{isLoading ? "⏳" : "🚀"}</span>
                         <span>{isLoading ? "Warming Up..." : "Start My Journey"}</span>
                     </button>
