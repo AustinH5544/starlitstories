@@ -12,7 +12,6 @@ import useWarmup from "../hooks/useWarmup";
 import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passwordRules"
 import PasswordChecklist from "../components/PasswordChecklist"
 import PasswordMatch from "../components/PasswordMatch"
-
 import {
     checkUsername,
     usernameRequirementLabels,
@@ -28,6 +27,9 @@ const SignupPage = () => {
     const [membership, setMembership] = useState("")
     const [showPwd, setShowPwd] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [isUsernameFocused, setIsUsernameFocused] = useState(false);
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
     const { login } = useAuth()
     const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(false);
@@ -142,16 +144,19 @@ const SignupPage = () => {
                             required
                             pattern="^[A-Za-z0-9._-]{3,24}$"
                             title="3–24 chars: letters (A–Z or a–z), numbers (0–9), dot, underscore, hyphen"
-                            aria-describedby={username.length > 0 ? "username-reqs" : undefined}
+                            aria-describedby={isUsernameFocused ? "username-reqs" : undefined}
                             autoComplete="username"
+                            onFocus={() => setIsUsernameFocused(true)}
+                            onBlur={() => setIsUsernameFocused(false)}
                         />
-                        {username.length > 0 && (
+                        {/* Show username checklist only while focused, with smooth expansion */}
+                        <div className={`collapsible ${isUsernameFocused ? "open" : ""}`}>
                             <PasswordChecklist
                                 requirements={usernameReqs}
                                 labels={usernameLabels}
                                 id="username-reqs"
                             />
-                        )}
+                        </div>
                     </div>
 
                     {/* Email */}
@@ -180,8 +185,10 @@ const SignupPage = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                aria-describedby={password.length > 0 ? "password-reqs" : undefined}
+                                aria-describedby={isPasswordFocused ? "password-reqs" : undefined}
                                 autoComplete="new-password"
+                                onFocus={() => setIsPasswordFocused(true)}
+                                onBlur={() => setIsPasswordFocused(false)}
                             />
                             <button
                                 type="button"
@@ -201,9 +208,10 @@ const SignupPage = () => {
                             </button>
                         </div>
 
-                        {password.length > 0 && (
+                        {/* Show password checklist only while focused, with smooth expansion */}
+                        <div className={`collapsible ${isPasswordFocused ? "open" : ""}`}>
                             <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
-                        )}
+                        </div>
                     </div>
 
                     {/* Confirm Password */}
@@ -240,9 +248,11 @@ const SignupPage = () => {
                             </button>
                         </div>
 
+                        {/* Match indicator always visible */}
                         <PasswordMatch confirmValue={confirm} isMatch={passwordsMatch} />
                     </div>
 
+                    {/* Plan selection */}
                     <div className="form-group">
                         <label htmlFor="membership">Choose Your Plan</label>
                         <div className="membership-options">

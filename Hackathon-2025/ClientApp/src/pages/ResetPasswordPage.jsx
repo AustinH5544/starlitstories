@@ -21,6 +21,7 @@ const ResetPasswordPage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
     const [error, setError] = useState("")
+    const [isNewPasswordFocused, setIsNewPasswordFocused] = useState(false)
 
     // Use defaults; you can override here later if you want stricter reset rules
     const resetPageRuleSet = { ...defaultRuleSet };
@@ -140,13 +141,15 @@ const ResetPasswordPage = () => {
                             className="form-input"
                             disabled={isLoading}
                             autoComplete="new-password"
-                            aria-describedby={newPassword.length > 0 ? "password-reqs" : undefined}
+                            aria-describedby={isNewPasswordFocused ? "password-reqs" : undefined}
+                            onFocus={() => setIsNewPasswordFocused(true)}
+                            onBlur={() => setIsNewPasswordFocused(false)}
                         />
 
-                        {/* Show checklist ONLY while user is typing */}
-                        {newPassword.length > 0 && (
+                        {/* Show checklist ONLY while focused, with smooth expansion */}
+                        <div className={`collapsible ${isNewPasswordFocused ? "open" : ""}`}>
                             <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
-                        )}
+                        </div>
                     </div>
 
                     <div className="form-group">
