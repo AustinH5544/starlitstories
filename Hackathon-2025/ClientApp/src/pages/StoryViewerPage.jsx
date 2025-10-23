@@ -29,9 +29,9 @@ export default function StoryViewerPage({ mode = "private" }) {
         async function load() {
             if (mode === "public" && token) {
                 try {
-                    const res = await fetch(`/api/share/${token}`);
-                    if (!res.ok) throw new Error("Link expired or not found.");
-                    const data = await res.json(); // { id, title, coverImageUrl, pages:[...] }
+                    const { data } = await api.get(`/share/${token}`, {
+                        skipAuth401Handler: true, // prevents redirect if token not authed
+                    });
                     if (alive) setStory(data);
                 } catch (e) {
                     if (alive) setError("This shared story link is invalid or expired.");
