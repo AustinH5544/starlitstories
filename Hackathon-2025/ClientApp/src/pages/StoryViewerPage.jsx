@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./StoryViewerPage.css";
 import { useAuth } from "../context/AuthContext";
+import FeedbackModal from "../components/FeedbackModal";
 
 export default function StoryViewerPage({ mode = "private" }) {
     const navigate = useNavigate();
@@ -19,6 +20,9 @@ export default function StoryViewerPage({ mode = "private" }) {
     const [showControls, setShowControls] = useState(true);
     const [enlargedImage, setEnlargedImage] = useState(null);
     const [showCompletion, setShowCompletion] = useState(false);
+
+    const [showFeedback, setShowFeedback] = useState(false);
+
     const indicatorsRef = useRef(null);
     const dotRefs = useRef([]);
 
@@ -107,7 +111,12 @@ export default function StoryViewerPage({ mode = "private" }) {
         setShowCompletion(false);
     };
 
-    const finishStory = () => setShowCompletion(true);
+    // Manual finish button (also triggers feedback)
+    const finishStory = () => {
+        setShowCompletion(true);
+        setShowFeedback(true);
+    };
+
     const readAgain = () => {
         setCurrentPage(-1);
         setIsReading(false);
@@ -130,10 +139,10 @@ export default function StoryViewerPage({ mode = "private" }) {
             e.target.closest(".page-image-container")
         ) return;
 
-        // Toggle controls visibility when reading
-        //if (isReading && currentPage >= 0) {
-        //    setShowControls((v) => !v);
-        //}
+        // Toggle controls visibility when reading (intentionally disabled for now)
+        // if (isReading && currentPage >= 0) {
+        //   setShowControls((v) => !v);
+        // }
     };
 
     // Loading / error states
@@ -270,7 +279,7 @@ export default function StoryViewerPage({ mode = "private" }) {
 
                 <div className="page-indicators" ref={indicatorsRef}>
                     <button
-                        ref={el => (dotRefs.current[0] = el)}
+                        ref={(el) => (dotRefs.current[0] = el)}
                         onClick={() => goToPage(-1)}
                         className={`page-dot ${isCover ? "active" : ""}`}
                         title="Cover"
@@ -281,7 +290,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                     {story.pages.map((_, index) => (
                         <button
                             key={index}
-                            ref={el => (dotRefs.current[index + 1] = el)}
+                            ref={(el) => (dotRefs.current[index + 1] = el)}
                             onClick={() => goToPage(index)}
                             className={`page-dot ${currentPage === index ? "active" : ""}`}
                             title={`Page ${index + 1}`}
@@ -332,17 +341,36 @@ export default function StoryViewerPage({ mode = "private" }) {
                                 <span className="button-icon">👤</span>
                                 Back to Profile
                             </button>
+
+                            {/* NEW: secondary entry point to reopen feedback if closed */}
+                            <button onClick={() => setShowFeedback(true)} className="give-feedback-btn">
+                                <span className="button-icon">💬</span>
+                                Give Feedback
+                            </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Reading Instructions */}
-            {/*{!isReading && !isCover && (*/}
-            {/*    <div className="reading-hint">*/}
-            {/*        <p>💡 Tap anywhere to show/hide controls</p>*/}
-            {/*    </div>*/}
-            {/*)}*/}
+            {/* Feedback Modal */}
+            <FeedbackModal
+                open={showFeedback}
+                onClose={() => setShowFeedback(false)}
+                storyMeta={{
+                    id: story?.id,
+                    title: story?.title,
+                    pageCount: story?.pages?.length ?? 0,
+                    estReadMin: Math.ceil((story?.pages?.length ?? 0) * 1.5),
+                }}
+                apiBase="/api"
+                emailTargets={[
+                    //"austintylerdevelopment@gmail.com",
+                    "support@starlitstories.app",
+                ]}
+                onSubmitted={() => {
+                    // optional: toast/analytics
+                }}
+            />
         </div>
     );
 }

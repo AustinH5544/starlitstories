@@ -200,6 +200,11 @@ public class EmailService : IEmailService
         }
     }
 
+    public async Task SendCustomEmailAsync(string to, string subject, string htmlBody)
+    {
+        await SendEmailAsync(to, subject, htmlBody);
+    }
+
     // very small helper; can replace with something fancier
     private static string StripHtml(string html)
         => System.Text.RegularExpressions.Regex.Replace(html ?? "", "<.*?>", " ");
