@@ -980,3 +980,26 @@
         font-size: .75rem;
     }
 }
+
+.give-feedback-btn {
+    margin-top: 1rem;
+    background: linear-gradient(to right, #f9fafb, #e5e7eb);
+    color: #111;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 0.7rem 1.4rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+    .give-feedback-btn:hover {
+        background: linear-gradient(to right, #ffffff, #f3f4f6);
+        transform: translateY(-2px);
+    }
+
+    .give-feedback-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
