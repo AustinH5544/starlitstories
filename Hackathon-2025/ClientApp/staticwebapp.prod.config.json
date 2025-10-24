@@ -1,0 +1,16 @@
+﻿{
+  "routes": [
+    {
+      "route": "/sitemap.xml",
+      "rewrite": "https://api.starlitstories.app/sitemap.xml"
+    },
+    {
+      "route": "/sitemaps/*",
+      "rewrite": "https://api.starlitstories.app/sitemaps/{*}"
+    },
+    {
+      "route": "/*",
+      "rewrite": "/index.html"
+    }
+  ]
+}

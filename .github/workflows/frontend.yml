@@ -35,11 +35,16 @@ jobs:
         working-directory: Hackathon-2025/ClientApp
         run: npm run build:staging
 
+      - name: Copy SWA config (staging)
+        working-directory: Hackathon-2025/ClientApp
+        run: cp staticwebapp.staging.config.json dist/staticwebapp.config.json
+
       - name: Show dist contents (sanity)
         run: |
           ls -la Hackathon-2025/ClientApp/dist
           test -f Hackathon-2025/ClientApp/dist/index.html
           test -f Hackathon-2025/ClientApp/dist/robots.txt
+          test -f Hackathon-2025/ClientApp/dist/staticwebapp.config.json
 
       - name: Deploy to Static Web Apps (staging)
         uses: Azure/static-web-apps-deploy@v1
@@ -79,11 +84,16 @@ jobs:
         working-directory: Hackathon-2025/ClientApp
         run: npm run build
 
+      - name: Copy SWA config (prod)
+        working-directory: Hackathon-2025/ClientApp
+        run: cp staticwebapp.prod.config.json dist/staticwebapp.config.json
+
       - name: Show dist contents (sanity)
         run: |
           ls -la Hackathon-2025/ClientApp/dist
           test -f Hackathon-2025/ClientApp/dist/index.html
           test -f Hackathon-2025/ClientApp/dist/robots.txt
+          test -f Hackathon-2025/ClientApp/dist/staticwebapp.config.json
 
       - name: Deploy to Static Web Apps (prod)
         uses: Azure/static-web-apps-deploy@v1
