@@ -22,6 +22,7 @@ export default function StoryViewerPage({ mode = "private" }) {
     const [showCompletion, setShowCompletion] = useState(false);
 
     const [showFeedback, setShowFeedback] = useState(false);
+    const [feedbackSent, setFeedbackSent] = useState(false);
 
     const indicatorsRef = useRef(null);
     const dotRefs = useRef([]);
@@ -72,6 +73,12 @@ export default function StoryViewerPage({ mode = "private" }) {
         }
     }, [currentPage]);
 
+    useEffect(() => {
+        if (!story?.id) return;
+        const key = `fb:${story.id}`;
+        setFeedbackSent(localStorage.getItem(key) === "1");
+    }, [story?.id]);
+
     // Auto-hide controls (only when reading)
     useEffect(() => {
         if (!isReading || !showControls) return;
@@ -114,7 +121,7 @@ export default function StoryViewerPage({ mode = "private" }) {
     // Manual finish button (also triggers feedback)
     const finishStory = () => {
         setShowCompletion(true);
-        setShowFeedback(true);
+        if (!feedbackSent) setShowFeedback(true); // only open if not sent
     };
 
     const readAgain = () => {
@@ -343,10 +350,16 @@ export default function StoryViewerPage({ mode = "private" }) {
                             </button>
 
                             {/* NEW: secondary entry point to reopen feedback if closed */}
-                            <button onClick={() => setShowFeedback(true)} className="give-feedback-btn">
-                                <span className="button-icon">💬</span>
-                                Give Feedback
-                            </button>
+                            {!feedbackSent ? (
+                                <button onClick={() => setShowFeedback(true)} className="give-feedback-btn">
+                                    <span className="button-icon">💬</span>
+                                    Give Feedback
+                                </button>
+                            ) : (
+                                <div className="give-feedback-sent" aria-live="polite" title="Feedback sent">
+                                    ✅ Feedback sent — thank you!
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -354,7 +367,7 @@ export default function StoryViewerPage({ mode = "private" }) {
 
             {/* Feedback Modal */}
             <FeedbackModal
-                open={showFeedback}
+                open={showFeedback && !feedbackSent}
                 onClose={() => setShowFeedback(false)}
                 storyMeta={{
                     id: story?.id,
@@ -369,6 +382,8 @@ export default function StoryViewerPage({ mode = "private" }) {
                 ]}
                 onSubmitted={() => {
                     // optional: toast/analytics
+                    setFeedbackSent(true);
+                    if (story?.id) localStorage.setItem(`fb:${story.id}`, "1");
                 }}
             />
         </div>
