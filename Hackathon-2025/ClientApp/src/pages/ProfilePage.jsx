@@ -28,11 +28,15 @@ const ProfilePage = () => {
     const [billing, setBilling] = useState(null);
     const isCancelScheduled = Boolean(billing?.cancelAt);
 
-    // NEW: usage state (stories remaining / addons)
-    const [usage, setUsage] = useState(null)             // NEW
-    const [usageLoading, setUsageLoading] = useState(true) // NEW
-    const [usageError, setUsageError] = useState("")       // NEW
-    const [buyWorking, setBuyWorking] = useState(false)    // NEW
+    const [storiesPage, setStoriesPage] = useState(1);
+    const [storiesTotal, setStoriesTotal] = useState(0);
+    const pageSize = 8; // pick your grid size
+
+    // usage state (stories remaining / addons)
+    const [usage, setUsage] = useState(null)
+    const [usageLoading, setUsageLoading] = useState(true)
+    const [usageError, setUsageError] = useState("")
+    const [buyWorking, setBuyWorking] = useState(false)
     // Compact add-on selector
     const [selectedPack, setSelectedPack] = useState("plus5");
 
@@ -126,6 +130,32 @@ const ProfilePage = () => {
         return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     };
 
+    // fetch summaries
+    // ADDED: fetch paginated, lightweight story summaries (no pages)
+    useEffect(() => {
+        let alive = true;
+        setLoading(true);
+        (async () => {
+            if (!user?.email) { if (alive) setLoading(false); return; }
+            try {
+                const { data } = await api.get(
+                    `/profile/me/stories?page=${storiesPage}&pageSize=${pageSize}`
+                );
+                // data: { page, pageSize, total, items: [{id,title,coverImageUrl,createdAt,pageCount}] }
+                if (!alive) return;
+                setStories(prev =>
+                    storiesPage === 1 ? data.items : [...prev, ...data.items]
+                );
+                setStoriesTotal(data.total ?? 0);
+            } catch (e) {
+                if (alive) console.error("Error loading story summaries:", e);
+            } finally {
+                if (alive) setLoading(false);
+            }
+        })();
+        return () => { alive = false; };
+    }, [user?.email, storiesPage]); // CHANGED: keyed on stable fields
+
     // close on escape
     useEffect(() => {
         if (!addonOpen) return;
@@ -134,7 +164,7 @@ const ProfilePage = () => {
         return () => window.removeEventListener("keydown", onKey);
     }, [addonOpen]);
 
-    // NEW: load usage (stories remaining)
+    // load usage (stories remaining)
     useEffect(() => {
         let alive = true;
         (async () => {
@@ -151,7 +181,7 @@ const ProfilePage = () => {
             }
         })();
         return () => { alive = false; };
-    }, [user]); // NEW
+    }, [user]);
 
     useEffect(() => {
         let alive = true;
@@ -205,7 +235,7 @@ const ProfilePage = () => {
         }
     };
 
-    // NEW: Buy credits (same API as UpgradePage)
+    // Buy credits (same API as UpgradePage)
     const buyCredits = async (pack /* "plus5" | "plus11" */) => {   // NEW
         try {
             setBuyWorking(true);
@@ -250,26 +280,36 @@ const ProfilePage = () => {
         setImgError(false);
     }, [user?.profileImage, BASE, avatarVersion]);
 
-    useEffect(() => {
-        const fetchStories = async () => {
-            try {
-                const res = await api.get("profile/me/stories")
-                setStories(res.data)
-            } catch (err) {
-                console.error("Error loading stories:", err)
-            } finally {
-                setLoading(false)
-            }
-        }
-        if (user?.email) fetchStories()
-    }, [user])
+    // OLD FETCH STORIES -- DELETE AFTER CONFIRMING NEW WORKS
+    //useEffect(() => {
+    //    const fetchStories = async () => {
+    //        try {
+    //            const res = await api.get("profile/me/stories")
+    //            setStories(res.data)
+    //        } catch (err) {
+    //            console.error("Error loading stories:", err)
+    //        } finally {
+    //            setLoading(false)
+    //        }
+    //    }
+    //    if (user?.email) fetchStories()
+    //}, [user])
 
-    const canDownload = user?.membership === "pro" || user?.membership === "premium"
+    const canDownload = ["pro", "premium"].includes(String(user?.membership || "free").toLowerCase()); // CHANGED
 
-    const onOpen = (story) => { navigate("/view", { state: { story } }) }
-    const onShare = async (story) => {
+    // CHANGED: onOpen now fetches the full story (with pages) only when needed
+    const onOpen = async (storySummary) => {                                           // CHANGED
         try {
-            const { data } = await api.post(`stories/${story.id}/share`);
+            const { data } = await api.get(`/profile/me/stories/${storySummary.id}`);  // ADDED
+            navigate("/view", { state: { story: data } });                             // CHANGED
+        } catch {
+            alert("Could not open story.");
+        }
+    };
+    // CHANGED: share route path to singular `/story/.../share`
+    const onShare = async (story) => {                                                 // CHANGED
+        try {
+            const { data } = await api.post(`/story/${story.id}/share`);               // CHANGED
             const { token } = data;
             if (!token) throw new Error("No token returned");
             const url = new URL(`/s/${token}`, publicBase()).toString();
@@ -378,6 +418,9 @@ const ProfilePage = () => {
         )
     }
 
+    // ADDED: simple hasMore for "Load more"
+    const hasMore = stories.length < storiesTotal;
+
     return (
         <div className="profile-page">
             <div className="stars" />
@@ -471,15 +514,15 @@ const ProfilePage = () => {
                                 <span className="button-icon">🛠️</span>
                                 <span>{working ? "Opening..." : "Change Plan"}</span>
                             </button>
-                                {!isCancelScheduled && (
-                                    <button
-                                        className="btn btn-danger"
-                                        onClick={() => setShowCancelModal(true)}
-                                        disabled={working}
-                                    >
-                                        Cancel membership
-                                    </button>
-                                )}
+                            {!isCancelScheduled && (
+                                <button
+                                    className="btn btn-danger"
+                                    onClick={() => setShowCancelModal(true)}
+                                    disabled={working}
+                                >
+                                    Cancel membership
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -589,21 +632,31 @@ const ProfilePage = () => {
                             </button>
                         </div>
                     ) : (
-                        <div className="story-grid">
-                            {stories.map((story) => (
-                                <StoryCard
-                                    key={story.id}
-                                    story={story}
-                                    canCustomize={true}
-                                    canDownload={canDownload}
-                                    onShare={onShare}
-                                    onDownload={onDownload}
-                                    onDelete={onDelete}
-                                    onOpen={onOpen}
-                                    onCustomize={(s) => navigate("/customize", { state: { story: s } })}
-                                />
-                            ))}
-                        </div>
+                        <>
+                            <div className="story-grid">
+                                {stories.map((story) => (
+                                    <StoryCard
+                                        key={story.id}
+                                        story={story}
+                                        canCustomize={true}
+                                        canDownload={canDownload}
+                                        onShare={onShare}
+                                        onDownload={onDownload}
+                                        onDelete={onDelete}
+                                        onOpen={onOpen}
+                                        onCustomize={(s) => navigate("/customize", { state: { story: s } })}
+                                    />
+                                ))}
+                            </div>
+
+                            {hasMore && !loading && (
+                                <div className="load-more">
+                                    <button onClick={() => setStoriesPage(p => p + 1)} className="btn">
+                                        Load more
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 
