@@ -56,7 +56,7 @@ export default function FeedbackModal({
         setSubmitting(true);
         try {
             const payload = {
-                storyId: storyMeta?.id ?? null,
+                storyId: storyMeta?.id ? String(storyMeta.id) : null,
                 storyTitle: storyMeta?.title ?? null,
                 pageCount: storyMeta?.pageCount ?? null,
                 estReadMin,
