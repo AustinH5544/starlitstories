@@ -16,6 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.RateLimiting;     // ? NEW: for .DisableRateLimiting()
 
 using OpenAI;
 using Stripe;
@@ -152,7 +153,6 @@ var billingProvider = builder.Configuration["Billing:Provider"] ?? "stripe";
 if (billingProvider.Equals("stripe", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddScoped<IPaymentGateway, StripeGateway>();
-    // (add other providers here in the future)
 }
 
 // -----------------------------
@@ -179,9 +179,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AppCors", policy =>
         policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod()
-        // .AllowCredentials() // ONLY if you use cookies for auth
-        );
+              .AllowAnyMethod());
 });
 
 // -----------------------------
@@ -209,19 +207,9 @@ builder.Services.AddRateLimiter(options =>
     });
 
     // Optional: a light global limiter
-    // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-    // {
-    //     var key = httpContext.User.Identity?.Name
-    //               ?? httpContext.Connection.RemoteIpAddress?.ToString()
-    //               ?? "anon";
-    //     return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
-    //     {
-    //         PermitLimit = 120,
-    //         Window = TimeSpan.FromMinutes(1),
-    //         QueueLimit = 0
-    //     });
-    // });
+    // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(...)
 });
+
 builder.Services.AddControllers();
 // builder.Services.AddEndpointsApiExplorer(); // only needed if you add Swagger later
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
@@ -411,7 +399,9 @@ app.MapGet("/sitemap.xml", async (AppDbContext db, IConfiguration cfg) =>
     return Results.Content(xml, "application/xml", Encoding.UTF8);
 })
 .Produces(statusCode: 200, contentType: "application/xml")
-.WithMetadata(new ResponseCacheAttribute { Duration = 3600, Location = ResponseCacheLocation.Any });
+.WithMetadata(new ResponseCacheAttribute { Duration = 3600, Location = ResponseCacheLocation.Any })
+.AllowAnonymous()
+.DisableRateLimiting();
 
 app.MapGet("/sitemaps/sitemap-{index}.xml", async (int index, AppDbContext db, IConfiguration cfg) =>
 {
@@ -484,7 +474,9 @@ app.MapGet("/sitemaps/sitemap-{index}.xml", async (int index, AppDbContext db, I
     var xml = await BuildSitemapXmlAsync(page);
     return Results.Content(xml, "application/xml", Encoding.UTF8);
 })
-.Produces(statusCode: 200, contentType: "application/xml");
+.Produces(statusCode: 200, contentType: "application/xml")
+.AllowAnonymous()
+.DisableRateLimiting();
 
 // ---------- helpers ----------
 static async Task<string> BuildSitemapXmlAsync(List<(string loc, DateTime? lastmod)> urls)
@@ -494,7 +486,7 @@ static async Task<string> BuildSitemapXmlAsync(List<(string loc, DateTime? lastm
     using (var xw = XmlWriter.Create(sw, settings))
     {
         await xw.WriteStartDocumentAsync();
-        await xw.WriteStartElementAsync(null, "urlset", "https://www.sitemaps.org/schemas/sitemap/0/9".Replace("/0/9", "/0.9"));
+        await xw.WriteStartElementAsync(null, "urlset", "https://www.sitemaps.org/schemas/sitemap/0.9");
 
         foreach (var (loc, lastmod) in urls)
         {
@@ -518,7 +510,7 @@ static async Task<string> BuildSitemapIndexXmlAsync(string baseUrl, int chunks)
     using (var xw = XmlWriter.Create(sw, settings))
     {
         await xw.WriteStartDocumentAsync();
-        await xw.WriteStartElementAsync(null, "sitemapindex", "https://www.sitemaps.org/schemas/sitemap/0/9".Replace("/0/9", "/0.9"));
+        await xw.WriteStartElementAsync(null, "sitemapindex", "https://www.sitemaps.org/schemas/sitemap/0.9");
 
         for (int i = 0; i < chunks; i++)
         {
