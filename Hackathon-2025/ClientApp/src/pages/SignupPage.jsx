@@ -24,7 +24,6 @@ const SignupPage = () => {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
-    const [membership, setMembership] = useState("")
     const [showPwd, setShowPwd] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [isUsernameFocused, setIsUsernameFocused] = useState(false);
@@ -68,38 +67,27 @@ const SignupPage = () => {
             setStatus("Passwords don't match.");
             return;
         }
-        if (!membership) {
-            setStatus("Please select a membership plan.");
-            return;
-        }
 
         setIsLoading(true);
 
         try {
-            if (membership === "free") {
-                const { data } = await api.post("/auth/signup", {
-                    email,
-                    username: uname,
-                    password,
-                    membership,
-                });
+            // Always create as FREE by default
+            const { data } = await api.post("/auth/signup", {
+                email,
+                username: uname,
+                password,
+                membership: "free",
+            });
 
-                if (data?.requiresVerification) {
-                    alert("Account created! Please verify your email to continue.");
-                    navigate("/login");
-                    return;
-                }
-
-                login(data);
-                navigate("/profile");
-            } else {
-                const { data } = await api.post("/payments/create-checkout-session", {
-                    email,
-                    username: uname,
-                    membership,
-                });
-                window.location.href = data.checkoutUrl;
+            if (data?.requiresVerification) {
+                alert("Account created! Please verify your email to continue.");
+                navigate("/login");
+                return;
             }
+
+            // Log in and send to profile (they can upgrade from there)
+            login(data);
+            navigate("/profile");
         } catch (err) {
             console.error(err);
             if (!err.response) {
@@ -252,94 +240,6 @@ const SignupPage = () => {
                         <PasswordMatch confirmValue={confirm} isMatch={passwordsMatch} />
                     </div>
 
-                    {/* Plan selection */}
-                    <div className="form-group">
-                        <label htmlFor="membership">Choose Your Plan</label>
-                        <div className="membership-options">
-                            <div
-                                className={`membership-card ${membership === "free" ? "selected" : ""}`}
-                                onClick={() => setMembership("free")}
-                                role="radio"
-                                aria-checked={membership === "free"}
-                                tabIndex={0}
-                            >
-                                <div className="plan-icon">📖</div>
-                                <h3>Free</h3>
-                                <p className="plan-price">$0/month</p>
-                                <p className="plan-description">Perfect for trying out our service</p>
-                                <ul className="plan-features">
-                                    <li>✓ 1 personalized story</li>
-                                    <li>✓ Basic customization</li>
-                                    <li>✓ Digital format only</li>
-                                </ul>
-                                <input
-                                    type="radio"
-                                    name="membership"
-                                    value="free"
-                                    checked={membership === "free"}
-                                    onChange={(e) => setMembership(e.target.value)}
-                                    style={{ display: "none" }}
-                                />
-                            </div>
-
-                            <div
-                                className={`membership-card ${membership === "pro" ? "selected" : ""}`}
-                                onClick={() => setMembership("pro")}
-                                role="radio"
-                                aria-checked={membership === "pro"}
-                                tabIndex={0}
-                            >
-                                <div className="plan-icon">✨</div>
-                                <h3>Pro</h3>
-                                <p className="plan-price">$4/month</p>
-                                <p className="plan-description">Great for regular storytelling</p>
-                                <ul className="plan-features">
-                                    <li>✓ 5 stories per month</li>
-                                    <li>✓ Advanced customization</li>
-                                    <li>✓ High-quality illustrations</li>
-                                    <li>✓ Download & share</li>
-                                </ul>
-                                <input
-                                    type="radio"
-                                    name="membership"
-                                    value="pro"
-                                    checked={membership === "pro"}
-                                    onChange={(e) => setMembership(e.target.value)}
-                                    style={{ display: "none" }}
-                                />
-                            </div>
-
-                            <div
-                                className={`membership-card premium ${membership === "premium" ? "selected" : ""}`}
-                                onClick={() => setMembership("premium")}
-                                role="radio"
-                                aria-checked={membership === "premium"}
-                                tabIndex={0}
-                            >
-                                <div className="plan-badge">Most Popular</div>
-                                <div className="plan-icon">🌟</div>
-                                <h3>Premium</h3>
-                                <p className="plan-price">$8/month</p>
-                                <p className="plan-description">Perfect for families who love stories</p>
-                                <ul className="plan-features">
-                                    <li>✓ 11 stories per month</li>
-                                    <li>✓ Premium illustrations</li>
-                                    <li>✓ Multiple characters</li>
-                                    <li>✓ Print-ready format</li>
-                                    <li>✓ Priority support</li>
-                                </ul>
-                                <input
-                                    type="radio"
-                                    name="membership"
-                                    value="premium"
-                                    checked={membership === "premium"}
-                                    onChange={(e) => setMembership(e.target.value)}
-                                    style={{ display: "none" }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
                     {status && <div className="signup-status" aria-live="polite">{status}</div>}
 
                     <button
@@ -349,19 +249,16 @@ const SignupPage = () => {
                             isLoading ||
                             !isUsernameValid ||
                             !allRequirementsMet ||
-                            !passwordsMatch ||
-                            !membership
+                            !passwordsMatch
                         }
                         title={
-                            !membership
-                                ? "Select a plan to continue"
-                                : !isUsernameValid
-                                    ? "Meet all username requirements to continue"
-                                    : !allRequirementsMet
-                                        ? "Meet all password requirements to continue"
-                                        : !passwordsMatch
-                                            ? "Passwords must match to continue"
-                                            : undefined
+                            !isUsernameValid
+                                ? "Meet all username requirements to continue"
+                                : !allRequirementsMet
+                                    ? "Meet all password requirements to continue"
+                                    : !passwordsMatch
+                                        ? "Passwords must match to continue"
+                                        : undefined
                         }
                     >
                         <span className="button-icon">{isLoading ? "⏳" : "🚀"}</span>
@@ -372,6 +269,9 @@ const SignupPage = () => {
                 <div className="signup-footer">
                     <p>
                         Already have an account? <a href="/login">Sign in here</a>
+                    </p>
+                    <p className="post-signup-upgrade-hint">
+                        After signup, visit your Profile to upgrade anytime.
                     </p>
                 </div>
             </div>
