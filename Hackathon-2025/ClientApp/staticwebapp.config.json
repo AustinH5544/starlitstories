@@ -1,0 +1,20 @@
+﻿{
+  "routes": [
+    {
+      "route": "/sitemap.xml",
+      "rewrite": "https://api-staging.starlitstories.app/sitemap.xml"
+    },
+    {
+      "route": "/sitemaps/*",
+      "rewrite": "https://api-staging.starlitstories.app/sitemaps/{*}"
+    },
+    {
+      "route": "/robots.txt",
+      "rewrite": "https://api-staging.starlitstories.app/robots.txt"
+    },
+    {
+      "route": "/*",
+      "rewrite": "/index.html"
+    }
+  ]
+}
