@@ -1010,3 +1010,83 @@
     color: #b2ffb2;
     font-weight: 700;
 }
+/* Hide the top progress pill on landscape phones (short height) */
+@media (orientation: landscape) and (max-height: 450px) and (max-width: 915px) {
+    .story-header {
+        display: none !important;
+    }
+
+    /* Reclaim the reserved space for the pill */
+    :root {
+        --viewer-header-h: 0px; /* no header height */
+        --progress-clearance: 10px; /* minimal top padding */
+    }
+
+    /* Ensure the content height is recomputed without the header */
+    .story-content {
+        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
+    }
+}
+
+/* Optional: exact match for 896×414 devices (belt & suspenders) */
+@media (width: 896px) and (height: 414px) {
+    .story-header {
+        display: none !important;
+    }
+
+    :root {
+        --viewer-header-h: 0px;
+        --progress-clearance: 10px;
+    }
+}
+/* Landscape phones (≈896x414): image left, text right */
+@media (orientation: landscape) and (max-height: 430px) and (max-width: 930px) {
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* image left, text right */
+        align-items: stretch;
+        gap: 1rem;
+        height: 100%;
+        min-height: 0;
+        padding: 1rem;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: inherit;
+        min-height: 0;
+    }
+
+    .page-image {
+        width: 100%;
+        height: auto;
+        max-height: 80vh;
+        object-fit: contain;
+        transform: none !important;
+    }
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        text-align: left;
+        padding: 0.8rem 1.2rem;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .page-text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        text-align: left;
+    }
+}
+
+
