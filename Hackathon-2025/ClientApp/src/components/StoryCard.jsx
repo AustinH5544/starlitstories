@@ -18,6 +18,11 @@ export default function StoryCard({
     const [downloading, setDownloading] = useState(false);
     const [format, setFormat] = useState("pdf");
     const [deleting, setDeleting] = useState(false);
+    // Unify page count from either summaries (pageCount) or full stories (pages.length)
+    const pagesCount =
+        story?.pageCount ??
+        story?.PageCount ??
+        (Array.isArray(story?.pages) ? story.pages.length : 0);
 
     const menuRef = useRef(null);
     const btnRef = useRef(null);
@@ -103,7 +108,7 @@ export default function StoryCard({
                     {story?.title || "Untitled"}
                 </div>
                 <div className="scard-sub">
-                    {(story?.pages?.length ?? 0)} pages • {story?.createdAt ? new Date(story.createdAt).toLocaleDateString() : ""}
+                    {pagesCount} pages • {story?.createdAt ? new Date(story.createdAt).toLocaleDateString() : ""}
                 </div>
             </div>
 
@@ -194,6 +199,7 @@ StoryCard.propTypes = {
         id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
         title: PropTypes.string,
         coverImageUrl: PropTypes.string,
+        pageCount: PropTypes.number,
         pages: PropTypes.arrayOf(
             PropTypes.shape({
                 text: PropTypes.string,
