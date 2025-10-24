@@ -2,7 +2,7 @@ name: Frontend (SWA)
 
 on:
   push:
-    branches: [ main, staging ]
+    branches: [main, staging]
   workflow_dispatch: {}
 
 jobs:
@@ -25,6 +25,12 @@ jobs:
         working-directory: Hackathon-2025/ClientApp
         run: npm ci
 
+      - name: Prepare robots.txt (staging)
+        working-directory: Hackathon-2025/ClientApp
+        run: |
+          mkdir -p public
+          cp robots.staging.txt public/robots.txt
+
       - name: Build (staging)
         working-directory: Hackathon-2025/ClientApp
         run: npm run build:staging
@@ -33,13 +39,14 @@ jobs:
         run: |
           ls -la Hackathon-2025/ClientApp/dist
           test -f Hackathon-2025/ClientApp/dist/index.html
+          test -f Hackathon-2025/ClientApp/dist/robots.txt
 
       - name: Deploy to Static Web Apps (staging)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
           action: upload
-          app_location: Hackathon-2025/ClientApp/dist  # upload built output
+          app_location: Hackathon-2025/ClientApp/dist
           skip_app_build: true
           skip_api_build: true
 
@@ -62,6 +69,12 @@ jobs:
         working-directory: Hackathon-2025/ClientApp
         run: npm ci
 
+      - name: Prepare robots.txt (prod)
+        working-directory: Hackathon-2025/ClientApp
+        run: |
+          mkdir -p public
+          cp robots.prod.txt public/robots.txt
+
       - name: Build (prod)
         working-directory: Hackathon-2025/ClientApp
         run: npm run build
@@ -70,6 +83,7 @@ jobs:
         run: |
           ls -la Hackathon-2025/ClientApp/dist
           test -f Hackathon-2025/ClientApp/dist/index.html
+          test -f Hackathon-2025/ClientApp/dist/robots.txt
 
       - name: Deploy to Static Web Apps (prod)
         uses: Azure/static-web-apps-deploy@v1
