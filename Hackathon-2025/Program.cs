@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using System.Xml;
 
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
@@ -11,6 +12,7 @@ using Hackathon_2025.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;         // for IPasswordHasher<User>
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
@@ -154,26 +156,6 @@ if (billingProvider.Equals("stripe", StringComparison.OrdinalIgnoreCase))
 }
 
 // -----------------------------
-// CORS (from App:AllowedCorsOrigins; semicolon-separated)
-// -----------------------------
-//string[] ParseCors(string? raw) =>
-//    string.IsNullOrWhiteSpace(raw)
-//        ? Array.Empty<string>()
-//        : raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-//var appOptions = builder.Configuration.GetSection("App").Get<AppOptions>() ?? new AppOptions();
-//var corsOrigins = ParseCors(appOptions.AllowedCorsOrigins);
-
-//builder.Services.AddCors(options =>
-//{
-//    options.AddPolicy("AppCors", policy =>
-//        policy.WithOrigins(corsOrigins.Length > 0 ? corsOrigins : new[] { "http://localhost:5173" })
-//              .AllowAnyHeader()
-//              .AllowAnyMethod());
-//    // .AllowCredentials()  // add if needed AND using specific origins
-//});
-
-// -----------------------------
 // CORS (temporary explicit allowlist)
 // -----------------------------
 string[] ParseCors(string? raw) =>
@@ -240,14 +222,16 @@ builder.Services.AddRateLimiter(options =>
     //     });
     // });
 });
-
 builder.Services.AddControllers();
 // builder.Services.AddEndpointsApiExplorer(); // only needed if you add Swagger later
+builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 
 // =========================
 // Build
 // =========================
 var app = builder.Build();
+
+app.UseResponseCompression();
 
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
 logger.LogInformation("CORS origins: {origins}", string.Join(", ", allowedOrigins));
@@ -280,7 +264,6 @@ app.UseAuthorization();
 // Health endpoints
 // =========================
 app.MapGet("/__ping", () => Results.Text("pong"));
-
 app.MapHealthChecks("/healthz");
 
 app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
@@ -330,6 +313,226 @@ app.MapPost("/api/warmup", async (AppDbContext db, ILoggerFactory loggerFactory)
 
     return Results.NoContent();
 }).AllowAnonymous();
+
+// =========================
+// Dynamic Sitemap
+// =========================
+
+// spec limits: 50,000 URLs or 50MB per file; chunk at 10k for safety
+const int MaxUrlsPerFile = 10000;
+
+app.MapGet("/sitemap.xml", async (AppDbContext db, IConfiguration cfg) =>
+{
+    var baseUrl = (cfg["Site:BaseUrl"] ?? "https://starlitstories.app").TrimEnd('/');
+
+    // Static routes you want indexed:
+    var staticUrls = new[]
+    {
+        $"{baseUrl}/",
+        $"{baseUrl}/stories",
+        $"{baseUrl}/pricing",
+        $"{baseUrl}/about",
+        $"{baseUrl}/contact"
+    };
+
+    var allUrls = new List<(string loc, DateTime? lastmod)>();
+    allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
+
+    // Variant A: StoryShare table (Token + optional IsPublic/IsListed + ExpiresAt)
+    bool addedShares = false;
+    try
+    {
+        var shares = await db.Set<StoryShare>()
+            .AsNoTracking()
+            .Include(s => s.Story) // if you need UpdatedAt from Story
+            .Where(s =>
+                s.Token != null &&
+                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
+                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
+            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
+            .Select(s => new
+            {
+                Url = $"{baseUrl}/s/{s.Token}",
+                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
+            })
+            .ToListAsync();
+
+        if (shares.Count > 0)
+        {
+            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
+            addedShares = true;
+        }
+    }
+    catch
+    {
+        // if StoryShare doesn't exist, we fall back to Variant B
+    }
+
+    // Variant B: token on Story (ShareToken + IsPublic)
+    if (!addedShares)
+    {
+        try
+        {
+            var stories = await db.Set<Story>()
+                .AsNoTracking()
+                .Where(s =>
+                    EF.Property<string?>(s, "ShareToken") != null &&
+                    (EF.Property<bool?>(s, "IsPublic") ?? true))
+                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
+                .Select(s => new
+                {
+                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
+                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
+                })
+                .ToListAsync();
+
+            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
+        }
+        catch
+        {
+            // neither variant present; serve static routes only
+        }
+    }
+
+    // Return index if we exceed max per file
+    if (allUrls.Count > MaxUrlsPerFile)
+    {
+        var chunks = allUrls
+            .Select((u, i) => new { u, i })
+            .GroupBy(x => x.i / MaxUrlsPerFile, x => x.u)
+            .Select(g => g.ToList())
+            .ToList();
+
+        var indexXml = await BuildSitemapIndexXmlAsync(baseUrl, chunks.Count);
+        return Results.Content(indexXml, "application/xml", Encoding.UTF8);
+    }
+
+    var xml = await BuildSitemapXmlAsync(allUrls);
+    return Results.Content(xml, "application/xml", Encoding.UTF8);
+})
+.Produces(statusCode: 200, contentType: "application/xml")
+.WithMetadata(new ResponseCacheAttribute { Duration = 3600, Location = ResponseCacheLocation.Any });
+
+app.MapGet("/sitemaps/sitemap-{index}.xml", async (int index, AppDbContext db, IConfiguration cfg) =>
+{
+    var baseUrl = (cfg["Site:BaseUrl"] ?? "https://starlitstories.app").TrimEnd('/');
+
+    var staticUrls = new[]
+    {
+        $"{baseUrl}/",
+        $"{baseUrl}/stories",
+        $"{baseUrl}/pricing",
+        $"{baseUrl}/about",
+        $"{baseUrl}/contact"
+    };
+
+    var allUrls = new List<(string loc, DateTime? lastmod)>();
+    allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
+
+    bool addedShares = false;
+    try
+    {
+        var shares = await db.Set<StoryShare>()
+            .AsNoTracking()
+            .Include(s => s.Story)
+            .Where(s =>
+                s.Token != null &&
+                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
+                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
+            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
+            .Select(s => new
+            {
+                Url = $"{baseUrl}/s/{s.Token}",
+                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
+            })
+            .ToListAsync();
+
+        if (shares.Count > 0)
+        {
+            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
+            addedShares = true;
+        }
+    }
+    catch { }
+
+    if (!addedShares)
+    {
+        try
+        {
+            var stories = await db.Set<Story>()
+                .AsNoTracking()
+                .Where(s =>
+                    EF.Property<string?>(s, "ShareToken") != null &&
+                    (EF.Property<bool?>(s, "IsPublic") ?? true))
+                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
+                .Select(s => new
+                {
+                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
+                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
+                })
+                .ToListAsync();
+
+            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
+        }
+        catch { }
+    }
+
+    var skip = index * MaxUrlsPerFile;
+    var page = allUrls.Skip(skip).Take(MaxUrlsPerFile).ToList();
+    if (page.Count == 0) return Results.NotFound();
+
+    var xml = await BuildSitemapXmlAsync(page);
+    return Results.Content(xml, "application/xml", Encoding.UTF8);
+})
+.Produces(statusCode: 200, contentType: "application/xml");
+
+// ---------- helpers ----------
+static async Task<string> BuildSitemapXmlAsync(List<(string loc, DateTime? lastmod)> urls)
+{
+    var settings = new XmlWriterSettings { Async = true, Indent = true, Encoding = Encoding.UTF8 };
+    using var sw = new StringWriter();
+    using (var xw = XmlWriter.Create(sw, settings))
+    {
+        await xw.WriteStartDocumentAsync();
+        await xw.WriteStartElementAsync(null, "urlset", "https://www.sitemaps.org/schemas/sitemap/0/9".Replace("/0/9", "/0.9"));
+
+        foreach (var (loc, lastmod) in urls)
+        {
+            await xw.WriteStartElementAsync(null, "url", null);
+            await xw.WriteElementStringAsync(null, "loc", null, loc);
+            if (lastmod.HasValue)
+                await xw.WriteElementStringAsync(null, "lastmod", null, lastmod.Value.ToString("yyyy-MM-dd"));
+            await xw.WriteEndElementAsync(); // url
+        }
+
+        await xw.WriteEndElementAsync(); // urlset
+        await xw.WriteEndDocumentAsync();
+    }
+    return sw.ToString();
+}
+
+static async Task<string> BuildSitemapIndexXmlAsync(string baseUrl, int chunks)
+{
+    var settings = new XmlWriterSettings { Async = true, Indent = true, Encoding = Encoding.UTF8 };
+    using var sw = new StringWriter();
+    using (var xw = XmlWriter.Create(sw, settings))
+    {
+        await xw.WriteStartDocumentAsync();
+        await xw.WriteStartElementAsync(null, "sitemapindex", "https://www.sitemaps.org/schemas/sitemap/0/9".Replace("/0/9", "/0.9"));
+
+        for (int i = 0; i < chunks; i++)
+        {
+            await xw.WriteStartElementAsync(null, "sitemap", null);
+            await xw.WriteElementStringAsync(null, "loc", null, $"{baseUrl}/sitemaps/sitemap-{i}.xml");
+            await xw.WriteElementStringAsync(null, "lastmod", null, DateTime.UtcNow.ToString("yyyy-MM-dd"));
+            await xw.WriteEndElementAsync();
+        }
+
+        await xw.WriteEndElementAsync();
+        await xw.WriteEndDocumentAsync();
+    }
+    return sw.ToString();
+}
 
 // =========================
 // MVC + SPA fallback
