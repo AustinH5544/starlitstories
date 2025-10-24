@@ -2,15 +2,11 @@
   "routes": [
     {
       "route": "/sitemap.xml",
-      "rewrite": "https://api-staging.starlitstories.app/sitemap.xml"
+      "rewrite": "https://starlitstories-api-dev-cva4fbdgc4bsbbad.westus2-01.azurewebsites.net/sitemap.xml"
     },
     {
       "route": "/sitemaps/*",
-      "rewrite": "https://api-staging.starlitstories.app/sitemaps/{*}"
-    },
-    {
-      "route": "/robots.txt",
-      "rewrite": "https://api-staging.starlitstories.app/robots.txt"
+      "rewrite": "https://starlitstories-api-dev-cva4fbdgc4bsbbad.westus2-01.azurewebsites.net/sitemaps/{*}"
     },
     {
       "route": "/*",
