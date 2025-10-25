@@ -7,10 +7,20 @@
     {
       "route": "/sitemaps/*",
       "rewrite": "https://api.starlitstories.app/sitemaps/{*}"
-    },
-    {
-      "route": "/*",
-      "rewrite": "/index.html"
     }
-  ]
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "/images/*",
+      "/favicon*",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/sitemaps/*"
+    ]
+  },
+  "mimeTypes": {
+    ".js": "text/javascript"
+  }
 }
