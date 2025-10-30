@@ -560,3 +560,24 @@
         opacity: 1;
         margin-top: 0.35rem;
     }
+
+.missing-reqs {
+    margin-top: 8px;
+    background: rgba(255, 0, 0, 0.08);
+    border: 1px solid rgba(255, 0, 0, 0.25);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #ffb3b3;
+    font-size: 0.9rem;
+}
+
+.missing-reqs-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+    color: #ff9999;
+}
+
+.missing-req {
+    list-style: disc;
+    margin-left: 16px;
+}

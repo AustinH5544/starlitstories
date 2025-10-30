@@ -200,6 +200,21 @@ const SignupPage = () => {
                         <div className={`collapsible ${isPasswordFocused ? "open" : ""}`}>
                             <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
                         </div>
+                        {/* If passwords match but missing requirements, show them under Password */}
+                        {passwordsMatch && !allRequirementsMet && (
+                            <div className="missing-reqs">
+                                <p className="missing-reqs-title">Missing requirements:</p>
+                                <ul>
+                                    {Object.entries(requirements)
+                                        .filter(([key, met]) => !met)
+                                        .map(([key]) => (
+                                            <li key={key} className="missing-req">
+                                                {labels[key]}
+                                            </li>
+                                        ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
 
                     {/* Confirm Password */}
