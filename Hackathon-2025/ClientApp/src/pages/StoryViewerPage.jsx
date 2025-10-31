@@ -157,19 +157,20 @@ export default function StoryViewerPage({ mode = "private" }) {
         return () => clearTimeout(t);
     }, [isReading, showControls]);
 
-    // Flip faces (which content is printed on the turning sheet)
-    // For "to-cover": front = current right page; back = cover (-1)
+    // ---------- FACE MAPPING ----------
+    const isClosingToCover = isFlipping && flipDir === "to-cover";
+    const leftIndex = Math.max(currentPage - 1, -1);
+    const rightIndex = currentPage;
+
     const frontIndex =
-        flipDir === "next" ? (isCover ? -1 : currentPage) :
-            flipDir === "prev" ? Math.max(currentPage - 1, -1) :
-                flipDir === "to-cover" ? currentPage :
-                    null;
+        flipDir === "next" ? (isCover ? -1 : rightIndex) :
+            flipDir === "prev" ? leftIndex :
+                flipDir === "to-cover" ? leftIndex : null;
 
     const backIndex =
         flipDir === "next" ? (isCover ? 0 : Math.min(currentPage + 1, pageCount - 1)) :
-            flipDir === "prev" ? currentPage :
-                flipDir === "to-cover" ? -1 :
-                    null;
+            flipDir === "prev" ? rightIndex :
+                flipDir === "to-cover" ? -1 : null;
 
     // --- Navigation (Book Mode moves by TWO pages) ---
     const nextPage = useCallback(() => {
@@ -219,7 +220,6 @@ export default function StoryViewerPage({ mode = "private" }) {
         if (isBook) {
             if (isFlipping) return;
 
-            // From first spread -> go to cover using the dedicated close transition
             if (currentPage <= 1) {
                 setFlipDir("to-cover");
                 setIsFlipping(true);
@@ -279,7 +279,6 @@ export default function StoryViewerPage({ mode = "private" }) {
         if (isFlipping) return;
 
         if (pageIndex === -1) {
-            // navigate to cover via close transition
             if (currentPage <= 1) {
                 setFlipDir("to-cover");
                 setIsFlipping(true);
@@ -292,7 +291,6 @@ export default function StoryViewerPage({ mode = "private" }) {
             return;
         }
 
-        // Snap target to a right page
         let targetRight = pageIndex;
         if (targetRight % 2 === 0) {
             targetRight = (targetRight + 1 <= pageCount - 1) ? targetRight + 1 : targetRight;
@@ -511,6 +509,9 @@ export default function StoryViewerPage({ mode = "private" }) {
         ? (isCover ? "0%" : `${((currentPage + 1) / story.pages.length) * 100}%`)
         : "0%";
 
+    // During close-to-cover we keep the right page visible
+    const showCoverOnRight = false; // intentionally false; right stays page 2 while closing
+
     return (
         <div
             className={`story-viewer ${isBook ? "is-book" : "is-classic"}`}
@@ -518,7 +519,6 @@ export default function StoryViewerPage({ mode = "private" }) {
         >
             <div className="stars"></div><div className="twinkling"></div><div className="clouds"></div>
 
-            {/* Header Controls (hidden in effective Book Mode) */}
             {!isBook && (
                 <div className={`story-header only-progress ${showControls ? "visible" : "hidden"}`}>
                     <div className="story-progress">
@@ -530,27 +530,21 @@ export default function StoryViewerPage({ mode = "private" }) {
                 </div>
             )}
 
-            {/* Main Content */}
             <div className="story-content" ref={contentRef}>
                 {isBook ? (
-                    // ---------- BOOK MODE ----------
                     <div className="book-wrapper">
                         <div
                             className={[
                                 "book",
-                                // show single centered cover when on cover or opening from it
-                                ((isCover && !(isFlipping && flipDir === "to-cover")) ||
+                                ((isCover && !isClosingToCover) ||
                                     (openingFromCover && isFlipping && flipDir === "next"))
                                     ? "cover-state" : "",
                                 openingFromCover && isFlipping && flipDir === "next" ? "opening-from-cover" : "",
-                                // dedicated close state
-                                (isFlipping && flipDir === "to-cover") ? "closing-to-cover" : "",
-                                // add "force-mirror" here ONLY if your space is inverted
-                                // (isFlipping && flipDir === "to-cover") ? "force-mirror" : ""
+                                isClosingToCover ? "closing-to-cover" : "",
                             ].join(" ")}
                         >
-                            {/* LEFT column (don’t render while going to cover) */}
-                            {!isCover && !(isFlipping && flipDir === "to-cover") && (
+                            {/* LEFT column (hide while closing to cover) */}
+                            {!isCover && !isClosingToCover && (
                                 <div className="book-left">
                                     <div className="paper static">
                                         <PageFace idx={currentPage - 1} />
@@ -558,9 +552,9 @@ export default function StoryViewerPage({ mode = "private" }) {
                                 </div>
                             )}
 
-                            {/* RIGHT column — add keep-visible while closing to cover */}
+                            {/* RIGHT column — keep current right page visible */}
                             <div className="book-right">
-                                <div className={`paper static ${isFlipping && flipDir === "to-cover" ? "keep-visible" : ""}`}>
+                                <div className={`paper static ${showCoverOnRight ? "keep-visible" : ""}`}>
                                     {isCover ? (
                                         <>
                                             <PageFace idx={-1} />
@@ -571,7 +565,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                                             </div>
                                         </>
                                     ) : (
-                                        <PageFace idx={currentPage} />
+                                        <PageFace idx={showCoverOnRight ? -1 : currentPage} />
                                     )}
                                 </div>
                             </div>
@@ -600,7 +594,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                         </div>
                     </div>
                 ) : (
-                    // ---------- CLASSIC MODE ----------
                     <>
                         {isCover ? (
                             <div className="cover-page">
@@ -686,7 +679,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                     )}
 
                     <div className="page-indicators" ref={indicatorsRef}>
-                        {/* Cover dot */}
                         <button
                             ref={(el) => (dotRefs.current[0] = el)}
                             onClick={() => goToPage(-1)}
@@ -697,7 +689,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                             <span className="dot-icon">📖</span>
                         </button>
 
-                        {/* Numbered dots */}
                         {isBook
                             ? (
                                 Array.from({ length: totalSpreads }, (_, i) => {
