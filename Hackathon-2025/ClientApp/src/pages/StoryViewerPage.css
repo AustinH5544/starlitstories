@@ -1317,7 +1317,7 @@
         position: absolute;
         inset: 0;
         border-radius: inherit;
-        background: linear-gradient( 90deg, rgba(0, 0, 0, 0.06), transparent 12%, transparent 88%, rgba(0, 0, 0, 0.06) );
+        background: linear-gradient(90deg, rgba(0,0,0,.06), transparent 12%, transparent 88%, rgba(0,0,0,.06));
         pointer-events: none;
     }
 
@@ -1326,7 +1326,7 @@
         padding: 18px 22px;
     }
 
-/* ==== Flipping sheet ==== */
+/* ==== Flipping sheet (generic) ==== */
 .sheet {
     position: absolute;
     top: 0;
@@ -1338,79 +1338,78 @@
     animation: none;
 }
 
+    /* normal page turns */
     .sheet.turn-left {
         left: 50%;
-        transform-origin: left center;
+        transform-origin: left center; /* hinge on spine for right->left turn */
         animation: pageTurnLeft 650ms ease-in-out forwards;
     }
 
     .sheet.turn-right {
         left: 0;
-        transform-origin: right center;
+        transform-origin: right center; /* hinge on spine for left->right turn */
         animation: pageTurnRight 650ms ease-in-out forwards;
     }
 
-    /* Cover opening flip (legacy, kept for safety) */
-    .sheet.from-cover-left {
-        left: 0;
-        width: 100%;
-        transform-origin: left center;
-        z-index: 7;
-        pointer-events: none;
-        opacity: 1;
-        animation: pageTurnLeftFromShift 650ms ease-in-out both;
-        animation-delay: var(--cover-nudge-ms);
-    }
-
-    /* Force the very first flipping sheet to hinge from the LEFT EDGE and from shifted X */
+    /* Opening from cover (slide then flip from left edge) */
     .sheet.edge-open,
     .book.opening-from-cover .sheet.turn-left {
         left: 0;
         width: 100%;
         transform-origin: left center;
         z-index: 7;
-        pointer-events: none;
-        opacity: 1; /* keep visible; we’re no longer fading the cover */
+        opacity: 1;
         animation: pageTurnLeftFromShift 650ms ease-in-out both;
-        animation-delay: var(--cover-nudge-ms); /* wait until the slide finishes */
+        animation-delay: var(--cover-nudge-ms);
     }
 
-    /* Close-to-cover */
-    .sheet.close-book {
-        left: 0%;
+/* =========================================================
+   CLOSE FIRST SPREAD → COVER  (left → right on the center spine)
+   ========================================================= */
+/* Add .closing-to-cover to .book ONLY for this transition */
+.book.closing-to-cover {
+    /* keep 2 columns so the spine stays centered during the flip */
+    perspective-origin: 100% 50%;
+}
+
+    /* kill other sheet anims just during this transition */
+    .book.closing-to-cover .sheet {
+        animation: none !important;
+    }
+
+    /* Hide all statics during the close… */
+    .book.closing-to-cover .paper.static {
+        visibility: hidden;
+    }
+        /* …except the landing cover target, which opts in to remain visible */
+        .book.closing-to-cover .paper.static.keep-visible {
+            visibility: visible;
+        }
+
+    /* The moving sheet: right half, hinge at spine */
+    .book.closing-to-cover .sheet.close-book {
+        position: absolute;
+        top: 0;
+        left: 50%;
         width: 50%;
-        transform-origin: right center;
-        animation: bookClose 720ms ease-in-out forwards;
+        height: 100%;
+        transform-style: preserve-3d;
+        transform-origin: left center; /* spine */
+        transform-box: border-box;
         z-index: 6;
+        will-change: transform, box-shadow;
+        animation: bookClose_LTR 720ms ease-in-out forwards !important;
     }
 
-.book.closing-book .paper.static,
-.hidden-during-close {
-    visibility: hidden;
-}
-
-.cover-underlay {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    pointer-events: none;
-    z-index: 4;
-}
-
-    .cover-underlay .paper.static {
-        width: min(760px, 92vw);
-    }
-
-/* ==== Paper faces ==== */
+/* Faces */
 .paper-face {
     position: absolute;
     inset: 0;
-    backface-visibility: hidden;
-    background: #fdfaf5;
     border-radius: 8px;
+    backface-visibility: hidden;
     overflow: hidden;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25), inset 0 0 1px rgba(0, 0, 0, 0.2);
+    background: #fdfaf5;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25), inset 0 0 1px rgba(0,0,0,.2);
 }
 
     .paper-face.front {
@@ -1420,103 +1419,52 @@
     .paper-face.back {
         transform: rotateY(180deg);
     }
+/* matches L→R rotation */
 
-/* ==== Animations ==== */
-@keyframes pageTurnLeft {
-    0% {
-        transform: rotateY(0);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-    }
-
-    50% {
-        transform: rotateY(-90deg);
-        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
-    }
-
-    100% {
-        transform: rotateY(-180deg);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-    }
-}
-
-@keyframes pageTurnRight {
-    0% {
-        transform: rotateY(0);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-    }
-
-    50% {
-        transform: rotateY(90deg);
-        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
-    }
-
-    100% {
-        transform: rotateY(180deg);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-    }
-}
-
-/* Old left-from-edge (kept for fallback, not used by new flow) */
-@keyframes pageTurnLeftFromEdge {
+/* Core close: 0 → -180deg (left→right) */
+@keyframes bookClose_LTR {
     0% {
         transform: rotateY(0deg);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
     }
 
     50% {
         transform: rotateY(-90deg);
-        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 12px 36px rgba(0,0,0,.30);
     }
 
     100% {
         transform: rotateY(-180deg);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
     }
 }
 
-/* NEW: rotate from the shifted position, preserving translateX the whole time */
-@keyframes pageTurnLeftFromShift {
+/* Optional: mirror fallback if your space is inverted (toggle .force-mirror on .book) */
+.book.closing-to-cover.force-mirror .sheet.close-book {
+    left: 0;
+    transform-origin: right center;
+    animation: bookClose_LTR_mirror 720ms ease-in-out forwards !important;
+}
+
+@keyframes bookClose_LTR_mirror {
     0% {
-        transform: translateX(var(--cover-nudge)) rotateY(0deg);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+        transform: rotateY(0deg);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
     }
 
     50% {
-        transform: translateX(var(--cover-nudge)) rotateY(-90deg);
-        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
-    }
-
-    100% {
-        transform: translateX(var(--cover-nudge)) rotateY(-180deg);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
-    }
-}
-
-@keyframes bookClose {
-    0% {
-        left: 50%;
-        width: 50%;
-        transform: rotateY(0);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
-    }
-
-    45% {
-        left: 50%;
-        width: 50%;
         transform: rotateY(90deg);
-        box-shadow: 0 12px 36px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 12px 36px rgba(0,0,0,.30);
     }
 
     100% {
-        left: 0;
-        width: 100%;
         transform: rotateY(180deg);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
     }
 }
 
-/* Tiny settle so the close feels natural */
-.book.closing-book {
+/* Tiny settle (optional) */
+.book.closing-to-cover {
     animation: settleBook 260ms ease-out 720ms both;
 }
 
@@ -1530,17 +1478,70 @@
     }
 }
 
+/* ==== Page Turn Animations ==== */
+@keyframes pageTurnLeft {
+    0% {
+        transform: rotateY(0);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: rotateY(-90deg);
+        box-shadow: 0 12px 36px rgba(0,0,0,.3);
+    }
+
+    100% {
+        transform: rotateY(-180deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}
+
+@keyframes pageTurnRight {
+    0% {
+        transform: rotateY(0);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: rotateY(90deg);
+        box-shadow: 0 12px 36px rgba(0,0,0,.3);
+    }
+
+    100% {
+        transform: rotateY(180deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}
+
+/* Opening from a shifted cover position */
+@keyframes pageTurnLeftFromShift {
+    0% {
+        transform: translateX(var(--cover-nudge)) rotateY(0deg);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: translateX(var(--cover-nudge)) rotateY(-90deg);
+        box-shadow: 0 12px 36px rgba(0,0,0,.3);
+    }
+
+    100% {
+        transform: translateX(var(--cover-nudge)) rotateY(-180deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}
+
 /* ==== Reduced motion ==== */
 @media (prefers-reduced-motion: reduce) {
     .sheet.turn-left,
     .sheet.turn-right,
-    .sheet.from-cover-left,
+    .sheet.edge-open,
     .sheet.close-book,
-    .book.closing-book {
+    .book.closing-to-cover {
         animation: none !important;
     }
 
-        .book.closing-book .paper.static {
+        .book.closing-to-cover .paper.static {
             visibility: visible;
         }
 }
@@ -1562,13 +1563,11 @@
     color: var(--page-text-color);
 }
 
-.paper,
-.paper * {
+.paper, .paper * {
     color: inherit;
 }
 
-    .paper .story-title,
-    .paper .page-title {
+    .paper .story-title, .paper .page-title {
         color: var(--page-title-color);
     }
 
@@ -1576,8 +1575,7 @@
     color: var(--page-text-color);
 }
 
-.page-text,
-.story-viewer.is-book .page-text {
+.page-text, .story-viewer.is-book .page-text {
     text-shadow: none;
 }
 
@@ -1617,8 +1615,7 @@
     transform: perspective(1400px) rotateX(0) rotateY(0) translateZ(0);
     will-change: transform, box-shadow;
 }
-
-/* disable tilt (baseline) except during opening choreography */
+/* disable tilt baseline */
 .story-viewer.is-book .book.cover-state:not(.opening-from-cover) .paper.static,
 .story-viewer.is-book .book.cover-state:not(.opening-from-cover) .paper.static:hover {
     transform: none;
@@ -1627,7 +1624,12 @@
 }
 
 /* --- OPENING CHOREOGRAPHY --- */
-/* Visual slide animation for the cover */
+:root {
+    --cover-nudge: 50%;
+    --cover-nudge-ms: 220ms;
+    --cover-nudge-ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+
 @keyframes coverNudge {
     0% {
         transform: translateX(0) translateZ(0);
@@ -1638,13 +1640,11 @@
     }
 }
 
-/* 1) Animate the cover sliding to the right and KEEP IT THERE (no fade-out). */
 .story-viewer.is-book .book.opening-from-cover .paper.static {
     animation: coverNudge var(--cover-nudge-ms) var(--cover-nudge-ease) forwards;
     will-change: transform;
 }
-
-/* Hover glow still fine */
+/* Hover glow */
 .story-viewer.is-book .book.cover-state .paper.static:hover {
     box-shadow: 0 28px 80px rgba(12, 20, 69, 0.45), 0 2px 0 rgba(0, 0, 0, 0.07) inset;
 }
@@ -1655,10 +1655,11 @@
     inset: 10px;
     border-radius: 12px;
     background: linear-gradient(#fff8, #fff0);
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06) inset, 0 0 0 1px rgba(255, 255, 255, 0.5);
+    box-shadow: 0 0 0 2px rgba(0,0,0,.06) inset, 0 0 0 1px rgba(255,255,255,.5);
     pointer-events: none;
 }
 
+/* Layout for cover contents */
 .paper-cover {
     position: relative;
     height: 100%;
@@ -1684,7 +1685,7 @@
 .cover-vignette {
     position: absolute;
     inset: 0;
-    background: radial-gradient( 120% 120% at 50% 60%, transparent 40%, rgba(0, 0, 0, 0.35) 100% );
+    background: radial-gradient(120% 120% at 50% 60%, transparent 40%, rgba(0,0,0,.35) 100%);
     mix-blend-mode: multiply;
     pointer-events: none;
 }
@@ -1726,14 +1727,14 @@
         -webkit-background-clip: text;
         background-clip: text;
         color: #1a1d24;
-        filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.25));
+        filter: drop-shadow(0 2px 10px rgba(0,0,0,.25));
         font-size: clamp(1.6rem, 3.6vw, 2.4rem);
     }
 
     .cover-title .foil-shine {
         position: absolute;
         inset: 0;
-        background: linear-gradient( 115deg, transparent 0%, rgba(255, 255, 255, 0.65) 50%, transparent 100% );
+        background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,.65) 50%, transparent 100%);
         transform: translateX(-120%);
         mix-blend-mode: screen;
         animation: foilGlint 3.6s ease-in-out infinite;
@@ -1742,7 +1743,7 @@
     }
 
 @keyframes foilGlint {
-    0%, 70% {
+    0%,70% {
         transform: translateX(-120%);
     }
 
@@ -1758,7 +1759,7 @@
     width: 22px;
     height: 78px;
     background: linear-gradient(180deg, #a18cd1, #845ec2);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 8px 20px rgba(0,0,0,.25);
     clip-path: polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%);
     border-radius: 6px 6px 2px 2px;
 }
@@ -1772,18 +1773,17 @@
     font-size: 0.75rem;
     color: #1a1d24;
     background: linear-gradient(180deg, #ffe9b0, #ffd37a);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0,0,0,0.08);
     border-radius: 10px;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
 }
 
 /* ========= Real-book open variables ========= */
 :root {
     --cover-nudge: 50%;
-    --cover-nudge-ms: 220ms; /* adjust speed here */
-    --cover-nudge-ease: cubic-bezier(0.2, 0.6, 0.2, 1); /* adjust easing here */
+    --cover-nudge-ms: 220ms;
+    --cover-nudge-ease: cubic-bezier(0.2, 0.6, 0.2, 1);
 }
-
 /* bias perspective towards hinge during open */
 .book.cover-state.opening-from-cover {
     perspective-origin: 100% 50%;
