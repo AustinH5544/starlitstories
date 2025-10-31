@@ -1,5 +1,5 @@
 ﻿import api from "../api";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./StoryViewerPage.css";
 import { useAuth } from "../context/AuthContext";
@@ -27,6 +27,26 @@ export default function StoryViewerPage({ mode = "private" }) {
     const indicatorsRef = useRef(null);
     const dotRefs = useRef([]);
 
+    // ====== SWIPE / DRAG (only essentials) ======
+    const contentRef = useRef(null); // swipe surface
+    const pointer = useRef({
+        active: false,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0
+    });
+
+    const SWIPE_THRESHOLD = 10;  // px horizontal
+    const MAX_ANGLE_DEG = 40;    // <=40° from horizontal counts
+    const EDGE_GUARD = 24;       // ignore swipes that start near the left edge (OS gestures)
+
+    // Map raw 0..180° so 0° (right) and 180° (left) both become 0° (perfect horizontal)
+    const horizAngle = (dx, dy) => {
+        const deg = Math.abs(Math.atan2(dy, dx)) * (180 / Math.PI);
+        return Math.min(deg, 180 - deg); // 0 = horizontal, 90 = vertical
+    };
+
     // Load story: public (by token) or private (from state/localStorage)
     useEffect(() => {
         let alive = true;
@@ -35,7 +55,7 @@ export default function StoryViewerPage({ mode = "private" }) {
             if (mode === "public" && token) {
                 try {
                     const { data } = await api.get(`/share/${token}`, {
-                        skipAuth401Handler: true, // prevents redirect if token not authed
+                        skipAuth401Handler: true,
                     });
                     if (alive) setStory(data);
                 } catch (e) {
@@ -65,12 +85,9 @@ export default function StoryViewerPage({ mode = "private" }) {
 
     // Scroll active dot into view
     useEffect(() => {
-        // index 0 = Cover dot, then 1..N = page 1..N
         const activeIndex = currentPage === -1 ? 0 : currentPage + 1;
         const el = dotRefs.current[activeIndex];
-        if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-        }
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     }, [currentPage]);
 
     useEffect(() => {
@@ -86,31 +103,31 @@ export default function StoryViewerPage({ mode = "private" }) {
         return () => clearTimeout(timer);
     }, [isReading, showControls]);
 
-    // Handlers
-    const nextPage = () => {
+    // Handlers (memoized so effects can safely depend on them)
+    const nextPage = useCallback(() => {
         if (!story) return;
-        if (currentPage < story.pages.length - 1) {
-            setCurrentPage((p) => p + 1);
-            setShowControls(true);
-        } else if (currentPage === story.pages.length - 1) {
+        setShowControls(true);
+        setShowCompletion(false);
+        setCurrentPage((p) => {
+            if (p < (story.pages?.length ?? 0) - 1) return p + 1;
+            // last page -> show completion
             setShowCompletion(true);
-        }
-    };
+            return p;
+        });
+    }, [story]); // depends only on story length
 
-    const prevPage = () => {
-        if (currentPage > -1) {
-            setCurrentPage((p) => p - 1);
-            setShowControls(true);
-            setShowCompletion(false);
-        }
-    };
+    const prevPage = useCallback(() => {
+        setShowControls(true);
+        setShowCompletion(false);
+        setCurrentPage((p) => (p > -1 ? p - 1 : p));
+    }, []); // no external deps
 
-    const startReading = () => {
+    const startReading = useCallback(() => {
         setCurrentPage(0);
         setIsReading(true);
         setShowControls(true);
         setShowCompletion(false);
-    };
+    }, []);
 
     const goToPage = (pageIndex) => {
         setCurrentPage(pageIndex);
@@ -121,7 +138,7 @@ export default function StoryViewerPage({ mode = "private" }) {
     // Manual finish button (also triggers feedback)
     const finishStory = () => {
         setShowCompletion(true);
-        if (!feedbackSent) setShowFeedback(true); // only open if not sent
+        if (!feedbackSent) setShowFeedback(true);
     };
 
     const readAgain = () => {
@@ -145,12 +162,118 @@ export default function StoryViewerPage({ mode = "private" }) {
             e.target.closest("button") ||
             e.target.closest(".page-image-container")
         ) return;
-
-        // Toggle controls visibility when reading (intentionally disabled for now)
-        // if (isReading && currentPage >= 0) {
-        //   setShowControls((v) => !v);
-        // }
     };
+
+    // Keyboard navigation (←/→)
+    useEffect(() => {
+        const onKey = (e) => {
+            if (enlargedImage || showCompletion) return;
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                if (currentPage === -1) startReading();
+                else nextPage();
+            } else if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                if (currentPage === -1) return;
+                prevPage();
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [currentPage, enlargedImage, showCompletion, startReading, nextPage, prevPage]);
+
+    // ====== Pointer/touch swipe navigation (minimal) ======
+    useEffect(() => {
+        const el = contentRef.current;
+        if (!el) return;
+
+        const guard = () => enlargedImage || showCompletion;
+
+        const isInteractive = (t) =>
+            t.closest?.("button, a, input, textarea, select, [role='button'], .page-indicators, .nav-button");
+
+        const onPointerDown = (e) => {
+            if (guard()) return;
+            if (e.button !== undefined && e.button !== 0) return; // primary mouse only
+
+            const touch = e.touches ? e.touches[0] : e;
+            const sx = touch.clientX;
+            const sy = touch.clientY;
+
+            // left-edge guard (avoid browser back swipe conflicts)
+            if (sx < EDGE_GUARD) return;
+
+            if (isInteractive(e.target)) return;
+
+            pointer.current.active = true;
+            pointer.current.startX = sx;
+            pointer.current.startY = sy;
+            pointer.current.lastX = sx;
+            pointer.current.lastY = sy;
+        };
+
+        const onPointerMove = (e) => {
+            if (!pointer.current.active) return;
+
+            const touch = e.touches ? e.touches[0] : e;
+            const x = touch.clientX;
+            const y = touch.clientY;
+
+            pointer.current.lastX = x;
+            pointer.current.lastY = y;
+
+            const dx = x - pointer.current.startX;
+            const dy = y - pointer.current.startY;
+
+            // Only block native scroll if the gesture is mostly horizontal
+            const hAngle = horizAngle(dx, dy);
+            if (hAngle <= MAX_ANGLE_DEG && e.cancelable) {
+                e.preventDefault();
+            }
+        };
+
+        const onPointerUp = () => {
+            if (!pointer.current.active) return;
+
+            const dx = pointer.current.lastX - pointer.current.startX;
+            const dy = pointer.current.lastY - pointer.current.startY;
+
+            pointer.current.active = false;
+
+            const hAngle = horizAngle(dx, dy);
+            const isMostlyHorizontal = hAngle <= MAX_ANGLE_DEG;
+            if (!isMostlyHorizontal) return;
+            if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+
+            if (dx < 0) {
+                // swipe left = next
+                if (currentPage === -1) startReading();
+                else nextPage();
+            } else {
+                // swipe right = prev (no-op on cover)
+                if (currentPage >= 0) prevPage();
+            }
+        };
+
+        // Attach both mouse & touch
+        el.addEventListener("touchstart", onPointerDown, { passive: false });
+        el.addEventListener("touchmove", onPointerMove, { passive: false });
+        el.addEventListener("touchend", onPointerUp);
+        el.addEventListener("touchcancel", onPointerUp);
+        el.addEventListener("mousedown", onPointerDown);
+        window.addEventListener("mousemove", onPointerMove);
+        window.addEventListener("mouseup", onPointerUp);
+
+        return () => {
+            el.removeEventListener("touchstart", onPointerDown);
+            el.removeEventListener("touchmove", onPointerMove);
+            el.removeEventListener("touchend", onPointerUp);
+            el.removeEventListener("touchcancel", onPointerUp);
+            el.removeEventListener("mousedown", onPointerDown);
+            window.removeEventListener("mousemove", onPointerMove);
+            window.removeEventListener("mouseup", onPointerUp);
+        };
+    }, [currentPage, enlargedImage, showCompletion, startReading, nextPage, prevPage]);
 
     // Loading / error states
     if (loading) return <div className="page pad">Loading…</div>;
@@ -212,7 +335,7 @@ export default function StoryViewerPage({ mode = "private" }) {
             </div>
 
             {/* Main Content */}
-            <div className="story-content">
+            <div className="story-content" ref={contentRef}>
                 {isCover ? (
                     <div className="cover-page">
                         <div className="cover-container">
@@ -349,7 +472,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                                 Back to Profile
                             </button>
 
-                            {/* NEW: secondary entry point to reopen feedback if closed */}
                             {!feedbackSent ? (
                                 <button onClick={() => setShowFeedback(true)} className="give-feedback-btn">
                                     <span className="button-icon">💬</span>
@@ -381,7 +503,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                     "support@starlitstories.app",
                 ]}
                 onSubmitted={() => {
-                    // optional: toast/analytics
                     setFeedbackSent(true);
                     if (story?.id) localStorage.setItem(`fb:${story.id}`, "1");
                 }}

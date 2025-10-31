@@ -36,6 +36,13 @@
     overscroll-behavior: contain;
 }
 
+    .cover-image,
+    .page-image,
+    .story-viewer img {
+        -webkit-user-drag: none;
+        user-select: none;
+    }
+
 /* --- Background layers --- */
 @keyframes move-clouds {
     from {
@@ -147,6 +154,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    touch-action: none;
 }
 
 /* --- Cover page --- */
@@ -865,7 +873,7 @@
         min-height: 0;
     }
 
-/*    .page-image {
+    /*    .page-image {
         width: 100%;
         height: auto;
         max-height: 60vh;
@@ -911,7 +919,6 @@
         font-size: 0.7rem;
     }
 }
-
 
 /* Phones */
 @media (max-width: 768px) {
@@ -1003,6 +1010,7 @@
         transform: translateY(0);
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
+
 .give-feedback-sent {
     padding: 8px 12px;
     border-radius: 999px;
