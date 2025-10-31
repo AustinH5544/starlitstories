@@ -130,8 +130,7 @@ const ProfilePage = () => {
         return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     };
 
-    // fetch summaries
-    // ADDED: fetch paginated, lightweight story summaries (no pages)
+    // fetch summaries (lightweight)
     useEffect(() => {
         let alive = true;
         setLoading(true);
@@ -154,9 +153,9 @@ const ProfilePage = () => {
             }
         })();
         return () => { alive = false; };
-    }, [user?.email, storiesPage]); // CHANGED: keyed on stable fields
+    }, [user?.email, storiesPage]);
 
-    // close on escape
+    // close add-on dropdown on escape
     useEffect(() => {
         if (!addonOpen) return;
         const onKey = (e) => { if (e.key === "Escape") setAddonOpen(false); };
@@ -183,6 +182,7 @@ const ProfilePage = () => {
         return () => { alive = false; };
     }, [user]);
 
+    // load subscription/billing
     useEffect(() => {
         let alive = true;
         (async () => {
@@ -236,7 +236,7 @@ const ProfilePage = () => {
     };
 
     // Buy credits (same API as UpgradePage)
-    const buyCredits = async (pack /* "plus5" | "plus11" */) => {   // NEW
+    const buyCredits = async (pack /* "plus5" | "plus11" */) => {
         try {
             setBuyWorking(true);
             const { data } = await api.post("payments/buy-credits", { pack, quantity: 1 });
@@ -280,51 +280,76 @@ const ProfilePage = () => {
         setImgError(false);
     }, [user?.profileImage, BASE, avatarVersion]);
 
-    // OLD FETCH STORIES -- DELETE AFTER CONFIRMING NEW WORKS
-    //useEffect(() => {
-    //    const fetchStories = async () => {
-    //        try {
-    //            const res = await api.get("profile/me/stories")
-    //            setStories(res.data)
-    //        } catch (err) {
-    //            console.error("Error loading stories:", err)
-    //        } finally {
-    //            setLoading(false)
-    //        }
-    //    }
-    //    if (user?.email) fetchStories()
-    //}, [user])
+    const canDownload = ["pro", "premium"].includes(String(user?.membership || "free").toLowerCase());
 
-    const canDownload = ["pro", "premium"].includes(String(user?.membership || "free").toLowerCase()); // CHANGED
+    // ---- ADDED: lazy loader for full story (used by open/download/share) ----
+    const fetchFullStory = async (id) => {
+        const { data } = await api.get(`/profile/me/stories/${id}`);
+        return data; // expects { id, title, coverImageUrl, pages: [...], ... }
+    };
 
-    // CHANGED: onOpen now fetches the full story (with pages) only when needed
-    const onOpen = async (storySummary) => {                                           // CHANGED
+    // ---- UPDATED: open viewer only after fetching full story ----
+    const onOpen = async (storySummary) => {
         try {
-            const { data } = await api.get(`/profile/me/stories/${storySummary.id}`);  // ADDED
-            navigate("/view", { state: { story: data } });                             // CHANGED
-        } catch {
+            const story = await fetchFullStory(storySummary.id);
+            navigate("/view", { state: { story } });
+        } catch (e) {
+            console.error("Open failed:", e);
             alert("Could not open story.");
         }
     };
-    // CHANGED: share route path to singular `/story/.../share`
-    const onShare = async (story) => {                                                 // CHANGED
+
+    // ---- UPDATED: share with route fallback; summary-only ok (no pages needed) ----
+    const onShare = async (storySummary) => {
         try {
-            const { data } = await api.post(`/story/${story.id}/share`);               // CHANGED
-            const { token } = data;
+            let resp;
+            try {
+                // Preferred new singular path
+                resp = await api.post(`/story/${storySummary.id}/share`);
+            } catch (e1) {
+                const status = e1?.response?.status;
+                if (status === 404 || status === 405) {
+                    // Fallback to former plural path
+                    resp = await api.post(`/stories/${storySummary.id}/share`);
+                } else {
+                    throw e1;
+                }
+            }
+
+            const { token } = resp.data || {};
             if (!token) throw new Error("No token returned");
+
             const url = new URL(`/s/${token}`, publicBase()).toString();
-            if (navigator.share) { try { await navigator.share({ title: story.title, url }); return; } catch { } }
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: storySummary.title, url });
+                    return;
+                } catch {
+                    // fall back to clipboard
+                }
+            }
             await navigator.clipboard.writeText(url);
             alert("Share link copied!");
         } catch (e) {
+            console.error("Share failed:", e);
             const status = e?.response?.status;
             alert(`Could not create share link${status ? ` (${status})` : ""}.`);
         }
     };
-    const onDownload = async (story, format) => {
-        if (format === "pdf") await downloadStoryPdf(story)
-        else await downloadAsImages(story)
-    }
+
+    // ---- UPDATED: download now fetches full story first ----
+    const onDownload = async (storySummary, format) => {
+        try {
+            const story = await fetchFullStory(storySummary.id);
+            if (format === "pdf") await downloadStoryPdf(story);
+            else await downloadAsImages(story);
+        } catch (e) {
+            console.error("Download failed:", e);
+            alert("Could not download the story. Please try again.");
+        }
+    };
+
     const onDelete = async (storyId) => {
         const prev = stories;
         setStories(prev.filter(s => s.id !== storyId));
@@ -376,6 +401,11 @@ const ProfilePage = () => {
     }
 
     const downloadAsImages = async (story) => {
+        // Guard so summaries don't slip through
+        if (!Array.isArray(story.pages) || story.pages.length === 0) {
+            throw new Error("Story pages not loaded.");
+        }
+
         const zip = await import("jszip")
         const JSZip = zip.default
         const zipFile = new JSZip()
@@ -479,7 +509,7 @@ const ProfilePage = () => {
                     )}
 
                     {/* NEW: Stories Remaining (from /users/me/usage) */}
-                    <div className="detail-card"> {/* NEW */}
+                    <div className="detail-card">
                         <div className="detail-icon">📦</div>
                         <div className="detail-content">
                             <span className="detail-label">Stories Remaining</span>
@@ -598,13 +628,6 @@ const ProfilePage = () => {
                                         "Add-ons aren’t available at the moment."}
                             </div>
                         )}
-
-                        {/* OPTIONAL: mini pill buttons instead of dropdown
-    <div className="addon-mini-pills">
-      <button className="pill" disabled={buyWorking} onClick={() => buyCredits("plus5")}>+5 · $4</button>
-      <button className="pill" disabled={buyWorking} onClick={() => buyCredits("plus11")}>+11 · $8</button>
-    </div>
-    */}
                     </div>
                 )}
 
