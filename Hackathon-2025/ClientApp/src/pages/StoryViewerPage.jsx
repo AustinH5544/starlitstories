@@ -67,10 +67,43 @@ export default function StoryViewerPage({ mode = "private" }) {
     const FLIP_MS = 650;
     const HALF_FLIP_MS = Math.round(FLIP_MS / 2);
     const flipHalfTimer = useRef(null);
+    const pendingTargetAfterOpen = useRef(null);
+    const [openingTargetRight, setOpeningTargetRight] = useState(null);
 
     const indicatorsRef = useRef(null);
     const dotRefs = useRef([]);
     const contentRef = useRef(null);
+
+    // ===== NEW: flip queuing to play multi-step close sequence =====
+    const flipQueue = useRef([]);              // [{ dir: "prev"|"to-cover", targetRight?: number }, ...]
+    const currentPageRef = useRef(currentPage);
+    useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
+
+    const startFlip = useCallback((dir, targetRight, afterEnd) => {
+        // Prevent starting if a flip is already running
+        if (isFlipping) return;
+
+        setFlipDir(dir);
+        setIsFlipping(true);
+
+        if (dir === "prev" || dir === "next") {
+            // For normal page turns, we update the visible page at half time
+            if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
+            flipHalfTimer.current = setTimeout(() => {
+                setCurrentPage(targetRight);
+            }, HALF_FLIP_MS);
+            performAfterFlip.current = () => {
+                setCurrentPage(targetRight);
+                if (afterEnd) afterEnd();
+            };
+        } else if (dir === "to-cover") {
+            // Special close: jump to cover at the end of the animation
+            performAfterFlip.current = () => {
+                setCurrentPage(-1);
+                if (afterEnd) afterEnd();
+            };
+        }
+    }, [HALF_FLIP_MS, isFlipping]);
 
     // ====== SWIPE / DRAG (only essentials) ======
     const pointer = useRef({ active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 });
@@ -162,15 +195,28 @@ export default function StoryViewerPage({ mode = "private" }) {
     const leftIndex = Math.max(currentPage - 1, -1);
     const rightIndex = currentPage;
 
-    const frontIndex =
+    // Default mapping
+    let computedFrontIndex =
         flipDir === "next" ? (isCover ? -1 : rightIndex) :
             flipDir === "prev" ? leftIndex :
                 flipDir === "to-cover" ? leftIndex : null;
 
-    const backIndex =
+    let computedBackIndex =
         flipDir === "next" ? (isCover ? 0 : Math.min(currentPage + 1, pageCount - 1)) :
             flipDir === "prev" ? rightIndex :
                 flipDir === "to-cover" ? -1 : null;
+
+    // Override mapping specifically for OPENING FROM COVER
+    if (openingFromCover && isFlipping && flipDir === "next") {
+        // Front of the sheet is the cover; back should show the destination right page
+        computedFrontIndex = -1;
+        // If we already know the destination, show it; otherwise fall back to page 1 (safe default)
+        const fallbackRight = pageCount >= 2 ? 1 : 0;
+        computedBackIndex = openingTargetRight ?? fallbackRight;
+    }
+
+    const frontIndex = computedFrontIndex;
+    const backIndex = computedBackIndex;
 
     // --- Navigation (Book Mode moves by TWO pages) ---
     const nextPage = useCallback(() => {
@@ -210,7 +256,7 @@ export default function StoryViewerPage({ mode = "private" }) {
         } else {
             setCurrentPage((p) => Math.min(p + 1, pageCount - 1));
         }
-    }, [story, isBook, isCover, currentPage, pageCount, lastRightIndex, isFlipping]);
+    }, [story, isBook, isCover, currentPage, pageCount, lastRightIndex, isFlipping, HALF_FLIP_MS]);
 
     const prevPage = useCallback(() => {
         if (isCover) return;
@@ -241,7 +287,7 @@ export default function StoryViewerPage({ mode = "private" }) {
         } else {
             setCurrentPage((p) => (p > -1 ? p - 1 : p));
         }
-    }, [isBook, isCover, currentPage, isFlipping]);
+    }, [isBook, isCover, currentPage, isFlipping, HALF_FLIP_MS]);
 
     const startReading = useCallback(() => {
         setIsReading(true);
@@ -265,7 +311,25 @@ export default function StoryViewerPage({ mode = "private" }) {
         } else {
             setCurrentPage(0);
         }
-    }, [isBook, isFlipping, pageCount]);
+    }, [isBook, isFlipping, pageCount, HALF_FLIP_MS]);
+
+    // build & run multi-step sequence to close to cover from anywhere =====
+    const playCloseToCoverSequence = useCallback(() => {
+        if (!isBook || isCover || isFlipping) return;
+
+        if (currentPage > 1) {
+            // 1) Snap state to the first spread (no animation)
+            setCurrentPage(1);
+
+            // 2) On the next frame, trigger the close animation so faces map to 0 (left) and -1 (cover)
+            requestAnimationFrame(() => {
+                if (!isFlipping) startFlip("to-cover"); // no targetRight needed for "to-cover"
+            });
+        } else {
+            // Already on first spread → just close
+            startFlip("to-cover");
+        }
+    }, [isBook, isCover, isFlipping, currentPage, startFlip]);
 
     const goToPage = (pageIndex) => {
         if (pageIndex === currentPage) return;
@@ -278,19 +342,38 @@ export default function StoryViewerPage({ mode = "private" }) {
         }
         if (isFlipping) return;
 
-        if (pageIndex === -1) {
-            if (currentPage <= 1) {
-                setFlipDir("to-cover");
-                setIsFlipping(true);
-                performAfterFlip.current = () => setCurrentPage(-1);
-            } else {
-                setFlipDir("prev");
-                setIsFlipping(true);
-                performAfterFlip.current = () => setCurrentPage(-1);
+        // === Cover clicked → any page: play opening animation showing the target spread ===
+        if (isCover && pageIndex !== -1) {
+            // compute desired targetRight (right page of target spread)
+            let desiredRight = pageIndex;
+            if (desiredRight % 2 === 0) {
+                desiredRight = (desiredRight + 1 <= pageCount - 1) ? desiredRight + 1 : desiredRight;
             }
+            if (desiredRight > lastRightIndex) desiredRight = lastRightIndex;
+
+            // record which spread we’re opening to
+            setOpeningTargetRight(desiredRight);
+
+            // kick the special opening choreography (full-width edge-open)
+            setOpeningFromCover(true);
+
+            // IMPORTANT: use desiredRight for the mid-flip swap so the destination spread
+            // is visible during the second half of the animation.
+            startFlip("next", desiredRight, () => {
+                // after open finishes, clear flags; we're already on desiredRight
+                setOpeningFromCover(false);
+                setOpeningTargetRight(null);
+            });
             return;
         }
 
+        // === Existing: cover dot (to-cover) handled elsewhere ===
+        if (pageIndex === -1) {
+            playCloseToCoverSequence();
+            return;
+        }
+
+        // === Normal jump between spreads while not on cover ===
         let targetRight = pageIndex;
         if (targetRight % 2 === 0) {
             targetRight = (targetRight + 1 <= pageCount - 1) ? targetRight + 1 : targetRight;
@@ -501,6 +584,22 @@ export default function StoryViewerPage({ mode = "private" }) {
         );
     };
 
+    const SpreadBackFace = ({ rightIdx }) => {
+        if (rightIdx == null) return null;
+        const leftIdx = Math.max(rightIdx - 1, 0);
+
+        return (
+            <div className="spread-back">
+                <div className="spread-half left">
+                    <PageFace idx={leftIdx} />
+                </div>
+                <div className="spread-half right">
+                    <PageFace idx={rightIdx} />
+                </div>
+            </div>
+        );
+    };
+
     // Header progress (hidden in effective Book Mode)
     const headerText = !isBook
         ? (isCover ? "Cover" : `Page ${currentPage + 1} of ${story.pages.length}`)
@@ -587,7 +686,11 @@ export default function StoryViewerPage({ mode = "private" }) {
                                         <PageFace idx={frontIndex} />
                                     </div>
                                     <div className="paper-face back">
-                                        <PageFace idx={backIndex} />
+                                        {openingFromCover && isFlipping && flipDir === "next" ? (
+                                            <SpreadBackFace rightIdx={openingTargetRight ?? (pageCount >= 2 ? 1 : 0)} />
+                                        ) : (
+                                            <PageFace idx={backIndex} />
+                                        )}
                                     </div>
                                 </div>
                             )}
