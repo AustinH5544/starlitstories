@@ -403,7 +403,7 @@ export default function StoryViewerPage({ mode = "private" }) {
 
     const finishStory = () => {
         setShowCompletion(true);
-        if (!feedbackSent) setShowFeedback(true);
+        setShowFeedback(false);
     };
 
     const readAgain = () => {
