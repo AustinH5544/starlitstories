@@ -63,6 +63,9 @@ export default function StoryViewerPage({ mode = "private" }) {
     const [flipDir, setFlipDir] = useState(null); // "next" | "prev" | "close" | null
     const performAfterFlip = useRef(null);
 
+    // special flag for “nudge right then flip” when opening from cover
+    const [openingFromCover, setOpeningFromCover] = useState(false);
+
     // Halfway swap timer (to render next page mid-animation)
     const FLIP_MS = 650;
     const HALF_FLIP_MS = Math.round(FLIP_MS / 2);
@@ -110,7 +113,9 @@ export default function StoryViewerPage({ mode = "private" }) {
             }
         }
         load();
-        return () => { alive = false; };
+        return () => {
+            alive = false;
+        };
     }, [mode, token, state]);
 
     const pageCount = story?.pages?.length ?? 0;
@@ -119,7 +124,7 @@ export default function StoryViewerPage({ mode = "private" }) {
     const lastRightIndex = (() => {
         if (pageCount <= 0) return -1;
         const last = pageCount - 1;
-        if (last % 2 === 1) return last;            // odd -> already right page
+        if (last % 2 === 1) return last; // odd -> already right page
         return (pageCount - 2) >= 1 ? (pageCount - 2) : 0; // fallback to 0 if only one page
     })();
 
@@ -129,9 +134,9 @@ export default function StoryViewerPage({ mode = "private" }) {
 
     // ----- spread helpers -----
     const totalSpreads = Math.ceil(pageCount / 2);
-    const spreadOf = (idx) => Math.ceil((idx + 1) / 2);                     // page idx -> spread #
-    const rightIndexOfSpread = (s) => Math.min(s * 2 - 1, pageCount - 1);   // spread # -> right page idx
-    const spreadNumber = isCover ? 0 : spreadOf(currentPage);               // 1..totalSpreads
+    const spreadOf = (idx) => Math.ceil((idx + 1) / 2); // page idx -> spread #
+    const rightIndexOfSpread = (s) => Math.min(s * 2 - 1, pageCount - 1); // spread # -> right page idx
+    const spreadNumber = isCover ? 0 : spreadOf(currentPage); // 1..totalSpreads
 
     // Scroll active dot into view (cover = dot 0)
     useEffect(() => {
@@ -161,14 +166,22 @@ export default function StoryViewerPage({ mode = "private" }) {
 
     // Flip faces (which content is printed on the turning sheet)
     const frontIndex =
-        flipDir === "next" ? (isCover ? -1 : currentPage) :
-            flipDir === "prev" ? Math.max(currentPage - 1, -1) :
-                flipDir === "close" ? currentPage : null;
+        flipDir === "next"
+            ? (isCover ? -1 : currentPage)
+            : flipDir === "prev"
+                ? Math.max(currentPage - 1, -1)
+                : flipDir === "close"
+                    ? currentPage
+                    : null;
 
     const backIndex =
-        flipDir === "next" ? (isCover ? 0 : Math.min(currentPage + 1, pageCount - 1)) :
-            flipDir === "prev" ? currentPage :
-                flipDir === "close" ? -1 : null;
+        flipDir === "next"
+            ? (isCover ? 0 : Math.min(currentPage + 1, pageCount - 1))
+            : flipDir === "prev"
+                ? currentPage
+                : flipDir === "close"
+                    ? -1
+                    : null;
 
     // --- Navigation (Book Mode moves by TWO pages) ---
     const nextPage = useCallback(() => {
@@ -176,7 +189,7 @@ export default function StoryViewerPage({ mode = "private" }) {
 
         if (isBook) {
             if (isCover && pageCount === 0) return;
-            if (!isCover && (currentPage >= lastRightIndex)) {
+            if (!isCover && currentPage >= lastRightIndex) {
                 setShowCompletion(true);
                 return;
             }
@@ -195,9 +208,7 @@ export default function StoryViewerPage({ mode = "private" }) {
             setFlipDir("next");
             setIsFlipping(true);
 
-            const targetRight = isCover
-                ? (pageCount >= 2 ? 1 : 0)
-                : Math.min(currentPage + 2, lastRightIndex);
+            const targetRight = isCover ? (pageCount >= 2 ? 1 : 0) : Math.min(currentPage + 2, lastRightIndex);
 
             // halfway swap so the static page changes mid-flip
             if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
@@ -252,16 +263,19 @@ export default function StoryViewerPage({ mode = "private" }) {
 
         if (isBook) {
             if (isFlipping) return;
-            setFlipDir("next");
-            setIsFlipping(true);
+
+            // Turn the flag on, then start the flip after DOM has the class
+            setOpeningFromCover(true);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    setFlipDir("next");
+                    setIsFlipping(true);
+                });
+            });
+
             const firstRight = pageCount >= 2 ? 1 : 0;
 
-            // halfway swap for the initial open
-            if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
-            flipHalfTimer.current = setTimeout(() => {
-                setCurrentPage(firstRight);
-            }, HALF_FLIP_MS);
-
+            // For the initial open, avoid halfway swap; swap at end to prevent re-anchoring
             performAfterFlip.current = () => setCurrentPage(firstRight);
         } else {
             setCurrentPage(0);
@@ -312,12 +326,17 @@ export default function StoryViewerPage({ mode = "private" }) {
     const onFlipEnd = () => {
         if (flipHalfTimer.current) {
             clearTimeout(flipHalfTimer.current);
-            flipHalfTimer.current = null;
         }
+        flipHalfTimer.current = null;
+
         if (performAfterFlip.current) performAfterFlip.current();
         performAfterFlip.current = null;
+
         setIsFlipping(false);
         setFlipDir(null);
+
+        // reset the cover-opening choreography flag
+        setOpeningFromCover(false);
     };
 
     const finishStory = () => {
@@ -447,12 +466,26 @@ export default function StoryViewerPage({ mode = "private" }) {
             return (
                 <div className="paper-face-content">
                     <div className="paper-cover">
-                        <h1 className="story-title">{story.title}</h1>
-                        <img
-                            src={story.coverImageUrl || "/placeholder.svg"}
-                            alt="Story Cover"
-                            className="cover-image"
-                        />
+                        {/* Decorative ribbon & badge */}
+                        <div className="cover-ribbon" aria-hidden />
+                        <div className="cover-badge" aria-hidden>⭐ Reader Favorite</div>
+
+                        {/* Art + vignette + sparkles */}
+                        <div className="cover-art">
+                            <img
+                                src={story.coverImageUrl || "/placeholder.svg"}
+                                alt="Story Cover"
+                                className="cover-image"
+                            />
+                            <div className="cover-vignette" aria-hidden />
+                            <div className="cover-sparkles" aria-hidden />
+                        </div>
+
+                        {/* Foil title */}
+                        <h1 className="story-title cover-title">
+                            <span className="foil">{story.title}</span>
+                            <span className="foil-shine" aria-hidden />
+                        </h1>
                     </div>
                 </div>
             );
@@ -526,8 +559,12 @@ export default function StoryViewerPage({ mode = "private" }) {
                         <div
                             className={[
                                 "book",
-                                (isCover || (isFlipping && flipDir === "close")) ? "cover-state" : "",
+                                // keep cover-state while opening-from-cover next-flip is active or during close
+                                (isCover || (openingFromCover && isFlipping && flipDir === "next") || (isFlipping && flipDir === "close"))
+                                    ? "cover-state"
+                                    : "",
                                 isFlipping && flipDir === "close" ? "closing-book" : "",
+                                openingFromCover && isFlipping && flipDir === "next" ? "opening-from-cover" : "",
                             ].join(" ")}
                         >
                             {/* LEFT: hidden on cover */}
@@ -571,8 +608,9 @@ export default function StoryViewerPage({ mode = "private" }) {
                                 <div
                                     className={[
                                         "paper sheet",
-                                        flipDir === "next" ? "turn-left" :
-                                            flipDir === "prev" ? "turn-right" : "close-book",
+                                        flipDir === "next"
+                                            ? (openingFromCover ? "edge-open" : "turn-left")
+                                            : (flipDir === "prev" ? "turn-right" : "close-book"),
                                     ].join(" ")}
                                     onAnimationEnd={onFlipEnd}
                                 >
@@ -664,7 +702,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                                 checked={bookMode}
                                 onChange={(e) => {
                                     const on = e.target.checked;
-                                    // guard with eligibility too
                                     const final = on && bookEligible;
                                     setBookMode(final);
                                     localStorage.setItem("bookMode", final ? "1" : "0");
@@ -687,42 +724,39 @@ export default function StoryViewerPage({ mode = "private" }) {
                         </button>
 
                         {/* Numbered dots */}
-                        {isBook
-                            ? (
-                                // Book Mode: show spread numbers 1..totalSpreads
-                                Array.from({ length: totalSpreads }, (_, i) => {
-                                    const spreadNum = i + 1;
-                                    const active = !isCover && spreadOf(currentPage) === spreadNum;
-                                    return (
-                                        <button
-                                            key={`spread-${spreadNum}`}
-                                            ref={(el) => (dotRefs.current[spreadNum] = el)} // cover=0, so index=spreadNum
-                                            onClick={() => goToPage(rightIndexOfSpread(spreadNum))}
-                                            className={`page-dot ${active ? "active" : ""}`}
-                                            title={`Spread ${spreadNum}`}
-                                            disabled={isFlipping}
-                                        >
-                                            {spreadNum}
-                                        </button>
-                                    );
-                                })
-                            )
-                            : (
-                                // Classic Mode: show page numbers 1..pageCount
-                                story.pages.map((_, index) => (
+                        {isBook ? (
+                            // Book Mode: show spread numbers 1..totalSpreads
+                            Array.from({ length: totalSpreads }, (_, i) => {
+                                const spreadNum = i + 1;
+                                const active = !isCover && spreadOf(currentPage) === spreadNum;
+                                return (
                                     <button
-                                        key={index}
-                                        ref={(el) => (dotRefs.current[index + 1] = el)} // cover=0, so index+1
-                                        onClick={() => goToPage(index)}
-                                        className={`page-dot ${currentPage === index ? "active" : ""}`}
-                                        title={`Page ${index + 1}`}
+                                        key={`spread-${spreadNum}`}
+                                        ref={(el) => (dotRefs.current[spreadNum] = el)} // cover=0, so index=spreadNum
+                                        onClick={() => goToPage(rightIndexOfSpread(spreadNum))}
+                                        className={`page-dot ${active ? "active" : ""}`}
+                                        title={`Spread ${spreadNum}`}
                                         disabled={isFlipping}
                                     >
-                                        {index + 1}
+                                        {spreadNum}
                                     </button>
-                                ))
-                            )
-                        }
+                                );
+                            })
+                        ) : (
+                            // Classic Mode: show page numbers 1..pageCount
+                            story.pages.map((_, index) => (
+                                <button
+                                    key={index}
+                                    ref={(el) => (dotRefs.current[index + 1] = el)} // cover=0, so index+1
+                                    onClick={() => goToPage(index)}
+                                    className={`page-dot ${currentPage === index ? "active" : ""}`}
+                                    title={`Page ${index + 1}`}
+                                    disabled={isFlipping}
+                                >
+                                    {index + 1}
+                                </button>
+                            ))
+                        )}
                     </div>
                 </div>
 
