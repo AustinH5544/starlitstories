@@ -728,7 +728,7 @@ export default function StoryViewerPage({ mode = "private" }) {
 
                 <button
                     onClick={nextPage}
-                    disabled={isFlipping || (isBook && isLastSpread)}
+                    disabled={isFlipping}
                     className="nav-button next-button"
                 >
                     <span className="nav-text">
