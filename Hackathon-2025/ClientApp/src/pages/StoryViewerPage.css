@@ -1803,3 +1803,46 @@
 .book.cover-state.opening-from-cover {
     perspective-origin: 100% 50%;
 }
+
+/* distance & easing you can tune */
+:root {
+    --close-nudge: -150px; /* how far the sheet slides left at the end */
+    --close-total-ms: 1000ms; /* total close duration */
+    --close-nudge-ease: cubic-bezier(0.2, 0.6, 0.2, 1); /* match your open ease */
+}
+
+/* The close-to-cover flipping sheet */
+.book.closing-to-cover .sheet.close-book {
+    animation: bookClose_L2R_WithNudge var(--close-total-ms) ease-in-out forwards !important;
+    transform-origin: right center;
+    left: 0;
+    width: 50%;
+    transform-box: border-box;
+    z-index: 6;
+    will-change: transform, box-shadow;
+}
+
+/* One animation: close (0→180deg), then a tiny left nudge */
+@keyframes bookClose_L2R_WithNudge {
+    0% {
+        transform: rotateY(0deg) translateX(0);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: rotateY(90deg) translateX(0);
+        box-shadow: 0 12px 36px rgba(0,0,0,.30);
+    }
+    /* Finish the rotation by 70%… */
+    70% {
+        transform: rotateY(180deg) translateX(0);
+        box-shadow: 0 6px 20px rgba(0,0,0,.22);
+        /* Use a slower, smoother easing for the remaining segment */
+        animation-timing-function: var(--close-nudge-ease);
+    }
+    /* …then spend 30% of the time doing the visible left slide */
+    100% {
+        transform: rotateY(180deg) translateX(calc(-1 * var(--close-nudge)));
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}

@@ -383,7 +383,12 @@ export default function StoryViewerPage({ mode = "private" }) {
         performAfterFlip.current = () => setCurrentPage(targetRight);
     };
 
-    const onFlipEnd = () => {
+    const onFlipEnd = (e) => {
+        // For close-to-cover we now use ONE animation: bookClose_L2R_WithNudge
+        if (flipDir === "to-cover") {
+            if (e?.animationName !== "bookClose_L2R_WithNudge") return;
+        }
+
         if (flipHalfTimer.current) {
             clearTimeout(flipHalfTimer.current);
             flipHalfTimer.current = null;
