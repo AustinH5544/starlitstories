@@ -317,19 +317,11 @@ export default function StoryViewerPage({ mode = "private" }) {
     const playCloseToCoverSequence = useCallback(() => {
         if (!isBook || isCover || isFlipping) return;
 
-        if (currentPage > 1) {
-            // 1) Snap state to the first spread (no animation)
-            setCurrentPage(1);
-
-            // 2) On the next frame, trigger the close animation so faces map to 0 (left) and -1 (cover)
-            requestAnimationFrame(() => {
-                if (!isFlipping) startFlip("to-cover"); // no targetRight needed for "to-cover"
-            });
-        } else {
-            // Already on first spread → just close
-            startFlip("to-cover");
-        }
-    }, [isBook, isCover, isFlipping, currentPage, startFlip]);
+        // Do NOT change currentPage. Just play the special close animation
+        // with front face = current left page, back face = cover (-1).
+        setOpeningFromCover(false);
+        startFlip("to-cover"); // performAfterFlip will setCurrentPage(-1)
+    }, [isBook, isCover, isFlipping, startFlip]);
 
     const goToPage = (pageIndex) => {
         if (pageIndex === currentPage) return;
