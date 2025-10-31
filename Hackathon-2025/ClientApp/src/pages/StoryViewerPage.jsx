@@ -7,56 +7,89 @@ import FeedbackModal from "../components/FeedbackModal";
 
 export default function StoryViewerPage({ mode = "private" }) {
     const navigate = useNavigate();
-    const { state } = useLocation();           // carries { story } on private route
-    const { token } = useParams();             // present only on /s/:token
+    const { state } = useLocation();
+    const { token } = useParams();
     const { user } = useAuth();
+
+    // ---------- Book-mode eligibility (>= 768 x 1024) ----------
+    const computeEligibility = () => {
+        const w = window.innerWidth || 0;
+        const h = window.innerHeight || 0;
+        const minSide = Math.min(w, h);
+        const maxSide = Math.max(w, h);
+        return minSide >= 768 && maxSide >= 1024;
+    };
+    const [bookEligible, setBookEligible] = useState(() => computeEligibility());
+
+    useEffect(() => {
+        const onResize = () => {
+            const ok = computeEligibility();
+            setBookEligible(ok);
+        };
+        window.addEventListener("resize", onResize);
+        window.addEventListener("orientationchange", onResize);
+        return () => {
+            window.removeEventListener("resize", onResize);
+            window.removeEventListener("orientationchange", onResize);
+        };
+    }, []);
 
     const [story, setStory] = useState(null);
     const [loading, setLoading] = useState(mode === "public" && !!token);
     const [error, setError] = useState("");
 
+    // In Book Mode, currentPage is the RIGHT page index of the open spread
     const [currentPage, setCurrentPage] = useState(-1); // -1 = cover
     const [isReading, setIsReading] = useState(false);
     const [showControls, setShowControls] = useState(true);
-    const [enlargedImage, setEnlargedImage] = useState(null);
     const [showCompletion, setShowCompletion] = useState(false);
 
     const [showFeedback, setShowFeedback] = useState(false);
     const [feedbackSent, setFeedbackSent] = useState(false);
 
+    // ===== Book Mode & Flip (cover = single page, turns move a full spread) =====
+    const [bookMode, setBookMode] = useState(() => localStorage.getItem("bookMode") === "1");
+    const isBook = bookMode && bookEligible; // effective book mode
+
+    // If viewport becomes ineligible while bookMode is on, force classic
+    useEffect(() => {
+        if (!bookEligible && bookMode) {
+            setBookMode(false);
+            localStorage.setItem("bookMode", "0");
+        }
+    }, [bookEligible, bookMode]);
+
+    const [isFlipping, setIsFlipping] = useState(false);
+    const [flipDir, setFlipDir] = useState(null); // "next" | "prev" | "close" | null
+    const performAfterFlip = useRef(null);
+
+    // Halfway swap timer (to render next page mid-animation)
+    const FLIP_MS = 650;
+    const HALF_FLIP_MS = Math.round(FLIP_MS / 2);
+    const flipHalfTimer = useRef(null);
+
     const indicatorsRef = useRef(null);
     const dotRefs = useRef([]);
+    const contentRef = useRef(null);
 
     // ====== SWIPE / DRAG (only essentials) ======
-    const contentRef = useRef(null); // swipe surface
-    const pointer = useRef({
-        active: false,
-        startX: 0,
-        startY: 0,
-        lastX: 0,
-        lastY: 0
-    });
+    const pointer = useRef({ active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 });
+    const SWIPE_THRESHOLD = 10;
+    const MAX_ANGLE_DEG = 40;
+    const EDGE_GUARD = 24;
 
-    const SWIPE_THRESHOLD = 10;  // px horizontal
-    const MAX_ANGLE_DEG = 40;    // <=40° from horizontal counts
-    const EDGE_GUARD = 24;       // ignore swipes that start near the left edge (OS gestures)
-
-    // Map raw 0..180° so 0° (right) and 180° (left) both become 0° (perfect horizontal)
     const horizAngle = (dx, dy) => {
         const deg = Math.abs(Math.atan2(dy, dx)) * (180 / Math.PI);
-        return Math.min(deg, 180 - deg); // 0 = horizontal, 90 = vertical
+        return Math.min(deg, 180 - deg);
     };
 
-    // Load story: public (by token) or private (from state/localStorage)
+    // Load story
     useEffect(() => {
         let alive = true;
-
         async function load() {
             if (mode === "public" && token) {
                 try {
-                    const { data } = await api.get(`/share/${token}`, {
-                        skipAuth401Handler: true,
-                    });
+                    const { data } = await api.get(`/share/${token}`, { skipAuth401Handler: true });
                     if (alive) setStory(data);
                 } catch (e) {
                     if (alive) setError("This shared story link is invalid or expired.");
@@ -66,8 +99,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                 }
                 return;
             }
-
-            // private
             if (state?.story) {
                 if (alive) {
                     setStory(state.story);
@@ -78,64 +109,217 @@ export default function StoryViewerPage({ mode = "private" }) {
                 if (saved && alive) setStory(JSON.parse(saved));
             }
         }
-
         load();
         return () => { alive = false; };
     }, [mode, token, state]);
 
-    // Scroll active dot into view
+    const pageCount = story?.pages?.length ?? 0;
+
+    // --- helpers for book spreads ---
+    const lastRightIndex = (() => {
+        if (pageCount <= 0) return -1;
+        const last = pageCount - 1;
+        if (last % 2 === 1) return last;            // odd -> already right page
+        return (pageCount - 2) >= 1 ? (pageCount - 2) : 0; // fallback to 0 if only one page
+    })();
+
+    const isCover = currentPage === -1;
+    const isLastSpread = !isCover && currentPage >= lastRightIndex;
+    const onFirstSpread = !isCover && currentPage <= 1;
+
+    // ----- spread helpers -----
+    const totalSpreads = Math.ceil(pageCount / 2);
+    const spreadOf = (idx) => Math.ceil((idx + 1) / 2);                     // page idx -> spread #
+    const rightIndexOfSpread = (s) => Math.min(s * 2 - 1, pageCount - 1);   // spread # -> right page idx
+    const spreadNumber = isCover ? 0 : spreadOf(currentPage);               // 1..totalSpreads
+
+    // Scroll active dot into view (cover = dot 0)
     useEffect(() => {
-        const activeIndex = currentPage === -1 ? 0 : currentPage + 1;
+        let activeIndex;
+        if (isBook) {
+            // dots: [cover, 1..totalSpreads]
+            activeIndex = isCover ? 0 : spreadOf(currentPage);
+        } else {
+            // dots: [cover, 1..pageCount]
+            activeIndex = isCover ? 0 : currentPage + 1;
+        }
         const el = dotRefs.current[activeIndex];
         if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-    }, [currentPage]);
+    }, [isBook, currentPage, isCover, pageCount]);
 
     useEffect(() => {
         if (!story?.id) return;
-        const key = `fb:${story.id}`;
-        setFeedbackSent(localStorage.getItem(key) === "1");
+        setFeedbackSent(localStorage.getItem(`fb:${story.id}`) === "1");
     }, [story?.id]);
 
-    // Auto-hide controls (only when reading)
+    // Auto-hide controls
     useEffect(() => {
         if (!isReading || !showControls) return;
-        const timer = setTimeout(() => setShowControls(false), 1000000);
-        return () => clearTimeout(timer);
+        const t = setTimeout(() => setShowControls(false), 1000000);
+        return () => clearTimeout(t);
     }, [isReading, showControls]);
 
-    // Handlers (memoized so effects can safely depend on them)
+    // Flip faces (which content is printed on the turning sheet)
+    const frontIndex =
+        flipDir === "next" ? (isCover ? -1 : currentPage) :
+            flipDir === "prev" ? Math.max(currentPage - 1, -1) :
+                flipDir === "close" ? currentPage : null;
+
+    const backIndex =
+        flipDir === "next" ? (isCover ? 0 : Math.min(currentPage + 1, pageCount - 1)) :
+            flipDir === "prev" ? currentPage :
+                flipDir === "close" ? -1 : null;
+
+    // --- Navigation (Book Mode moves by TWO pages) ---
     const nextPage = useCallback(() => {
         if (!story) return;
+
+        if (isBook) {
+            if (isCover && pageCount === 0) return;
+            if (!isCover && (currentPage >= lastRightIndex)) {
+                setShowCompletion(true);
+                return;
+            }
+        } else {
+            if (currentPage >= pageCount - 1) {
+                setShowCompletion(true);
+                return;
+            }
+        }
+
         setShowControls(true);
         setShowCompletion(false);
-        setCurrentPage((p) => {
-            if (p < (story.pages?.length ?? 0) - 1) return p + 1;
-            // last page -> show completion
-            setShowCompletion(true);
-            return p;
-        });
-    }, [story]); // depends only on story length
+
+        if (isBook) {
+            if (isFlipping) return;
+            setFlipDir("next");
+            setIsFlipping(true);
+
+            const targetRight = isCover
+                ? (pageCount >= 2 ? 1 : 0)
+                : Math.min(currentPage + 2, lastRightIndex);
+
+            // halfway swap so the static page changes mid-flip
+            if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
+            flipHalfTimer.current = setTimeout(() => {
+                setCurrentPage(targetRight);
+            }, HALF_FLIP_MS);
+
+            // safety finalization at end
+            performAfterFlip.current = () => setCurrentPage(targetRight);
+        } else {
+            setCurrentPage((p) => Math.min(p + 1, pageCount - 1));
+        }
+    }, [story, isBook, isCover, currentPage, pageCount, lastRightIndex, isFlipping]);
 
     const prevPage = useCallback(() => {
+        if (isCover) return;
         setShowControls(true);
         setShowCompletion(false);
-        setCurrentPage((p) => (p > -1 ? p - 1 : p));
-    }, []); // no external deps
+
+        if (isBook) {
+            if (isFlipping) return;
+
+            // Close-book animation when going from first spread -> cover
+            if (currentPage <= 1) {
+                setFlipDir("close");
+                setIsFlipping(true);
+                performAfterFlip.current = () => setCurrentPage(-1);
+                return;
+            }
+
+            setFlipDir("prev");
+            setIsFlipping(true);
+
+            const targetRight = currentPage - 2;
+
+            // halfway swap to previous spread's right page
+            if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
+            flipHalfTimer.current = setTimeout(() => {
+                setCurrentPage(targetRight);
+            }, HALF_FLIP_MS);
+
+            performAfterFlip.current = () => setCurrentPage(targetRight);
+        } else {
+            setCurrentPage((p) => (p > -1 ? p - 1 : p));
+        }
+    }, [isBook, isCover, currentPage, isFlipping]);
 
     const startReading = useCallback(() => {
-        setCurrentPage(0);
         setIsReading(true);
         setShowControls(true);
         setShowCompletion(false);
-    }, []);
+
+        if (isBook) {
+            if (isFlipping) return;
+            setFlipDir("next");
+            setIsFlipping(true);
+            const firstRight = pageCount >= 2 ? 1 : 0;
+
+            // halfway swap for the initial open
+            if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
+            flipHalfTimer.current = setTimeout(() => {
+                setCurrentPage(firstRight);
+            }, HALF_FLIP_MS);
+
+            performAfterFlip.current = () => setCurrentPage(firstRight);
+        } else {
+            setCurrentPage(0);
+        }
+    }, [isBook, isFlipping, pageCount]);
 
     const goToPage = (pageIndex) => {
-        setCurrentPage(pageIndex);
+        if (pageIndex === currentPage) return;
         setShowControls(true);
         setShowCompletion(false);
+
+        if (!isBook) {
+            setCurrentPage(pageIndex);
+            return;
+        }
+        if (isFlipping) return;
+
+        if (pageIndex === -1) {
+            if (currentPage <= 1) {
+                setFlipDir("close");
+                setIsFlipping(true);
+                performAfterFlip.current = () => setCurrentPage(-1);
+            } else {
+                setFlipDir("prev");
+                setIsFlipping(true);
+                performAfterFlip.current = () => setCurrentPage(-1);
+            }
+            return;
+        }
+
+        // Snap target to a right page
+        let targetRight = pageIndex;
+        if (targetRight % 2 === 0) targetRight = (targetRight + 1 <= pageCount - 1) ? targetRight + 1 : targetRight;
+        if (targetRight > lastRightIndex) targetRight = lastRightIndex;
+
+        setFlipDir(targetRight > currentPage ? "next" : "prev");
+        setIsFlipping(true);
+
+        // halfway swap for jump navigation too
+        if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
+        flipHalfTimer.current = setTimeout(() => {
+            setCurrentPage(targetRight);
+        }, HALF_FLIP_MS);
+
+        performAfterFlip.current = () => setCurrentPage(targetRight);
     };
 
-    // Manual finish button (also triggers feedback)
+    const onFlipEnd = () => {
+        if (flipHalfTimer.current) {
+            clearTimeout(flipHalfTimer.current);
+            flipHalfTimer.current = null;
+        }
+        if (performAfterFlip.current) performAfterFlip.current();
+        performAfterFlip.current = null;
+        setIsFlipping(false);
+        setFlipDir(null);
+    };
+
     const finishStory = () => {
         setShowCompletion(true);
         if (!feedbackSent) setShowFeedback(true);
@@ -148,12 +332,6 @@ export default function StoryViewerPage({ mode = "private" }) {
         setShowControls(true);
     };
 
-    const enlargeImage = (imageUrl, e) => {
-        e.stopPropagation();
-        setEnlargedImage(imageUrl);
-    };
-    const closeEnlargedImage = () => setEnlargedImage(null);
-
     const handleContentClick = (e) => {
         if (
             e.target.closest(".story-header") ||
@@ -164,98 +342,63 @@ export default function StoryViewerPage({ mode = "private" }) {
         ) return;
     };
 
-    // Keyboard navigation (←/→)
+    // Keyboard navigation
     useEffect(() => {
         const onKey = (e) => {
-            if (enlargedImage || showCompletion) return;
+            if (showCompletion) return;
             if (e.key === "ArrowRight") {
                 e.preventDefault();
-                if (currentPage === -1) startReading();
+                if (isCover) startReading();
                 else nextPage();
             } else if (e.key === "ArrowLeft") {
                 e.preventDefault();
-                if (currentPage === -1) return;
+                if (isCover) return;
                 prevPage();
             }
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [currentPage, enlargedImage, showCompletion, startReading, nextPage, prevPage]);
+    }, [isCover, showCompletion, startReading, nextPage, prevPage]);
 
-    // ====== Pointer/touch swipe navigation (minimal) ======
+    // Pointer/touch swipe navigation
     useEffect(() => {
         const el = contentRef.current;
         if (!el) return;
 
-        const guard = () => enlargedImage || showCompletion;
-
+        const guard = () => showCompletion || isFlipping;
         const isInteractive = (t) =>
             t.closest?.("button, a, input, textarea, select, [role='button'], .page-indicators, .nav-button");
 
         const onPointerDown = (e) => {
             if (guard()) return;
-            if (e.button !== undefined && e.button !== 0) return; // primary mouse only
-
+            if (e.button !== undefined && e.button !== 0) return;
             const touch = e.touches ? e.touches[0] : e;
-            const sx = touch.clientX;
-            const sy = touch.clientY;
-
-            // left-edge guard (avoid browser back swipe conflicts)
+            const sx = touch.clientX, sy = touch.clientY;
             if (sx < EDGE_GUARD) return;
-
             if (isInteractive(e.target)) return;
-
-            pointer.current.active = true;
-            pointer.current.startX = sx;
-            pointer.current.startY = sy;
-            pointer.current.lastX = sx;
-            pointer.current.lastY = sy;
+            pointer.current = { active: true, startX: sx, startY: sy, lastX: sx, lastY: sy };
         };
 
         const onPointerMove = (e) => {
             if (!pointer.current.active) return;
-
-            const touch = e.touches ? e.touches[0] : e;
-            const x = touch.clientX;
-            const y = touch.clientY;
-
-            pointer.current.lastX = x;
-            pointer.current.lastY = y;
-
-            const dx = x - pointer.current.startX;
-            const dy = y - pointer.current.startY;
-
-            // Only block native scroll if the gesture is mostly horizontal
-            const hAngle = horizAngle(dx, dy);
-            if (hAngle <= MAX_ANGLE_DEG && e.cancelable) {
-                e.preventDefault();
-            }
+            const t = e.touches ? e.touches[0] : e;
+            const x = t.clientX, y = t.clientY;
+            pointer.current.lastX = x; pointer.current.lastY = y;
+            const dx = x - pointer.current.startX, dy = y - pointer.current.startY;
+            if (horizAngle(dx, dy) <= MAX_ANGLE_DEG && e.cancelable) e.preventDefault();
         };
 
         const onPointerUp = () => {
             if (!pointer.current.active) return;
-
             const dx = pointer.current.lastX - pointer.current.startX;
             const dy = pointer.current.lastY - pointer.current.startY;
-
             pointer.current.active = false;
-
-            const hAngle = horizAngle(dx, dy);
-            const isMostlyHorizontal = hAngle <= MAX_ANGLE_DEG;
-            if (!isMostlyHorizontal) return;
+            if (horizAngle(dx, dy) > MAX_ANGLE_DEG) return;
             if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-
-            if (dx < 0) {
-                // swipe left = next
-                if (currentPage === -1) startReading();
-                else nextPage();
-            } else {
-                // swipe right = prev (no-op on cover)
-                if (currentPage >= 0) prevPage();
-            }
+            if (dx < 0) { if (isCover) startReading(); else nextPage(); }
+            else { if (!isCover) prevPage(); }
         };
 
-        // Attach both mouse & touch
         el.addEventListener("touchstart", onPointerDown, { passive: false });
         el.addEventListener("touchmove", onPointerMove, { passive: false });
         el.addEventListener("touchend", onPointerUp);
@@ -273,183 +416,327 @@ export default function StoryViewerPage({ mode = "private" }) {
             window.removeEventListener("mousemove", onPointerMove);
             window.removeEventListener("mouseup", onPointerUp);
         };
-    }, [currentPage, enlargedImage, showCompletion, startReading, nextPage, prevPage]);
+    }, [isCover, showCompletion, startReading, nextPage, prevPage, isFlipping]);
 
-    // Loading / error states
+    // Early exits
     if (loading) return <div className="page pad">Loading…</div>;
     if (error) return <div className="page pad">⚠️ {error}</div>;
-
-    // No story
     if (!story || !Array.isArray(story.pages)) {
         return (
             <div className="story-viewer">
-                <div className="stars"></div>
-                <div className="twinkling"></div>
-                <div className="clouds"></div>
-
+                <div className="stars"></div><div className="twinkling"></div><div className="clouds"></div>
                 <div className="error-container">
                     <div className="error-content">
                         <div className="error-icon">📚</div>
                         <h2>Oops! No story found.</h2>
                         <p>It looks like your magical story got lost in the clouds!</p>
-                        <button onClick={() => navigate("/create")} className="create-new-btn">
-                            <span className="button-icon">✨</span>
-                            Create New Story
-                        </button>
-                        <button onClick={() => navigate("/profile")} className="back-to-profile-btn">
-                            <span className="button-icon">👤</span>
-                            Back to Profile
-                        </button>
+                        <button onClick={() => navigate("/create")} className="create-new-btn"><span className="button-icon">✨</span>Create New Story</button>
+                        <button onClick={() => navigate("/profile")} className="back-to-profile-btn"><span className="button-icon">👤</span>Back to Profile</button>
                     </div>
                 </div>
             </div>
         );
     }
 
-    // Render cover/pages
-    const isCover = currentPage === -1;
     const page = isCover ? null : story.pages[currentPage];
     const isLastPage = !isCover && currentPage === story.pages.length - 1;
 
-    return (
-        <div className="story-viewer" onClick={handleContentClick}>
-            <div className="stars"></div>
-            <div className="twinkling"></div>
-            <div className="clouds"></div>
-
-            {/* Header Controls (progress only) */}
-            <div className={`story-header only-progress ${showControls ? "visible" : "hidden"}`}>
-                <div className="story-progress">
-                    <span className="progress-text">
-                        {isCover ? "Cover" : `Page ${currentPage + 1} of ${story.pages.length}`}
-                    </span>
-                    <div className="progress-bar">
-                        <div
-                            className="progress-fill"
-                            style={{
-                                width: isCover ? "0%" : `${((currentPage + 1) / story.pages.length) * 100}%`,
-                            }}
+    // Face renderer for a page index (-1 = cover)
+    const PageFace = ({ idx }) => {
+        if (idx === -1) {
+            return (
+                <div className="paper-face-content">
+                    <div className="paper-cover">
+                        <h1 className="story-title">{story.title}</h1>
+                        <img
+                            src={story.coverImageUrl || "/placeholder.svg"}
+                            alt="Story Cover"
+                            className="cover-image"
                         />
                     </div>
                 </div>
+            );
+        }
+        const pg = story.pages[idx];
+        if (!pg) return <div className="paper-face-content" />;
+        const pageNo = idx + 1;
+        const sideClass = idx % 2 === 0 ? "left" : "right"; // even idx = left page, odd = right
+
+        return (
+            <div className="paper-face-content">
+                <div className="paper-page">
+                    <div className="page-image-container">
+                        <img
+                            src={pg.imageUrl || "/placeholder.svg"}
+                            alt={`Page ${idx + 1}`}
+                            className="page-image"
+                        />
+                    </div>
+                    <div className="page-text-container">
+                        <p className="page-text">{pg.text}</p>
+                        {idx === story.pages.length - 1 && (
+                            <div className="finish-inline">
+                                <button onClick={finishStory} className="finish-story-btn">
+                                    <span className="button-icon">🌟</span>
+                                    Finish Story
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Book Mode page number in corners */}
+                {isBook && <div className={`page-number ${sideClass}`}>{pageNo}</div>}
             </div>
+        );
+    };
+
+    // Header progress text + bar — hidden entirely in effective Book Mode
+    const headerText = !isBook
+        ? (isCover ? "Cover" : `Page ${currentPage + 1} of ${story.pages.length}`)
+        : "";
+    const headerFillWidth = !isBook
+        ? (isCover ? "0%" : `${((currentPage + 1) / story.pages.length) * 100}%`)
+        : "0%";
+
+    return (
+        <div
+            className={`story-viewer ${isBook ? "is-book" : "is-classic"}`}
+            onClick={handleContentClick}
+        >
+            <div className="stars"></div><div className="twinkling"></div><div className="clouds"></div>
+
+            {/* Header Controls (hidden in effective Book Mode) */}
+            {!isBook && (
+                <div className={`story-header only-progress ${showControls ? "visible" : "hidden"}`}>
+                    <div className="story-progress">
+                        <span className="progress-text">{headerText}</span>
+                        <div className="progress-bar">
+                            <div className="progress-fill" style={{ width: headerFillWidth }} />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Main Content */}
             <div className="story-content" ref={contentRef}>
-                {isCover ? (
-                    <div className="cover-page">
-                        <div className="cover-container">
-                            <h1 className="story-title">{story.title}</h1>
-                            <div className="cover-image-container">
-                                <img
-                                    src={story.coverImageUrl || "/placeholder.svg"}
-                                    alt="Story Cover"
-                                    className="cover-image"
-                                    onClick={(e) => enlargeImage(story.coverImageUrl || "/placeholder.svg", e)}
-                                />
-                                <div className="cover-overlay">
-                                    <button onClick={startReading} className="start-reading-btn">
-                                        <span className="button-icon">📖</span>
-                                        Start Reading
-                                    </button>
+                {isBook ? (
+                    // ---------- BOOK MODE ----------
+                    <div className="book-wrapper">
+                        <div
+                            className={[
+                                "book",
+                                (isCover || (isFlipping && flipDir === "close")) ? "cover-state" : "",
+                                isFlipping && flipDir === "close" ? "closing-book" : "",
+                            ].join(" ")}
+                        >
+                            {/* LEFT: hidden on cover */}
+                            {!isCover && (
+                                <div className="book-left">
+                                    <div className="paper static">
+                                        <PageFace idx={currentPage - 1} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* RIGHT: static (hidden during close) */}
+                            <div className="book-right">
+                                <div className={`paper static ${isFlipping && flipDir === "close" ? "hidden-during-close" : ""}`}>
+                                    {isCover ? (
+                                        <>
+                                            <PageFace idx={-1} />
+                                            <div className="cover-overlay">
+                                                <button onClick={startReading} className="start-reading-btn">
+                                                    <span className="button-icon">📖</span>Start Reading
+                                                </button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <PageFace idx={currentPage} />
+                                    )}
                                 </div>
                             </div>
-                            <div className="cover-details">
-                                <p className="story-info">A magical adventure awaits!</p>
-                                <div className="story-stats">
-                                    <span className="stat">
-                                        <span className="stat-icon">📄</span>
-                                        {story.pages.length} pages
-                                    </span>
-                                    <span className="stat">
-                                        <span className="stat-icon">⏱️</span>
-                                        ~{Math.ceil(story.pages.length * 1.5)} min read
-                                    </span>
+
+                            {/* Centered cover underlay during "close" */}
+                            {isFlipping && flipDir === "close" && (
+                                <div className="cover-underlay">
+                                    <div className="paper static no-spine">
+                                        <PageFace idx={-1} />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* Flipping sheet */}
+                            {isFlipping && (
+                                <div
+                                    className={[
+                                        "paper sheet",
+                                        flipDir === "next" ? "turn-left" :
+                                            flipDir === "prev" ? "turn-right" : "close-book",
+                                    ].join(" ")}
+                                    onAnimationEnd={onFlipEnd}
+                                >
+                                    <div className="paper-face front">
+                                        <PageFace idx={frontIndex} />
+                                    </div>
+                                    <div className="paper-face back">
+                                        <PageFace idx={backIndex} />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (
-                    <div className="story-page">
-                        <div className="page-container">
-                            <div className="page-image-container">
-                                <img
-                                    src={page.imageUrl || "/placeholder.svg"}
-                                    alt={`Page ${currentPage + 1}`}
-                                    className="page-image"
-                                    onClick={(e) => enlargeImage(page.imageUrl || "/placeholder.svg", e)}
-                                />
-                                <div className="image-enlarge-hint">
-                                    <span className="enlarge-icon">🔍</span>
-                                    <span className="enlarge-text">Click to enlarge</span>
+                    // ---------- CLASSIC MODE ----------
+                    <>
+                        {isCover ? (
+                            <div className="cover-page">
+                                <div className="cover-container">
+                                    <h1 className="story-title">{story.title}</h1>
+                                    <div className="cover-image-container">
+                                        <img
+                                            src={story.coverImageUrl || "/placeholder.svg"}
+                                            alt="Story Cover"
+                                            className="cover-image"
+                                        />
+                                        <div className="cover-overlay">
+                                            <button onClick={startReading} className="start-reading-btn">
+                                                <span className="button-icon">📖</span>
+                                                Start Reading
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="cover-details">
+                                        <p className="story-info">A magical adventure awaits!</p>
+                                        <div className="story-stats">
+                                            <span className="stat"><span className="stat-icon">📄</span>{story.pages.length} pages</span>
+                                            <span className="stat"><span className="stat-icon">⏱️</span>~{Math.ceil(story.pages.length * 1.5)} min read</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="page-text-container">
-                                <p className="page-text">{page.text}</p>
-                                {isLastPage && (
-                                    <div className="finish-story-section">
-                                        <button onClick={finishStory} className="finish-story-btn">
-                                            <span className="button-icon">🌟</span>
-                                            Finish Story
-                                        </button>
+                        ) : (
+                            <div className="story-page">
+                                <div className="page-container">
+                                    <div className="page-image-container">
+                                        <img
+                                            src={page.imageUrl || "/placeholder.svg"}
+                                            alt={`Page ${currentPage + 1}`}
+                                            className="page-image"
+                                        />
                                     </div>
-                                )}
+                                    <div className="page-text-container">
+                                        <p className="page-text">{page.text}</p>
+                                        {isLastPage && (
+                                            <div className="finish-story-section">
+                                                <button onClick={finishStory} className="finish-story-btn">
+                                                    <span className="button-icon">🌟</span>
+                                                    Finish Story
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
+                        )}
+                    </>
                 )}
             </div>
 
             {/* Navigation Controls */}
             <div className={`story-navigation ${showControls ? "visible" : "hidden"}`}>
-                <button onClick={prevPage} disabled={currentPage === -1} className="nav-button prev-button">
+                <button
+                    onClick={prevPage}
+                    disabled={isCover || isFlipping}
+                    className="nav-button prev-button"
+                    title={isBook && onFirstSpread ? "Close book" : "Previous"}
+                >
                     <span className="nav-icon">←</span>
-                    <span className="nav-text">Previous</span>
+                    <span className="nav-text">{isBook && onFirstSpread ? "Close" : "Previous"}</span>
                 </button>
 
-                <div className="page-indicators" ref={indicatorsRef}>
-                    <button
-                        ref={(el) => (dotRefs.current[0] = el)}
-                        onClick={() => goToPage(-1)}
-                        className={`page-dot ${isCover ? "active" : ""}`}
-                        title="Cover"
-                    >
-                        <span className="dot-icon">📖</span>
-                    </button>
+                <div className="nav-middle">
+                    {/* Book mode toggle is shown only if eligible */}
+                    {bookEligible && (
+                        <label className="flip-toggle" title="Toggle book mode">
+                            <input
+                                type="checkbox"
+                                checked={bookMode}
+                                onChange={(e) => {
+                                    const on = e.target.checked;
+                                    // guard with eligibility too
+                                    const final = on && bookEligible;
+                                    setBookMode(final);
+                                    localStorage.setItem("bookMode", final ? "1" : "0");
+                                }}
+                            />
+                            <span>Book mode</span>
+                        </label>
+                    )}
 
-                    {story.pages.map((_, index) => (
+                    <div className="page-indicators" ref={indicatorsRef}>
+                        {/* Cover dot */}
                         <button
-                            key={index}
-                            ref={(el) => (dotRefs.current[index + 1] = el)}
-                            onClick={() => goToPage(index)}
-                            className={`page-dot ${currentPage === index ? "active" : ""}`}
-                            title={`Page ${index + 1}`}
+                            ref={(el) => (dotRefs.current[0] = el)}
+                            onClick={() => goToPage(-1)}
+                            className={`page-dot ${isCover ? "active" : ""}`}
+                            title="Cover"
+                            disabled={isFlipping}
                         >
-                            {index + 1}
+                            <span className="dot-icon">📖</span>
                         </button>
-                    ))}
-                </div>
 
-                <button onClick={nextPage} className="nav-button next-button">
-                    <span className="nav-text">{isLastPage ? "Finish" : "Next"}</span>
-                    <span className="nav-icon">{isLastPage ? "🌟" : "→"}</span>
-                </button>
-            </div>
-
-            {/* Image Enlargement Modal */}
-            {enlargedImage && (
-                <div className="image-modal" onClick={closeEnlargedImage}>
-                    <div className="image-modal-content">
-                        <button className="close-modal-btn" onClick={closeEnlargedImage}>
-                            <span>✕</span>
-                        </button>
-                        <img src={enlargedImage || "/placeholder.svg"} alt="Enlarged view" className="enlarged-image" />
-                        <div className="modal-hint">
-                            <p>Click anywhere to close</p>
-                        </div>
+                        {/* Numbered dots */}
+                        {isBook
+                            ? (
+                                // Book Mode: show spread numbers 1..totalSpreads
+                                Array.from({ length: totalSpreads }, (_, i) => {
+                                    const spreadNum = i + 1;
+                                    const active = !isCover && spreadOf(currentPage) === spreadNum;
+                                    return (
+                                        <button
+                                            key={`spread-${spreadNum}`}
+                                            ref={(el) => (dotRefs.current[spreadNum] = el)} // cover=0, so index=spreadNum
+                                            onClick={() => goToPage(rightIndexOfSpread(spreadNum))}
+                                            className={`page-dot ${active ? "active" : ""}`}
+                                            title={`Spread ${spreadNum}`}
+                                            disabled={isFlipping}
+                                        >
+                                            {spreadNum}
+                                        </button>
+                                    );
+                                })
+                            )
+                            : (
+                                // Classic Mode: show page numbers 1..pageCount
+                                story.pages.map((_, index) => (
+                                    <button
+                                        key={index}
+                                        ref={(el) => (dotRefs.current[index + 1] = el)} // cover=0, so index+1
+                                        onClick={() => goToPage(index)}
+                                        className={`page-dot ${currentPage === index ? "active" : ""}`}
+                                        title={`Page ${index + 1}`}
+                                        disabled={isFlipping}
+                                    >
+                                        {index + 1}
+                                    </button>
+                                ))
+                            )
+                        }
                     </div>
                 </div>
-            )}
+
+                <button
+                    onClick={nextPage}
+                    disabled={isFlipping || (isBook && isLastSpread)}
+                    className="nav-button next-button"
+                >
+                    <span className="nav-text">
+                        {isBook && isLastSpread ? "Finish" : isLastPage ? "Finish" : "Next"}
+                    </span>
+                    <span className="nav-icon">{(isBook && isLastSpread) || isLastPage ? "🌟" : "→"}</span>
+                </button>
+            </div>
 
             {/* Completion Screen */}
             {showCompletion && (
@@ -459,35 +746,21 @@ export default function StoryViewerPage({ mode = "private" }) {
                         <h2>The End!</h2>
                         <p>What a magical adventure! Did you enjoy the story?</p>
                         <div className="completion-actions">
-                            <button onClick={readAgain} className="read-again-btn">
-                                <span className="button-icon">🔄</span>
-                                Read Again
-                            </button>
-                            <button onClick={() => navigate("/create")} className="create-another-btn">
-                                <span className="button-icon">✨</span>
-                                Create Another Story
-                            </button>
-                            <button onClick={() => navigate("/profile")} className="back-profile-btn">
-                                <span className="button-icon">👤</span>
-                                Back to Profile
-                            </button>
-
+                            <button onClick={readAgain} className="read-again-btn"><span className="button-icon">🔄</span>Read Again</button>
+                            <button onClick={() => navigate("/create")} className="create-another-btn"><span className="button-icon">✨</span>Create Another Story</button>
+                            <button onClick={() => navigate("/profile")} className="back-to-profile-btn"><span className="button-icon">👤</span>Back to Profile</button>
                             {!feedbackSent ? (
                                 <button onClick={() => setShowFeedback(true)} className="give-feedback-btn">
-                                    <span className="button-icon">💬</span>
-                                    Give Feedback
+                                    <span className="button-icon">💬</span>Give Feedback
                                 </button>
                             ) : (
-                                <div className="give-feedback-sent" aria-live="polite" title="Feedback sent">
-                                    ✅ Feedback sent — thank you!
-                                </div>
+                                <div className="give-feedback-sent" aria-live="polite" title="Feedback sent">✅ Feedback sent — thank you!</div>
                             )}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Feedback Modal */}
             <FeedbackModal
                 open={showFeedback && !feedbackSent}
                 onClose={() => setShowFeedback(false)}
@@ -498,10 +771,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                     estReadMin: Math.ceil((story?.pages?.length ?? 0) * 1.5),
                 }}
                 apiBase="/api"
-                emailTargets={[
-                    //"austintylerdevelopment@gmail.com",
-                    "support@starlitstories.app",
-                ]}
+                emailTargets={["support@starlitstories.app"]}
                 onSubmitted={() => {
                     setFeedbackSent(true);
                     if (story?.id) localStorage.setItem(`fb:${story.id}`, "1");

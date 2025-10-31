@@ -1236,3 +1236,180 @@
         text-align: left;
     }
 }
+
+/* ==== Book layout (two pages; cover = single page) ==== */
+.book-wrapper { display: grid; place-items: center; width: 100%; }
+
+.book {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* two pages */
+  width: min(1000px, 92vw);
+  aspect-ratio: 3/2;
+  perspective: 2000px;
+}
+
+.book-left, .book-right { position: relative; overflow: visible; }
+
+/* Single centered cover */
+.book.cover-state {
+  grid-template-columns: 1fr;       /* single page */
+  width: min(760px, 92vw);
+}
+.book.cover-state .book-left { display: none; }
+.book.cover-state .book-right { grid-column: 1; }
+.book.cover-state .paper.static { margin: 0 auto; }
+/* remove spine/gutter look on cover */
+.book.cover-state .paper.static,
+.paper.static.no-spine { box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.book.cover-state .paper.static::before,
+.book.cover-state .paper.static::after { display: none !important; }
+
+/* Optional faint spine when NOT on cover */
+.book::after {
+  content:""; position:absolute; inset:0 auto 0 calc(50% - 1px);
+  width:2px; background:linear-gradient(#0003,transparent,#0003); z-index:1;
+}
+.book.cover-state::after { display:none; }
+
+/* ==== Static paper + content framing ==== */
+.paper {
+  position: relative; width: 100%; height: 100%;
+  background: #fdfaf5;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2), inset 0 0 1px rgba(0,0,0,.2);
+}
+.paper::before { /* subtle edge/texture; safe to keep */
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  background: linear-gradient(90deg, rgba(0,0,0,.06), transparent 12%, transparent 88%, rgba(0,0,0,.06));
+  pointer-events:none;
+}
+.paper.static { overflow: hidden; padding: 18px 22px; }
+
+/* ==== Flipping sheet (sits above static pages) ==== */
+.sheet {
+  position:absolute; top:0; width:50%; height:100%;
+  transform-style:preserve-3d; pointer-events:none; z-index:5;
+}
+.sheet.turn-left  { left:50%; transform-origin:left center;  animation:pageTurnLeft 650ms ease-in-out forwards; }
+.sheet.turn-right { left:0;   transform-origin:right center; animation:pageTurnRight 650ms ease-in-out forwards; }
+
+/* Close-to-cover: starts as right half, rotates and widens to full, landing on centered cover */
+.sheet.close-book {
+  left:50%; width:50%; transform-origin:right center;
+  animation:bookClose 720ms ease-in-out forwards; z-index:6;
+}
+
+/* Hide underlying static pages during close so you don't see the cover on the right */
+.book.closing-book .paper.static,
+.hidden-during-close { visibility:hidden; }
+
+/* Underlay cover shown only while closing (so the sheet lands on a centered cover) */
+.cover-underlay {
+  position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; z-index:4;
+}
+.cover-underlay .paper.static { width:min(760px,92vw); }
+
+/* ==== Two faces of the flipping sheet ==== */
+.paper-face {
+  position:absolute; inset:0; backface-visibility:hidden; background:#fdfaf5;
+  border-radius:8px; overflow:hidden;
+  box-shadow:0 2px 6px rgba(0,0,0,.25), inset 0 0 1px rgba(0,0,0,.2);
+}
+.paper-face.front { transform:rotateY(0deg); }
+.paper-face.back  { transform:rotateY(180deg); }
+
+/* ==== Animations ==== */
+@keyframes pageTurnLeft {
+  0%   { transform:rotateY(0);   box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  50%  { transform:rotateY(-90deg); box-shadow:0 12px 36px rgba(0,0,0,.30); }
+  100% { transform:rotateY(-180deg); box-shadow:0 4px 16px rgba(0,0,0,.18); }
+}
+@keyframes pageTurnRight {
+  0%   { transform:rotateY(0);   box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  50%  { transform:rotateY(90deg);  box-shadow:0 12px 36px rgba(0,0,0,.30); }
+  100% { transform:rotateY(180deg);  box-shadow:0 4px 16px rgba(0,0,0,.18); }
+}
+@keyframes bookClose {
+  0%   { left:50%; width:50%; transform:rotateY(0);    box-shadow:0 8px 30px rgba(0,0,0,.25); }
+  45%  { left:50%; width:50%; transform:rotateY(90deg); box-shadow:0 12px 36px rgba(0,0,0,.30); }
+  100% { left:0;   width:100%; transform:rotateY(180deg); box-shadow:0 4px 16px rgba(0,0,0,.18); }
+}
+
+/* Optional tiny settle so the close feels natural */
+.book.closing-book { animation: settleBook 260ms ease-out 720ms both; }
+@keyframes settleBook { 0% { transform:scale(1.005); } 100% { transform:scale(1); } }
+
+/* ==== Reduced motion ==== */
+@media (prefers-reduced-motion: reduce) {
+  .sheet.turn-left, .sheet.turn-right, .sheet.close-book, .book.closing-book { animation:none !important; }
+  .book.closing-book .paper.static { visibility:visible; }
+}
+/* defaults (Classic mode = white text) */
+.story-viewer {
+    --page-text-color: #ffffff;
+    --page-title-color: #ffffff;
+}
+
+    /* Book mode: darker ink-like text */
+    .story-viewer.is-book {
+        --page-text-color: #1f222b; /* dark slate */
+        --page-title-color: #1a1d24; /* slightly darker for titles */
+    }
+
+/* Apply the colors */
+.page-text {
+    color: var(--page-text-color);
+}
+
+.paper, .paper * {
+    color: inherit;
+}
+    /* let children inherit from .paper */
+    .paper .story-title,
+    .paper .page-title {
+        color: var(--page-title-color);
+    }
+
+/* If you prefer everything inside the paper to use the page text color: */
+.story-viewer.is-book .paper {
+    color: var(--page-text-color);
+}
+
+/* Ensure any previous white text rules don't override this */
+.page-text {
+    text-shadow: none;
+}
+/* optional: remove glow effects in book mode */
+.story-viewer.is-book .page-text {
+    text-shadow: none;
+}
+/* Ensure the face content covers the whole page area */
+.paper-face-content {
+    position: relative;
+    height: 100%;
+}
+
+/* In Book Mode, anchor numbers to the physical corners of the page */
+.story-viewer.is-book .page-number {
+    position: absolute;
+    bottom: 12px;
+    font-size: 0.85rem;
+    line-height: 1;
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 3; /* above content, below flipping sheet shadow */
+}
+
+    .story-viewer.is-book .page-number.left {
+        left: 16px;
+    }
+
+    .story-viewer.is-book .page-number.right {
+        right: 16px;
+    }
+
+/* (Optional) reserve a little breathing room so the number never overlaps text */
+.story-viewer.is-book .paper.static {
+    padding-bottom: 34px;
+}
