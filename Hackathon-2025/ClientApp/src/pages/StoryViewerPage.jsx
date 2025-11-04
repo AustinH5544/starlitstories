@@ -148,13 +148,14 @@ export default function StoryViewerPage({ mode = "private" }) {
 
     const pageCount = story?.pages?.length ?? 0;
 
-    // --- helpers for book spreads ---
-    const lastRightIndex = (() => {
-        if (pageCount <= 0) return -1;
-        const last = pageCount - 1;
-        if (last % 2 === 1) return last;            // odd -> already right page
-        return (pageCount - 2) >= 1 ? (pageCount - 2) : 0; // fallback to 0 if only one page
-    })();
+    // page helpers
+    const hasOddPageCount = pageCount % 2 === 1;
+
+    // When odd: use a *virtual* right index = pageCount (blank right page).
+    // When even: the last page is already a right page (index pageCount-1).
+    const lastRightIndex = (pageCount <= 0)
+        ? -1
+        : (hasOddPageCount ? pageCount : pageCount - 1);
 
     const isCover = currentPage === -1;
     const isLastSpread = !isCover && currentPage >= lastRightIndex;
@@ -163,7 +164,12 @@ export default function StoryViewerPage({ mode = "private" }) {
     // ----- spread helpers -----
     const totalSpreads = Math.ceil(pageCount / 2);
     const spreadOf = (idx) => Math.ceil((idx + 1) / 2);
-    const rightIndexOfSpread = (s) => Math.min(s * 2 - 1, pageCount - 1);
+    const rightIndexOfSpread = (s) => {
+        const idx = s * 2 - 1;               // nominal right index for spread s
+        if (idx <= pageCount - 1) return idx; // real right page exists
+        return pageCount;                     // virtual right page when odd
+    };
+
     const spreadNumber = isCover ? 0 : spreadOf(currentPage);
 
     // Scroll active dot into view
@@ -368,8 +374,12 @@ export default function StoryViewerPage({ mode = "private" }) {
         // === Normal jump between spreads while not on cover ===
         let targetRight = pageIndex;
         if (targetRight % 2 === 0) {
-            targetRight = (targetRight + 1 <= pageCount - 1) ? targetRight + 1 : targetRight;
+            // If the user clicked a left page dot, jump to that spread’s right page
+            // If no real right page exists (odd page count), use the virtual right index (pageCount)
+            targetRight = (targetRight + 1 <= pageCount - 1) ? targetRight + 1 : pageCount;
         }
+
+        // Clamp to the computed last spread
         if (targetRight > lastRightIndex) targetRight = lastRightIndex;
 
         setFlipDir(targetRight > currentPage ? "next" : "prev");
@@ -524,6 +534,7 @@ export default function StoryViewerPage({ mode = "private" }) {
 
     // Face renderer for a page index (-1 = cover)
     const PageFace = ({ idx }) => {
+        // ----- Cover -----
         if (idx === -1) {
             return (
                 <div className="paper-face-content">
@@ -549,8 +560,14 @@ export default function StoryViewerPage({ mode = "private" }) {
                 </div>
             );
         }
+
+        // ----- Virtual / out-of-range page (e.g., odd-page blank right) → render blank face -----
+        if (idx == null || idx < 0 || idx >= pageCount) {
+            return <div className="paper-face-content" />;
+        }
+
+        // ----- Normal page -----
         const pg = story.pages[idx];
-        if (!pg) return <div className="paper-face-content" />;
         const pageNo = idx + 1;
         const sideClass = idx % 2 === 0 ? "left" : "right";
 
@@ -559,16 +576,19 @@ export default function StoryViewerPage({ mode = "private" }) {
                 <div className="paper-page">
                     <div className="page-image-container">
                         <img
-                            src={pg.imageUrl || "/placeholder.svg"}
-                            alt={`Page ${idx + 1}`}
+                            src={pg?.imageUrl || "/placeholder.svg"}
+                            alt={`Page ${pageNo}`}
                             className="page-image"
                         />
                     </div>
                     <div className="page-text-container">
-                        <p className="page-text">{pg.text}</p>
-                        {idx === story.pages.length - 1 && (
+                        <p className="page-text">{pg?.text}</p>
+                        {idx === pageCount - 1 && (
                             <div className="finish-inline">
-                                <button onClick={finishStory} className="finish-story-btn">
+                                <button
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); finishStory(); }}
+                                    className="finish-story-btn"
+                                >
                                     <span className="button-icon">🌟</span>
                                     Finish Story
                                 </button>
