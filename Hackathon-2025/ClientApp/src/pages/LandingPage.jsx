@@ -5,6 +5,9 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import "./LandingPage.css"
 
+const SHOW_COMPANY = false
+const SHOW_RESOURCES = false
+
 const LandingPage = () => {
     const disableFancy =
         window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
@@ -121,20 +124,24 @@ const LandingPage = () => {
                             <div className="step">
                                 <div className="step-number">1</div>
                                 <div className="step-icon">📝</div>
-                                <h3>Tell Us About Your Child</h3>
-                                <p>Share their name, interests, and what kind of story they'd enjoy</p>
+                                <h3>Tell Us About Your Hero</h3>
+                                <p>Add a name (real or made-up), pick a reading level and art style,
+                                    choose a theme and optional lesson, and customize the hero’s look—age,
+                                    gender, skin/hair/eye and outfit colors, plus accessories.</p>
                             </div>
                             <div className="step">
                                 <div className="step-number">2</div>
                                 <div className="step-icon">🧙‍♂️</div>
                                 <h3>Our Magic Happens</h3>
-                                <p>Our storytellers craft a unique tale personalized just for them</p>
+                                <p>Our storytellers craft a unique tale personalized for the
+                                    hero you choose, weaving in their interests and personality.</p>
                             </div>
                             <div className="step">
                                 <div className="step-number">3</div>
                                 <div className="step-icon">📖</div>
                                 <h3>Read Together</h3>
-                                <p>Enjoy a special bonding moment with a story that speaks to their heart</p>
+                                <p>Enjoy a special moment with a story that speaks to them—whether
+                                    they’re starring as themselves or as a character they created.</p>
                             </div>
                         </div>
                     </div>
@@ -173,7 +180,7 @@ const LandingPage = () => {
                                 <div className="parent-icon">❤️</div>
                                 <h3>Strengthen Bonds</h3>
                                 <p>
-                                    Create special moments that your child will remember forever with stories that feature them as the hero.
+                                    Create special moments you’ll both remember with stories that star your child's crafted character.
                                 </p>
                             </div>
                         </div>
@@ -188,9 +195,12 @@ const LandingPage = () => {
                         <div className="testimonials-container">
                             <div className="testimonial">
                                 <div className="testimonial-stars">★★★★★</div>
+                                {/*<p className="testimonial-text">*/}
+                                {/*    "My daughter asks for her personalized unicorn story every night now. She loves being the main*/}
+                                {/*    character!"*/}
+                                {/*</p>*/}
                                 <p className="testimonial-text">
-                                    "My daughter asks for her personalized unicorn story every night now. She loves being the main
-                                    character!"
+                                    "Review Placeholder"
                                 </p>
                                 <div className="testimonial-author">
                                     <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
@@ -203,8 +213,11 @@ const LandingPage = () => {
 
                             <div className="testimonial">
                                 <div className="testimonial-stars">★★★★★</div>
+                                {/*<p className="testimonial-text">*/}
+                                {/*    "My son was never interested in bedtime stories until we found Starlit Stories. Now he's excited for bedtime!"*/}
+                                {/*</p>*/}
                                 <p className="testimonial-text">
-                                    "My son was never interested in bedtime stories until we found Starlit Stories. Now he's excited for bedtime!"
+                                    "Review Placeholder"
                                 </p>
                                 <div className="testimonial-author">
                                     <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
@@ -217,9 +230,12 @@ const LandingPage = () => {
 
                             <div className="testimonial">
                                 <div className="testimonial-stars">★★★★★</div>
+                                {/*<p className="testimonial-text">*/}
+                                {/*    "The stories have helped my twins develop their imagination and vocabulary. They love discussing the*/}
+                                {/*    adventures!"*/}
+                                {/*</p>*/}
                                 <p className="testimonial-text">
-                                    "The stories have helped my twins develop their imagination and vocabulary. They love discussing the
-                                    adventures!"
+                                    "Review Placeholder"
                                 </p>
                                 <div className="testimonial-author">
                                     <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
@@ -285,36 +301,32 @@ const LandingPage = () => {
                     </div>
 
                     <div className="footer-links">
-                        <div className="footer-column">
-                            <h4>Company</h4>
-                            <a href="/about">About Us</a>
-                            <a href="/contact">Contact</a>
-                            <a href="/privacy">Privacy Policy</a>
-                            <a href="/terms">Terms of Service</a>
-                        </div>
+                        {SHOW_COMPANY && (
+                            <div className="footer-column">
+                                <h4>Company</h4>
+                                <a href="/about">About Us</a>
+                                <a href="/contact">Contact</a>
+                                <a href="/privacy">Privacy Policy</a>
+                                <a href="/terms">Terms of Service</a>
+                            </div>
+                        )}
 
-                        <div className="footer-column">
-                            <h4>Resources</h4>
-                            {/*<a href="/blog">Blog</a>*/}
-                            <a href="/faq">FAQ</a>
-                            <a href="/support">Support</a>
-                        </div>
+                        {SHOW_RESOURCES && (
+                            <div className="footer-column">
+                                <h4>Resources</h4>
+                                {/*<a href="/blog">Blog</a>*/}
+                                <a href="/faq">FAQ</a>
+                                <a href="/support">Support</a>
+                            </div>
+                        )}
 
                         <div className="footer-column">
                             <h4>Connect</h4>
                             <div className="social-links">
-                                <a href="#" className="social-link">
-                                    📱
-                                </a>
-                                <a href="#" className="social-link">
-                                    📘
-                                </a>
-                                <a href="#" className="social-link">
-                                    📸
-                                </a>
-                                <a href="#" className="social-link">
-                                    🐦
-                                </a>
+                                <a href="#" className="social-link">📱</a>
+                                <a href="#" className="social-link">📘</a>
+                                <a href="#" className="social-link">📸</a>
+                                <a href="#" className="social-link">🐦</a>
                             </div>
                         </div>
                     </div>

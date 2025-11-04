@@ -14,7 +14,7 @@ const teamMembers = [
     {
         name: "Austin Harrison",
         image: "/austin.jpg",
-        role: "Co-Founder & Creative Director",
+        role: "Co-Founder & Developer",
         bio: "Believes in the power of personalized stories to inspire imagination and foster a love for reading.",
     },
 ]
@@ -84,18 +84,19 @@ const AboutPage = () => {
                     <div className="section-text">
                         <h2>Our Mission</h2>
                         <p>
-                            At Starlit Stories, we believe every child deserves to be the hero of their own story. We're on a mission to
-                            transform bedtime reading by creating personalized, magical stories that capture children's imagination
-                            and create lasting memories.
+                            At Starlit Stories, we believe every reader deserves a story where they truly belong.
+                            We’re on a mission to transform bedtime (and anytime) reading with personalized,
+                            magical tales—whether the hero is your child or a character they imagine—sparking creativity and
+                            memories that last.
                         </p>
                         <p>
-                            We founded Starlit Stories because we saw how children light up when they recognize themselves in stories. By
-                            combining the power of AI with the timeless tradition of bedtime stories, we're making storytelling more
-                            accessible, creative, and meaningful for families everywhere.
+                            We founded Starlit Stories after seeing how faces light up when a story reflects them or the worlds they dream up.
+                            By blending the power of AI with the timeless tradition of storytelling, we’re making story-making more accessible,
+                            playful, and meaningful for families, caregivers, and creators everywhere.
                         </p>
                     </div>
                 </div>
-            </section>
+            </section>s
 
             {/* How It Works Section */}
             <section className="about-section how-section">
@@ -108,8 +109,8 @@ const AboutPage = () => {
                             </div>
                             <h3>Share Your Details</h3>
                             <p>
-                                Tell us about your child - their name, interests, favorite animals, or any special elements you'd like
-                                included in the story.
+                                Tell us about your reader or hero—their name, interests,
+                                or any special elements you’d like woven into the story.
                             </p>
                         </div>
                         <div className="process-step">
@@ -118,8 +119,9 @@ const AboutPage = () => {
                             </div>
                             <h3>Our Storytellers Create</h3>
                             <p>
-                                Our magical storytellers craft a unique narrative featuring your child as the main character, weaving in
-                                their interests and preferences.
+                                Our magical storytellers craft a unique narrative starring
+                                the hero you choose—your child or a character they imagine—blending
+                                in their interests and preferences.
                             </p>
                         </div>
                         <div className="process-step">
@@ -138,8 +140,8 @@ const AboutPage = () => {
                             </div>
                             <h3>Enjoy Together</h3>
                             <p>
-                                Read the story together with your child and watch their eyes light up as they discover themselves in a
-                                magical adventure.
+                                Read the story together and watch their eyes light up as they discover themselves—or their imagined
+                                hero—in a magical adventure.
                             </p>
                         </div>
                     </div>
@@ -155,32 +157,32 @@ const AboutPage = () => {
                             <div className="benefit-icon">💫</div>
                             <h3>Boosts Imagination</h3>
                             <p>
-                                Our personalized stories spark creativity and encourage children to dream big, expanding their
-                                imaginative horizons.
+                                Our personalized stories spark creativity and encourage readers
+                                to dream big—expanding their imaginative horizons.
                             </p>
                         </div>
                         <div className="benefit-card">
                             <div className="benefit-icon">📚</div>
                             <h3>Fosters Love for Reading</h3>
                             <p>
-                                When children see themselves in stories, they develop a deeper connection to reading that can last a
-                                lifetime.
+                                When readers see themselves—or characters they’ve created—in a story,
+                                they form a deeper connection to reading that can last a lifetime.
                             </p>
                         </div>
                         <div className="benefit-card">
                             <div className="benefit-icon">❤️</div>
                             <h3>Creates Special Bonds</h3>
                             <p>
-                                Sharing personalized stories creates meaningful moments between parents and children, strengthening your
-                                relationship.
+                                Sharing personalized stories turns reading time into meaningful moments
+                                for families, caregivers, and classrooms, strengthening connection.
                             </p>
                         </div>
                         <div className="benefit-card">
                             <div className="benefit-icon">🌈</div>
                             <h3>Celebrates Uniqueness</h3>
                             <p>
-                                Our stories celebrate what makes your child special, helping to build confidence and a positive
-                                self-image.
+                                Every tale highlights what makes each reader unique, building confidence
+                                and a positive self-image.
                             </p>
                         </div>
                     </div>
@@ -233,10 +235,10 @@ const AboutPage = () => {
                             <div className="vision-feature">
                                 <div className="vision-icon">🎭</div>
                                 <div>
-                                    <h3>Themed Story Collections</h3>
+                                    <h3>Character Gallery</h3>
                                     <p>
-                                        Explore different worlds and genres with themed story packs - from space adventures to underwater
-                                        explorations.
+                                        Design a cast—friends, pets, mentors, villains—and reuse
+                                        them across stories with consistent looks and traits.
                                     </p>
                                 </div>
                             </div>
