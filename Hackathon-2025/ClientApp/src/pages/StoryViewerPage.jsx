@@ -229,29 +229,49 @@ export default function StoryViewerPage({ mode = "private" }) {
         if (!story) return;
 
         if (isBook) {
+            // Nothing to do if there's no content
             if (isCover && pageCount === 0) return;
+
+            // If we're already past the last spread, show completion
             if (!isCover && (currentPage >= lastRightIndex)) {
                 setShowCompletion(true);
                 return;
             }
-        } else {
-            if (currentPage >= pageCount - 1) {
-                setShowCompletion(true);
+
+            setShowControls(true);
+            setShowCompletion(false);
+            if (isFlipping) return;
+
+            // --- NEW: special case when on the COVER ---
+            if (isCover) {
+                // mirror startReading()/goToPage() "opening from cover" flow
+                const firstRight = pageCount >= 2 ? 1 : 0;
+
+                setOpeningFromCover(true);
+                setOpeningTargetRight(firstRight);
+
+                setFlipDir("next");
+                setIsFlipping(true);
+
+                if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
+                flipHalfTimer.current = setTimeout(() => {
+                    setCurrentPage(firstRight);
+                }, HALF_FLIP_MS);
+
+                performAfterFlip.current = () => {
+                    setCurrentPage(firstRight);
+                    // clear the temporary targeting flag once we land
+                    setOpeningFromCover(false);
+                    setOpeningTargetRight(null);
+                };
                 return;
             }
-        }
 
-        setShowControls(true);
-        setShowCompletion(false);
+            // --- Normal in-book next (advance by one spread) ---
+            const targetRight = Math.min(currentPage + 2, lastRightIndex);
 
-        if (isBook) {
-            if (isFlipping) return;
             setFlipDir("next");
             setIsFlipping(true);
-
-            const targetRight = isCover
-                ? (pageCount >= 2 ? 1 : 0)
-                : Math.min(currentPage + 2, lastRightIndex);
 
             if (flipHalfTimer.current) clearTimeout(flipHalfTimer.current);
             flipHalfTimer.current = setTimeout(() => {
@@ -259,10 +279,28 @@ export default function StoryViewerPage({ mode = "private" }) {
             }, HALF_FLIP_MS);
 
             performAfterFlip.current = () => setCurrentPage(targetRight);
-        } else {
-            setCurrentPage((p) => Math.min(p + 1, pageCount - 1));
+            return;
         }
-    }, [story, isBook, isCover, currentPage, pageCount, lastRightIndex, isFlipping, HALF_FLIP_MS]);
+
+        // Classic mode (non-book): advance one page
+        if (currentPage >= pageCount - 1) {
+            setShowCompletion(true);
+            return;
+        }
+
+        setShowControls(true);
+        setShowCompletion(false);
+        setCurrentPage((p) => Math.min(p + 1, pageCount - 1));
+    }, [
+        story,
+        isBook,
+        isCover,
+        currentPage,
+        pageCount,
+        lastRightIndex,
+        isFlipping,
+        HALF_FLIP_MS
+    ]);
 
     const prevPage = useCallback(() => {
         if (isCover) return;
@@ -794,7 +832,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                                     localStorage.setItem("bookMode", final ? "1" : "0");
                                 }}
                             />
-                            <span>Book mode</span>
+                            <span>Book mode (Beta)</span>
                         </label>
                     )}
 
