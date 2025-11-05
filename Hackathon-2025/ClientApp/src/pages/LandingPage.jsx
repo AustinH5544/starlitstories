@@ -1,17 +1,22 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import "./LandingPage.css"
 
+const SHOW_COMPANY = false
+const SHOW_RESOURCES = false
+
 const LandingPage = () => {
     const disableFancy =
-        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
-        window.matchMedia?.('(max-width: 1024px)').matches;
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
+        window.matchMedia?.("(max-width: 1024px)").matches
+
     const navigate = useNavigate()
     const { user } = useAuth()
-    const [showWarning, setShowWarning] = useState(false)
+
+    // which sections are visible (for animations)
     const [isVisible, setIsVisible] = useState({
         hero: true,
         features: false,
@@ -20,30 +25,42 @@ const LandingPage = () => {
         cta: false,
     })
 
+    // warn the user inline (top "hero" button vs bottom "cta" button)
+    const [showWarning, setShowWarning] = useState(false)
+    const [warningAt, setWarningAt] = useState/** @type {'hero' | 'cta' | null} */(null)
+    const warnBtnRef = useRef(null)
+
+    // focus the first action on warn (a11y)
+    useEffect(() => {
+        if (showWarning && warnBtnRef.current) {
+            warnBtnRef.current.focus()
+        }
+    }, [showWarning])
+
     // Handle scroll animations
     useEffect(() => {
         const handleScroll = () => {
             const scrollPosition = window.scrollY
             const windowHeight = window.innerHeight
-
-            // Check each section's visibility based on scroll position
             setIsVisible({
-                hero: true, // Always visible
+                hero: true,
                 features: scrollPosition > windowHeight * 0.2,
                 parents: scrollPosition > windowHeight * 0.5,
                 testimonials: scrollPosition > windowHeight * 0.7,
                 cta: scrollPosition > windowHeight * 0.9,
             })
         }
-
         window.addEventListener("scroll", handleScroll)
         return () => window.removeEventListener("scroll", handleScroll)
     }, [])
 
-    const handleCreateClick = () => {
+    const handleCreateClick = (origin = "hero") => {
         if (!user) {
+            setWarningAt(origin)
             setShowWarning(true)
-            setTimeout(() => setShowWarning(false), 3000)
+            // auto-hide after 3s; remove if you want it persistent
+            window.clearTimeout((handleCreateClick)._t)
+                ; (handleCreateClick)._t = window.setTimeout(() => setShowWarning(false), 3000)
             return
         }
         navigate("/create")
@@ -54,7 +71,6 @@ const LandingPage = () => {
             {/* Hero Section */}
             <section className="hero-section">
                 <div className="stars"></div>
-                {/* only render sprinkles when not mobile / reduced motion */}
                 {!disableFancy && (
                     <>
                         <div className="twinkling"></div>
@@ -69,14 +85,14 @@ const LandingPage = () => {
                     <h1 className="hero-title">
                         <span className="magic-text">Magical</span> Bedtime Stories
                         <br />
-                        Created Just For Your Child
+                        Created Just for Your Child
                     </h1>
                     <p className="hero-subtitle">
                         Where imagination meets personalization to create unforgettable bedtime adventures
                     </p>
 
                     <div className="hero-buttons">
-                        <button className="primary-button" onClick={handleCreateClick}>
+                        <button className="primary-button" onClick={() => handleCreateClick("hero")}>
                             <span className="button-icon">✨</span>
                             Create Your Story
                         </button>
@@ -85,11 +101,11 @@ const LandingPage = () => {
                         </a>
                     </div>
 
-                    {showWarning && (
-                        <div className="warning-message">
+                    {showWarning && warningAt === "hero" && (
+                        <div className="warning-message" role="alert">
                             <p>You need to be logged in to create a story</p>
                             <div className="warning-actions">
-                                <button onClick={() => navigate("/login")} className="warning-button">
+                                <button ref={warnBtnRef} onClick={() => navigate("/login")} className="warning-button">
                                     Log In
                                 </button>
                                 <button onClick={() => navigate("/signup")} className="warning-button">
@@ -104,14 +120,16 @@ const LandingPage = () => {
                     </div>
                 </div>
 
-                {/* Scroll Indicator */}
                 {!disableFancy && (
                     <div className="scroll-indicator">
-                        <div className="mouse"><div className="wheel"></div></div>
+                        <div className="mouse">
+                            <div className="wheel"></div>
+                        </div>
                         <div className="arrow-down"></div>
                     </div>
                 )}
             </section>
+
             <div className="gradient-block">
                 {/* How It Works Section */}
                 <section id="how-it-works" className="section">
@@ -121,20 +139,30 @@ const LandingPage = () => {
                             <div className="step">
                                 <div className="step-number">1</div>
                                 <div className="step-icon">📝</div>
-                                <h3>Tell Us About Your Child</h3>
-                                <p>Share their name, interests, and what kind of story they'd enjoy</p>
+                                <h3>Tell Us About Your Hero</h3>
+                                <p>
+                                    Add a name (real or made-up), pick a reading level and art style, choose a theme and optional
+                                    lesson, and customize the hero’s look—age, gender, skin/hair/eye and outfit colors, plus
+                                    accessories.
+                                </p>
                             </div>
                             <div className="step">
                                 <div className="step-number">2</div>
                                 <div className="step-icon">🧙‍♂️</div>
                                 <h3>Our Magic Happens</h3>
-                                <p>Our storytellers craft a unique tale personalized just for them</p>
+                                <p>
+                                    Our storytellers craft a unique tale personalized for the hero you choose, weaving in their
+                                    interests and personality.
+                                </p>
                             </div>
                             <div className="step">
                                 <div className="step-number">3</div>
                                 <div className="step-icon">📖</div>
                                 <h3>Read Together</h3>
-                                <p>Enjoy a special bonding moment with a story that speaks to their heart</p>
+                                <p>
+                                    Enjoy a special moment with a story that speaks to them—whether they’re starring as themselves
+                                    or as a character they created.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -149,32 +177,30 @@ const LandingPage = () => {
                                 <div className="parent-icon">⏰</div>
                                 <h3>Save Precious Time</h3>
                                 <p>
-                                    Create beautiful bedtime stories in minutes, not hours. Perfect for busy parents who still want quality
-                                    bedtime moments.
+                                    Create beautiful bedtime stories in minutes, not hours. Perfect for busy parents who still want
+                                    quality bedtime moments.
                                 </p>
                             </div>
                             <div className="parent-card">
                                 <div className="parent-icon">🔄</div>
                                 <h3>Always Fresh Content</h3>
                                 <p>
-                                    No more reading the same books over and over. Create new stories whenever you want, keeping bedtime
-                                    exciting.
+                                    No more reading the same books over and over. Create new stories whenever you want, keeping
+                                    bedtime exciting.
                                 </p>
                             </div>
                             <div className="parent-card">
                                 <div className="parent-icon">💡</div>
                                 <h3>Educational Value</h3>
                                 <p>
-                                    Stories can include educational themes and valuable life lessons tailored to what you want your child to
-                                    learn.
+                                    Stories can include educational themes and valuable life lessons tailored to what you want your
+                                    child to learn.
                                 </p>
                             </div>
                             <div className="parent-card">
                                 <div className="parent-icon">❤️</div>
                                 <h3>Strengthen Bonds</h3>
-                                <p>
-                                    Create special moments that your child will remember forever with stories that feature them as the hero.
-                                </p>
+                                <p>Create special moments you’ll both remember with stories that star your child—or any hero they imagine.</p>
                             </div>
                         </div>
                     </div>
@@ -188,10 +214,7 @@ const LandingPage = () => {
                         <div className="testimonials-container">
                             <div className="testimonial">
                                 <div className="testimonial-stars">★★★★★</div>
-                                <p className="testimonial-text">
-                                    "My daughter asks for her personalized unicorn story every night now. She loves being the main
-                                    character!"
-                                </p>
+                                <p className="testimonial-text">"Review Placeholder"</p>
                                 <div className="testimonial-author">
                                     <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
                                     <div>
@@ -203,9 +226,7 @@ const LandingPage = () => {
 
                             <div className="testimonial">
                                 <div className="testimonial-stars">★★★★★</div>
-                                <p className="testimonial-text">
-                                    "My son was never interested in bedtime stories until we found Starlit Stories. Now he's excited for bedtime!"
-                                </p>
+                                <p className="testimonial-text">"Review Placeholder"</p>
                                 <div className="testimonial-author">
                                     <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
                                     <div>
@@ -217,15 +238,12 @@ const LandingPage = () => {
 
                             <div className="testimonial">
                                 <div className="testimonial-stars">★★★★★</div>
-                                <p className="testimonial-text">
-                                    "The stories have helped my twins develop their imagination and vocabulary. They love discussing the
-                                    adventures!"
-                                </p>
+                                <p className="testimonial-text">"Review Placeholder"</p>
                                 <div className="testimonial-author">
                                     <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
                                     <div>
                                         <p className="testimonial-name">Jennifer L.</p>
-                                        <p className="testimonial-relation">Mom of Lily & Lucas, 7</p>
+                                        <p className="testimonial-relation">Mom of Lily &amp; Lucas, 7</p>
                                     </div>
                                 </div>
                             </div>
@@ -257,10 +275,25 @@ const LandingPage = () => {
                         Create your first personalized story in minutes and make bedtime the best time of day
                     </p>
 
-                    <button className="primary-button large" onClick={handleCreateClick}>
+                    <button className="primary-button large" onClick={() => handleCreateClick("cta")}>
                         <span className="button-icon">✨</span>
                         Create Your First Story
                     </button>
+
+                    {/* inline warning for the bottom CTA */}
+                    {showWarning && warningAt === "cta" && (
+                        <div className="warning-message" role="alert">
+                            <p>You need to be logged in to create a story</p>
+                            <div className="warning-actions">
+                                <button ref={warnBtnRef} onClick={() => navigate("/login")} className="warning-button">
+                                    Log In
+                                </button>
+                                <button onClick={() => navigate("/signup")} className="warning-button">
+                                    Sign Up
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="cta-features">
                         <div className="cta-feature">
@@ -285,36 +318,32 @@ const LandingPage = () => {
                     </div>
 
                     <div className="footer-links">
-                        <div className="footer-column">
-                            <h4>Company</h4>
-                            <a href="/about">About Us</a>
-                            <a href="/contact">Contact</a>
-                            <a href="/privacy">Privacy Policy</a>
-                            <a href="/terms">Terms of Service</a>
-                        </div>
+                        {SHOW_COMPANY && (
+                            <div className="footer-column">
+                                <h4>Company</h4>
+                                <a href="/about">About Us</a>
+                                <a href="/contact">Contact</a>
+                                <a href="/privacy">Privacy Policy</a>
+                                <a href="/terms">Terms of Service</a>
+                            </div>
+                        )}
 
-                        <div className="footer-column">
-                            <h4>Resources</h4>
-                            {/*<a href="/blog">Blog</a>*/}
-                            <a href="/faq">FAQ</a>
-                            <a href="/support">Support</a>
-                        </div>
+                        {SHOW_RESOURCES && (
+                            <div className="footer-column">
+                                <h4>Resources</h4>
+                                {/*<a href="/blog">Blog</a>*/}
+                                <a href="/faq">FAQ</a>
+                                <a href="/support">Support</a>
+                            </div>
+                        )}
 
                         <div className="footer-column">
                             <h4>Connect</h4>
                             <div className="social-links">
-                                <a href="#" className="social-link">
-                                    📱
-                                </a>
-                                <a href="#" className="social-link">
-                                    📘
-                                </a>
-                                <a href="#" className="social-link">
-                                    📸
-                                </a>
-                                <a href="#" className="social-link">
-                                    🐦
-                                </a>
+                                <a href="#" className="social-link">📱</a>
+                                <a href="#" className="social-link">📘</a>
+                                <a href="#" className="social-link">📸</a>
+                                <a href="#" className="social-link">🐦</a>
                             </div>
                         </div>
                     </div>
