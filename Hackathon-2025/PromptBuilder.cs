@@ -173,14 +173,17 @@ public static class PromptBuilder
                 visualMood = "very soft, simple, friendly visuals with clear shapes";
                 tone = "soothing, rhythmic, very simple concepts";
                 break;
+
             case "early":
                 visualMood = "bright, engaging visuals with clear actions and expressions";
                 tone = "short, clear, age-appropriate language";
                 break;
+
             case "independent":
                 visualMood = "slightly more detailed, adventurous visuals";
                 tone = "engaging, varied, age-appropriate language";
                 break;
+
             default:
                 break;
         }
@@ -234,7 +237,7 @@ public static class PromptBuilder
 
         var requestBody = new
         {
-            model = "gpt-3.5-turbo",
+            model = "gpt-4.1-mini",
             messages = new[]
             {
                 new
