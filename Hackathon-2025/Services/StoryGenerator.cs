@@ -126,6 +126,7 @@ Structure the story with:
 Put a line containing only --- between paragraphs. Do not include any other dividers.
 """;
 
+
         _logger?.LogInformation("=== STORY PROMPT ===\n{Prompt}\n====================", prompt);
 
         // Token budget for exact count
@@ -133,7 +134,7 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         var requestBody = new
         {
-            model = "gpt-4.1-mini",
+            model = "gpt-3.5-turbo",
             messages = new[]
             {
             new { role = "system", content = systemContent },
@@ -355,7 +356,7 @@ no extra words, no Markdown.
 
         var requestBody = new
         {
-            model = "gpt-4.1-mini",
+            model = "gpt-3.5-turbo",
             messages = new[] { new { role = "user", content = prompt } },
             temperature = 0.9,
             max_tokens = 20
