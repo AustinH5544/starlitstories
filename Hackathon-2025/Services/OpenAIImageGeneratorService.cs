@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Hackathon_2025.Services;
 
@@ -8,11 +9,13 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
 {
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
+    private readonly ILogger<OpenAIImageGeneratorService> _logger;
 
-    public OpenAIImageGeneratorService(HttpClient httpClient, IConfiguration config)
+    public OpenAIImageGeneratorService(HttpClient httpClient, IConfiguration config, ILogger<OpenAIImageGeneratorService> logger)
     {
         _httpClient = httpClient;
         _apiKey = config["OpenAI:ApiKey"]!;
+        _logger = logger;
     }
 
     public async Task<List<string>> GenerateImagesAsync(List<string> prompts)
@@ -34,9 +37,23 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
             msg.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
             var res = await _httpClient.SendAsync(msg);
-            res.EnsureSuccessStatusCode();
 
-            var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
+            // ⬇️ ⬇️ INSERTED: log error body on non-2xx, then throw
+            var raw = await res.Content.ReadAsStringAsync(); // read first so it’s available even on error
+            if (!res.IsSuccessStatusCode)
+            {
+                _logger.LogError(
+                    "OpenAI images error {Status}. PromptLen={Len}. Body={Body}",
+                    (int)res.StatusCode,
+                    prompt?.Length ?? 0,
+                    raw
+                );
+                throw new HttpRequestException($"Images API failed ({(int)res.StatusCode}). Body: {raw}");
+            }
+            // ⬆️ ⬆️ END INSERT
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(raw));
+            using var json = await JsonDocument.ParseAsync(stream);
             var url = json.RootElement.GetProperty("data")[0].GetProperty("url").GetString();
             results.Add(url!);
         }
