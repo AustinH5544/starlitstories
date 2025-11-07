@@ -72,7 +72,8 @@ public static class PromptBuilder
         string paragraph,
         HttpClient httpClient,
         string apiKey,
-        string? artStyleKey)
+        string? artStyleKey,
+        ILogger? logger = null)
     {
         // 1) Clean once up front (used by both primary & fallback paths)
         paragraph = CleanForModel(paragraph);
@@ -218,48 +219,86 @@ public static class PromptBuilder
     }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
-        List<CharacterSpec> characters,
-        string paragraph,
-        HttpClient httpClient,
-        string apiKey,
-        string? artStyleKey)
+    List<CharacterSpec> characters,
+    string paragraph,
+    HttpClient httpClient,
+    string apiKey,
+    string? artStyleKey,
+    ILogger? logger = null)
     {
+        // sanitize input a bit (avoid breaking quotes/newlines)
+        string ParaClean(string s) =>
+            (s ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+
+        paragraph = ParaClean(paragraph);
+
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         var style = GetArtStyle(artStyleKey);
 
         var userPrompt = $"""
-        Summarize the following story paragraph into a short visual scene for an illustration.
-        Describe only what the characters are doing and what the environment looks like.
-        Do not mention names, appearance, or clothing.
+    Summarize the following story paragraph into a short visual scene for an illustration.
+    Describe only what the characters are doing and what the environment looks like.
+    Do not mention names, appearance, or clothing.
 
-        Paragraph: "{paragraph}"
-        """;
+    Paragraph: "{paragraph}"
+    """;
 
         var requestBody = new
         {
             model = "gpt-4.1-mini",
             messages = new[]
             {
-                new
-                {
-                    role = "system",
-                    content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters' names, appearance, or clothing. Only describe the environment and actions."
-                },
-                new { role = "user", content = userPrompt }
+            new
+            {
+                role = "system",
+                content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters' names, appearance, or clothing. Only describe the environment and actions."
             },
+            new { role = "user", content = userPrompt }
+        },
             temperature = 0.3,
-            max_tokens = 60
+            max_tokens = 80
         };
 
         var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-        var res = await httpClient.SendAsync(req);
-        res.EnsureSuccessStatusCode();
+        logger?.LogInformation("PROMPT[scene-summarizer] {Prompt}",
+            ParaClean(userPrompt));
 
-        var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
-        var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+        var res = await httpClient.SendAsync(req);
+
+        // capture request id (if present) for all outcomes
+        res.Headers.TryGetValues("x-request-id", out var reqIds);
+        var reqId = reqIds?.FirstOrDefault();
+
+        if (!res.IsSuccessStatusCode)
+        {
+            var rawErr = await res.Content.ReadAsStringAsync();
+            logger?.LogError("Scene summarizer error {Status}. ReqId={ReqId}. Body={Body}",
+                (int)res.StatusCode, reqId, rawErr);
+            res.EnsureSuccessStatusCode(); // will throw with correct StatusCode
+        }
+
+        using var stream = await res.Content.ReadAsStreamAsync();
+        using var json = await JsonDocument.ParseAsync(stream);
+
+        var scene = json.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+
+        scene = ParaClean(scene ?? "");
+
+        if (string.IsNullOrEmpty(scene))
+        {
+            // safe fallback if model returned nothing
+            scene = "a simple, calm setting where the characters perform a clear action";
+            logger?.LogWarning("Scene summarizer returned empty content. Using fallback. ReqId={ReqId}", reqId);
+        }
+
+        logger?.LogInformation("RESULT[scene-summarizer] ReqId={ReqId} {Scene}", reqId, scene);
 
         return $"{style} {anchors} are {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
     }

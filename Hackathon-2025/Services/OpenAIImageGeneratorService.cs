@@ -36,28 +36,43 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
             msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
             msg.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
 
+            _logger.LogInformation("PROMPT[image->dall-e-3]\n{Prompt}\n", prompt ?? string.Empty);
+
             var res = await _httpClient.SendAsync(msg);
 
-            // ⬇️ ⬇️ INSERTED: log error body on non-2xx, then throw
+            res.Headers.TryGetValues("x-request-id", out var reqIds);
+            var reqId = reqIds?.FirstOrDefault();
+
+            // log error
             var raw = await res.Content.ReadAsStringAsync(); // read first so it’s available even on error
             if (!res.IsSuccessStatusCode)
             {
                 _logger.LogError(
-                    "OpenAI images error {Status}. PromptLen={Len}. Body={Body}",
+                    "OpenAI images error {Status}. ReqId={ReqId} PromptLen={Len}. Body={Body}",
                     (int)res.StatusCode,
+                    reqId,
                     prompt?.Length ?? 0,
                     raw
                 );
                 throw new HttpRequestException($"Images API failed ({(int)res.StatusCode}). Body: {raw}");
             }
-            // ⬆️ ⬆️ END INSERT
 
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(raw));
+            _logger.LogInformation("RESULT[image<-dall-e-3] ReqId={ReqId} bytes={Bytes}\n{Body}",
+            reqId, raw?.Length ?? 0, raw);
+
             using var json = await JsonDocument.ParseAsync(stream);
             var url = json.RootElement.GetProperty("data")[0].GetProperty("url").GetString();
             results.Add(url!);
         }
 
         return results;
+    }
+
+    private static string Trunc(string? s, int max = 180)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return "";
+        s = s.Replace("\r", " ").Replace("\n", " ").Trim();
+        return s.Length > max ? s[..max] + " …" : s;
     }
 }

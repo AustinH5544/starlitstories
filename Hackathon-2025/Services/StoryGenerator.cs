@@ -126,7 +126,7 @@ Structure the story with:
 Put a line containing only --- between paragraphs. Do not include any other dividers.
 """;
 
-        _logger?.LogInformation("=== STORY PROMPT ===\n{Prompt}\n====================", prompt);
+        LogPrompt("PROMPT[story]", prompt);
 
         // Token budget for exact count
         var maxTokens = Math.Min(1800, pageCount * 110 + 300);
@@ -226,10 +226,12 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         // Image prompts strictly from scene paragraphs (no "Lesson:" line)
         var imagePromptTasks = paragraphsForImages.Select(p =>
-            PromptBuilder.BuildImagePromptAsync(request.Characters, p, _httpClient, _apiKey, request.ArtStyle));
+            PromptBuilder.BuildImagePromptAsync(request.Characters, p, _httpClient, _apiKey, request.ArtStyle, _logger));
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
+        for (int i = 0; i < imagePrompts.Length; i++)
+            LogPrompt($"PROMPT[image:{i + 1}/{imagePrompts.Length}]", imagePrompts[i], max: 900);
 
         // Assemble pages (images match scene paragraphs count)
         var storyPages = new List<StoryPage>();
@@ -248,6 +250,8 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
             request.Characters, request.Theme, request.ReadingLevel, request.ArtStyle);
+
+        LogPrompt("PROMPT[cover]", coverPrompt, max: 900);
 
         var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
 
@@ -345,6 +349,16 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         return parts;
     }
 
+    // --- logging helper (inside StoryGenerator) ---
+    private void LogPrompt(string tag, string text, int max = 1200)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return;
+        var clean = text.Replace("\r", " ").Replace("\n", " ").Trim();
+        if (clean.Length > max)
+            clean = clean[..max] + $" … [truncated {clean.Length - max} chars]";
+        _logger.LogInformation("{Tag}: {Prompt}", tag, clean);
+    }
+
     private async Task<string> GenerateTitleAsync(string characterName, string theme)
     {
         var prompt = $"""
@@ -352,6 +366,8 @@ Suggest a creative and whimsical children's book title based on a character name
 and a theme of "{theme}". Return ONLY the title text — no quotes, no punctuation at the ends,
 no extra words, no Markdown.
 """;
+
+        LogPrompt("PROMPT[title]", prompt, max: 300);
 
         var requestBody = new
         {
@@ -379,6 +395,8 @@ no extra words, no Markdown.
         cleaned = Regex.Replace(cleaned, @"^[\s""'“”‘’`]+", "");
         cleaned = Regex.Replace(cleaned, @"[\s""'“”‘’`]+$", "");
         cleaned = Regex.Replace(cleaned, @"\s{2,}", " ").Trim();
+
+        _logger.LogInformation("RESULT[title]: {Title}", cleaned);
 
         return cleaned;
     }
