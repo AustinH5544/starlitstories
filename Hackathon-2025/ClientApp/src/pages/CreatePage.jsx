@@ -6,6 +6,7 @@ import "./CreatePage.css"
 import { useNavigate } from "react-router-dom"
 import useUserProfile from "../hooks/useUserProfile"
 import useWarmup from "../hooks/useWarmup";
+import DoodlePad from "../Components/DoodlePad";
 
 const CreatePage = () => {
     useWarmup();
@@ -435,6 +436,9 @@ const CreatePage = () => {
                         <p className="loading-subtext">
                             This may take a few moments while our storytellers work their magic
                         </p>
+                        <div className="wait-activity" style={{ marginTop: "1rem" }}>
+                            <DoodlePad height={280} lineWidth={5} strokeStyle="#1f2937" background="transparent" />
+                        </div>
                     </div>
                 ) : !storyReady || !isValidStory ? (
                     <div className="create-form-wrapper">
