@@ -40,7 +40,7 @@ public static class PromptBuilder
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
-        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} are {scene}. " +
+        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} in {scene}. " +
                "One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
     }
 
@@ -50,10 +50,11 @@ public static class PromptBuilder
 
         const string guardrails =
             " Portrait orientation, single full-bleed image. " +
-            " Show exactly the listed characters once each (no clones). " +
-            " No character sheets, thumbnails, panels, turnarounds, labels, callouts, or sidebars. " +
-            " No color palettes, swatches, UI, logos, or design guides. " +
-            " One cohesive scene only.";
+            " Show exactly the listed characters once each (no clones). ";
+        //+
+        //" No character sheets, thumbnails, panels, turnarounds, labels, callouts, or sidebars. " +
+        //" No color palettes, swatches, UI, logos, or design guides. " +
+        //" One cohesive scene only.";
 
         return k switch
         {
@@ -261,7 +262,7 @@ public static class PromptBuilder
         var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
         var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
 
-        return $"{style} {anchors} are {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
     }
 
     // --- Cover prompts -------------------------------------------------------
