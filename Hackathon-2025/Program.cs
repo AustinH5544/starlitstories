@@ -16,7 +16,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
-using Microsoft.AspNetCore.RateLimiting;     // ? NEW: for .DisableRateLimiting()
+using Microsoft.AspNetCore.RateLimiting;     // for .DisableRateLimiting()
 
 using OpenAI;
 using Stripe;
@@ -30,13 +30,16 @@ var env = builder.Environment.EnvironmentName; // Development | Staging | Produc
 var vaultName = builder.Configuration["KeyVault:VaultName"] ?? env switch
 {
     "Development" => "kv-starlitstories-dev",
-    "Staging" => "kv-starlitstories-dev",  // treat staging like dev for keys
+    "Staging" => "kv-starlitstories-dev",
     _ => "kv-starlitstories-prod"
 };
 
-builder.Configuration.AddAzureKeyVault(
-    new Uri($"https://{vaultName}.vault.azure.net/"),
-    new DefaultAzureCredential());
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri($"https://{vaultName}.vault.azure.net/"),
+        new DefaultAzureCredential());
+}
 
 // -----------------------------
 // Options binding + validation
@@ -94,19 +97,28 @@ builder.Services.AddHttpClient();
 // -----------------------------
 // Database (EF Core)
 // -----------------------------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
-
-builder.Services.AddDbContext<AppDbContext>(options =>
+if (builder.Environment.IsEnvironment("Testing"))
 {
-    options.UseSqlServer(
-        connectionString,
-        sql => sql.EnableRetryOnFailure(
-            maxRetryCount: 10,
-            maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: null));
-});
+    // For integration tests
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseInMemoryDatabase("tests-db"));
+}
+else
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+    {
+        options.UseSqlServer(
+            connectionString,
+            sql => sql.EnableRetryOnFailure(
+                maxRetryCount: 10,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null));
+    });
+}
 
 // -----------------------------
 // Auth (JWT) — no ASP.NET Identity
@@ -533,3 +545,5 @@ app.MapControllers();
 //app.MapFallbackToFile("/index.html");
 
 app.Run();
+
+public partial class Program { }
