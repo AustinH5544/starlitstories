@@ -17,6 +17,7 @@ export default function DoodlePad({
     const lastPointRef = useRef(null)
     const [isReady, setIsReady] = useState(false)
     const [currentColor, setCurrentColor] = useState("#000000")
+    const imageDataRef = useRef(null)
 
     const colors = [
         { name: "Black", value: "#000000" },
@@ -33,6 +34,10 @@ export default function DoodlePad({
         const canvas = canvasRef.current
         const container = containerRef.current
         if (!canvas || !container) return
+
+        if (ctxRef.current) {
+            imageDataRef.current = ctxRef.current.getImageData(0, 0, canvas.width, canvas.height)
+        }
 
         const rect = container.getBoundingClientRect()
         const cssW = Math.max(1, Math.floor(rect.width))
@@ -57,6 +62,10 @@ export default function DoodlePad({
             ctx.fillStyle = currentColor
         }
 
+        if (imageDataRef.current) {
+            ctx.putImageData(imageDataRef.current, 0, 0)
+        }
+
         ctxRef.current = ctx
     }
 
@@ -75,8 +84,7 @@ export default function DoodlePad({
             ro.disconnect()
             media?.removeEventListener?.("change", onChangeDPR)
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [lineWidth, strokeStyle, background, currentColor])
+    }, [lineWidth, strokeStyle, background])
 
     const getPos = (nativeEvent) => {
         const canvas = canvasRef.current
@@ -184,7 +192,7 @@ export default function DoodlePad({
     return (
         <div className={className} aria-label={ariaLabel}>
             <div style={{ fontSize: 14, opacity: 0.7, fontWeight: 500, marginBottom: "12px" }}>
-                Doodle while we create your story…
+                Doodle while we create your story!
             </div>
 
             <div style={headerStyle}>
