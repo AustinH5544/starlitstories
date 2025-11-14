@@ -13,17 +13,14 @@ public static class PromptBuilder
         "Children's book illustration in a consistent watercolor art style. " +
         "Portrait orientation, single full-bleed image. " +
         "Soft lighting, gentle pastel tones, hand-painted look, minimal outlines. " +
-        "Show exactly the listed characters once each (no clones or duplicates). " +
-        "Do not create character sheets, thumbnails, panels, turnarounds, labels, callouts, or sidebars. " +
-        "Do not show color palettes, swatches, UI, logos, or design guides. " +
-        "Depict one cohesive scene only.";
+        "Show exactly the listed characters once each (no clones or duplicates). ";
 
     public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph, string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
         var style = GetArtStyle(artStyleKey);
-        return $"{style} {anchors} in {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}. One cohesive illustration only. Each named character appears at most once.";
     }
 
     /// <summary>
@@ -41,7 +38,7 @@ public static class PromptBuilder
         var style = GetArtStyle(artStyleKey);
 
         return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} in {scene}. " +
-               "One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
+            "One cohesive illustration only. Each named character appears at most once.";
     }
 
     private static string GetArtStyle(string? key)
@@ -100,7 +97,7 @@ public static class PromptBuilder
             ? "posing for a simple portrait in a calm setting"
             : SummarizeScene(paragraph);
 
-        return $"{style} {anchors} in {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}. One cohesive illustration only. Each named character appears at most once.";
     }
 
     private static string CleanForModel(string s, int maxLen = 800)
@@ -219,37 +216,43 @@ public static class PromptBuilder
     }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
-        List<CharacterSpec> characters,
-        string paragraph,
-        HttpClient httpClient,
-        string apiKey,
-        string? artStyleKey)
+    List<CharacterSpec> characters,
+    string paragraph,
+    HttpClient httpClient,
+    string apiKey,
+    string? artStyleKey)
     {
+        // sanitize input a bit (avoid breaking quotes/newlines)
+        static string ParaClean(string s) =>
+            (s ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
+
+        paragraph = ParaClean(paragraph);
+
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         var style = GetArtStyle(artStyleKey);
 
         var userPrompt = $"""
-        Summarize the following story paragraph into a short visual scene for an illustration.
-        Describe only what the characters are doing and what the environment looks like.
-        Do not mention names, appearance, or clothing.
+Summarize the following story paragraph into a short visual scene for an illustration.
+Describe only what the characters are doing and what the environment looks like.
+Do not mention names, appearance, or clothing.
 
-        Paragraph: "{paragraph}"
-        """;
+Paragraph: "{paragraph}"
+""";
 
         var requestBody = new
         {
             model = "gpt-4.1-mini",
             messages = new[]
             {
-                new
-                {
-                    role = "system",
-                    content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters' names, appearance, or clothing. Only describe the environment and actions."
-                },
-                new { role = "user", content = userPrompt }
+            new
+            {
+                role = "system",
+                content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters' names, appearance, or clothing. Only describe the environment and actions."
             },
+            new { role = "user", content = userPrompt }
+        },
             temperature = 0.3,
-            max_tokens = 60
+            max_tokens = 80
         };
 
         var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
@@ -257,12 +260,30 @@ public static class PromptBuilder
         req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
         var res = await httpClient.SendAsync(req);
-        res.EnsureSuccessStatusCode();
+        if (!res.IsSuccessStatusCode)
+        {
+            // propagate the proper HTTP error with context
+            res.EnsureSuccessStatusCode();
+        }
 
-        var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
-        var scene = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+        using var stream = await res.Content.ReadAsStreamAsync();
+        using var json = await JsonDocument.ParseAsync(stream);
 
-        return $"{style} {anchors} in {scene}. One cohesive illustration only. Do not include palettes, swatches, panels, or multiple views. Each named character appears at most once.";
+        var scene = json.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+
+        scene = ParaClean(scene ?? string.Empty);
+
+        if (string.IsNullOrEmpty(scene))
+        {
+            // safe fallback if model returned nothing
+            scene = "a simple, calm setting where the characters perform a clear action";
+        }
+
+        return $"{style} {anchors} in {scene}. One cohesive illustration only — Each named character appears at most once.";
     }
 
     // --- Cover prompts -------------------------------------------------------
@@ -272,23 +293,22 @@ public static class PromptBuilder
     /// Produces a single, true cover composition with no palettes/panels/duplicates.
     /// </summary>
     public static string BuildCoverPrompt(
-        List<CharacterSpec> characters,
-        string theme,
-        string? readingLevel,
-        string? artStyleKey)
+    List<CharacterSpec> characters,
+    string theme,
+    string? readingLevel,
+    string? artStyleKey)
     {
         string anchors = string.Join(", ", characters.Select(GetCharacterAnchor));
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
         const string coverComp =
-            " Cover composition: portrait 4:5 or 5:7 aspect, cinematic framing with a clear focal subject. " +
-            " Leave gentle negative space near the top for a future title, but do not draw any text. " +
-            " Use depth (foreground/mid/background) and lighting to guide the eye. ";
+            " Cover composition: portrait 4:5 or 5:7 aspect with a clear focal subject. " +
+            " Soft, cohesive background; avoid busy layouts. Do not draw any text. " +
+            " Gentle, even lighting; keep the scene readable at thumbnail size. ";
 
         const string negatives =
-            " Depict the group once as a single scene. Do not repeat or mirror any character. " +
-            " Do not include color palettes, swatches, diagrams, frames, borders, watermarks, or multiple panels.";
+            " Depict the group once as a single scene. Do not repeat or mirror any character. ";
 
         return $"""
 {style} Use {visualMood}. Keep the tone {tone}.
