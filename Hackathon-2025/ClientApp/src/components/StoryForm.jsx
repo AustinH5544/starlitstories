@@ -4,6 +4,19 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import "./StoryForm.css"
 
+const normalizeDescFields = (df = {}) => {
+    const out = { ...df };
+    for (const k of Object.keys(df)) {
+        if (k.endsWith("Custom")) {
+            const base = k.slice(0, -6); // strip "Custom"
+            const val = (df[k] ?? "").trim();
+            if (val) out[base] = val;      // custom takes precedence
+            delete out[k];                  // remove the *Custom key
+        }
+    }
+    return out;
+};
+
 const StoryForm = ({ onSubmit }) => {
     const { user } = useAuth()
     const isFree = user?.membership === "free"
@@ -204,6 +217,7 @@ const StoryForm = ({ onSubmit }) => {
         const processedCharacters = characters.map((c) => ({
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
+            descriptionFields: normalizeDescFields(c.descriptionFields),
         }))
         const finalArtStyle = isFree ? "watercolor" : artStyle
 
@@ -538,24 +552,24 @@ const StoryForm = ({ onSubmit }) => {
                                 {renderDropdownWithCustom(i, "age", "Age", defaultOptions.age)}
                                 {renderDropdownWithCustom(i, "gender", "Gender", defaultOptions.gender)}
                                 {(() => {
-                                  const genderDropdown = (char.descriptionFields.gender || "").trim();
-                                  const genderCustom = (char.descriptionFields.genderCustom || "").trim();
-                                  const isStandard = genderDropdown === "boy" || genderDropdown === "girl";
+                                    const genderDropdown = (char.descriptionFields.gender || "").trim();
+                                    const genderCustom = (char.descriptionFields.genderCustom || "").trim();
+                                    const isStandard = genderDropdown === "boy" || genderDropdown === "girl";
 
-                                  let hairOptions = [];
-                                  if (isStandard) {
-                                    hairOptions = defaultOptions.hairstylesByGender[genderDropdown];
-                                  } else if (genderCustom) {
-                                    // Custom gender provided → use the neutral/default hairstyles
-                                    hairOptions = defaultOptions.hairstylesByGender.default;
-                                  } else {
-                                    // No gender selected or typed yet → don't show hairstyle picker
-                                    hairOptions = [];
-                                  }
+                                    let hairOptions = [];
+                                    if (isStandard) {
+                                        hairOptions = defaultOptions.hairstylesByGender[genderDropdown];
+                                    } else if (genderCustom) {
+                                        // Custom gender provided → use the neutral/default hairstyles
+                                        hairOptions = defaultOptions.hairstylesByGender.default;
+                                    } else {
+                                        // No gender selected or typed yet → don't show hairstyle picker
+                                        hairOptions = [];
+                                    }
 
-                                  return hairOptions.length > 0
-                                    ? renderDropdownWithCustom(i, "hairStyle", "Hair Style", hairOptions)
-                                    : null;
+                                    return hairOptions.length > 0
+                                        ? renderDropdownWithCustom(i, "hairStyle", "Hair Style", hairOptions)
+                                        : null;
                                 })()}
 
                                 {renderDropdownWithCustom(i, "skinTone", "Skin Tone", defaultOptions.skinTone)}
