@@ -13,17 +13,21 @@ public static class PromptBuilder
         "Children's book illustration in a consistent watercolor art style. " +
         "Portrait orientation, single full-bleed image. " +
         "Soft lighting, muted storybook colors, hand-painted look, minimal outlines. " +
-        "Show exactly the listed characters once each (no duplicates). " +
-        "Avoid character sheets, thumbnails, panels, turnarounds, labels, callouts, sidebars, or any graphic-design elements. " +
-        "Do not include design-reference items such as color chips or sample strips, UI, logos, or style guides (clothing colors on the characters are OK). " +
-        "Depict one cohesive scene only.";
+        "Show exactly the listed characters once each (no duplicates). ";
+
+    //+
+    //"Avoid character sheets, thumbnails, panels, turnarounds, labels, callouts, sidebars, or any graphic-design elements. " +
+    //"Do not include design-reference items such as color chips or sample strips, UI, logos, or style guides (clothing colors on the characters are OK). " +
+    //"Depict one cohesive scene only.";
 
     public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph, string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
         var style = GetArtStyle(artStyleKey);
-        return $"{style} {anchors} in {scene}. One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}. One cohesive illustration only. Each named character appears at most once.";
+
+        //return $"{style} {anchors} in {scene}. One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
     }
 
     /// <summary>
@@ -41,7 +45,10 @@ public static class PromptBuilder
         var style = GetArtStyle(artStyleKey);
 
         return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} in {scene}. " +
-            "One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
+            "One cohesive illustration only. Each named character appears at most once.";
+
+        //return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} in {scene}. " +
+        //    "One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
     }
 
     private static string GetArtStyle(string? key)
@@ -101,7 +108,9 @@ public static class PromptBuilder
             ? "posing for a simple portrait in a calm setting"
             : SummarizeScene(paragraph);
 
-        return $"{style} {anchors} in {scene}. One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}. One cohesive illustration only. Each named character appears at most once.";
+
+        //return $"{style} {anchors} in {scene}. One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
     }
 
     private static string CleanForModel(string s, int maxLen = 800)
@@ -301,7 +310,9 @@ public static class PromptBuilder
 
         logger?.LogInformation("RESULT[scene-summarizer] ReqId={ReqId} {Scene}", reqId, scene);
 
-        return $"{style} {anchors} in {scene}. One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}. One cohesive illustration only — Each named character appears at most once.";
+
+        //return $"{style} {anchors} in {scene}. One cohesive illustration only — no graphic-design elements, no color chips or sample strips, no panels, split views, or multiple images. Each named character appears at most once.";
     }
 
     // --- Cover prompts -------------------------------------------------------
@@ -326,8 +337,9 @@ public static class PromptBuilder
             " Use depth (foreground/mid/background) and lighting to guide the eye. ";
 
         const string negatives =
-            " Depict the group once in a single, unified scene. Do not repeat or mirror any character. " +
-            " Do not include graphic-design elements, reference layouts, diagrams, frames, borders, watermarks, split views, or multiple panels (clothing colors on the characters are OK).";
+            " Depict the group once in a single, unified scene. Do not repeat or mirror any character. ";
+        //+
+        //" Do not include graphic-design elements, reference layouts, diagrams, frames, borders, watermarks, split views, or multiple panels (clothing colors on the characters are OK).";
 
         return $"""
 {style} Use {visualMood}. Keep the tone {tone}.
