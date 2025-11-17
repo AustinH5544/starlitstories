@@ -4,6 +4,19 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import "./StoryForm.css"
 
+const normalizeDescFields = (df = {}) => {
+    const out = { ...df };
+    for (const k of Object.keys(df)) {
+        if (k.endsWith("Custom")) {
+            const base = k.slice(0, -6); // strip "Custom"
+            const val = (df[k] ?? "").trim();
+            if (val) out[base] = val;      // custom takes precedence
+            delete out[k];                  // remove the *Custom key
+        }
+    }
+    return out;
+};
+
 const StoryForm = ({ onSubmit }) => {
     const { user } = useAuth()
     const isFree = user?.membership === "free"
@@ -206,6 +219,7 @@ const StoryForm = ({ onSubmit }) => {
         const processedCharacters = characters.map((c) => ({
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
+            descriptionFields: normalizeDescFields(c.descriptionFields),
         }))
         const finalArtStyle = isFree ? "watercolor" : artStyle
 
