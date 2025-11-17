@@ -10,17 +10,19 @@ public static class PromptBuilder
 {
     // Base watercolor style with strong "cover-safe" guardrails.
     private static string GetDefaultArtStyle() =>
-        "Children's book illustration in a consistent watercolor art style. " +
-        "Portrait orientation, single full-bleed image. " +
-        "Soft lighting, gentle pastel tones, hand-painted look, minimal outlines. " +
-        "Show exactly the listed characters once each (no clones or duplicates). ";
+        "Children's watercolor art style. ";
+
+    //+
+    //"Portrait orientation, single full-bleed image. " +
+    //"Soft lighting, gentle pastel tones, hand-painted look, minimal outlines. " +
+    //"Show exactly the listed characters once each (no clones or duplicates). ";
 
     public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph, string? artStyleKey)
     {
         string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
         var style = GetArtStyle(artStyleKey);
-        return $"{style} {anchors} in {scene}. One cohesive illustration only. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}.";
     }
 
     /// <summary>
@@ -37,8 +39,7 @@ public static class PromptBuilder
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
-        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} in {scene}. " +
-            "One cohesive illustration only. Each named character appears at most once.";
+        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} in {scene}. ";
     }
 
     private static string GetArtStyle(string? key)
@@ -97,7 +98,7 @@ public static class PromptBuilder
             ? "posing for a simple portrait in a calm setting"
             : SummarizeScene(paragraph);
 
-        return $"{style} {anchors} in {scene}. One cohesive illustration only. Each named character appears at most once.";
+        return $"{style} {anchors} in {scene}.";
     }
 
     private static string CleanForModel(string s, int maxLen = 800)
@@ -223,7 +224,7 @@ public static class PromptBuilder
     string? artStyleKey)
     {
         // sanitize input a bit (avoid breaking quotes/newlines)
-        static string ParaClean(string s) =>
+        string ParaClean(string s) =>
             (s ?? string.Empty).Replace("\r", " ").Replace("\n", " ").Trim();
 
         paragraph = ParaClean(paragraph);
@@ -232,9 +233,14 @@ public static class PromptBuilder
         var style = GetArtStyle(artStyleKey);
 
         var userPrompt = $"""
-Summarize the following story paragraph into a short visual scene for an illustration.
-Describe only what the characters are doing and what the environment looks like.
-Do not mention names, appearance, or clothing.
+Summarize the following story paragraph into a short visual scene clause for an illustration.
+
+Requirements:
+- Describe only what the characters are doing and what the environment looks like.
+- Do NOT mention any subject like "a person", "a child", "the boy", "they", "he", "she", or any character names.
+- Begin with a verb or a prepositional phrase, so it can follow "Show the described character".
+- Examples: "stepping into a swirling, glowing portal of light..." or
+  "in a cozy bedroom filled with toys and books..."
 
 Paragraph: "{paragraph}"
 """;
@@ -247,7 +253,9 @@ Paragraph: "{paragraph}"
             new
             {
                 role = "system",
-                content = "You are an assistant generating image prompts for a children's storybook. Never describe the characters' names, appearance, or clothing. Only describe the environment and actions."
+                content = "You are an assistant generating image prompts for a children's storybook. " +
+                          "Never describe the characters' names, appearance, or clothing. " +
+                          "Only describe the environment and actions, as a clause that can follow 'Show the described character'."
             },
             new { role = "user", content = userPrompt }
         },
@@ -260,10 +268,11 @@ Paragraph: "{paragraph}"
         req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
         var res = await httpClient.SendAsync(req);
+
         if (!res.IsSuccessStatusCode)
         {
-            // propagate the proper HTTP error with context
-            res.EnsureSuccessStatusCode();
+            var rawErr = await res.Content.ReadAsStringAsync();
+            throw new HttpRequestException($"Scene summarizer failed ({(int)res.StatusCode}). Body: {rawErr}");
         }
 
         using var stream = await res.Content.ReadAsStreamAsync();
@@ -275,15 +284,40 @@ Paragraph: "{paragraph}"
             .GetProperty("content")
             .GetString();
 
-        scene = ParaClean(scene ?? string.Empty);
+        scene = ParaClean(scene ?? "");
 
-        if (string.IsNullOrEmpty(scene))
+        // Tiny safety net: if the model still gives "A person is ..." or "The child is ...",
+        // strip the leading subject phrase and keep the action.
+        if (!string.IsNullOrEmpty(scene))
         {
-            // safe fallback if model returned nothing
-            scene = "a simple, calm setting where the characters perform a clear action";
+            var lower = scene.ToLowerInvariant();
+
+            // look for patterns like "a person is", "the child is", "they are"
+            string[] subjectMarkers = { " a person is ", " the child is ", " the kid is ", " they are ", " he is ", " she is " };
+
+            foreach (var marker in subjectMarkers)
+            {
+                var idx = lower.IndexOf(marker, StringComparison.Ordinal);
+                if (idx >= 0)
+                {
+                    var after = scene.Substring(idx + marker.Length).TrimStart();
+                    if (!string.IsNullOrEmpty(after))
+                    {
+                        scene = after;
+                        break;
+                    }
+                }
+            }
         }
 
-        return $"{style} {anchors} in {scene}. One cohesive illustration only — Each named character appears at most once.";
+        // Fallback if model returned nothing usable
+        if (string.IsNullOrEmpty(scene))
+        {
+            scene = "stepping into a simple, calm setting where the adventure continues";
+        }
+
+        // Final prompt: we control the subject; the scene is just an action/environment clause.
+        return $"{style} Show {anchors} {scene}. ";
     }
 
     // --- Cover prompts -------------------------------------------------------
@@ -303,20 +337,20 @@ Paragraph: "{paragraph}"
         var style = GetArtStyle(artStyleKey);
 
         const string coverComp =
-            " Cover composition: portrait 4:5 or 5:7 aspect with a clear focal subject. " +
-            " Soft, cohesive background; avoid busy layouts. Do not draw any text. " +
-            " Gentle, even lighting; keep the scene readable at thumbnail size. ";
+            "Cover page";
+        //+
+        //" Cover composition: portrait 4:5 or 5:7 aspect with a clear focal subject. " +
+        //" Soft, cohesive background; avoid busy layouts. Do not draw any text. " +
+        //" Gentle, even lighting; keep the scene readable at thumbnail size. ";
 
         const string negatives =
-            " Depict the group once as a single scene. Do not repeat or mirror any character. ";
+            " ";
+        //" Depict the group once as a single scene. Do not repeat or mirror any character. ";
 
         return $"""
-{style} Use {visualMood}. Keep the tone {tone}.
-{coverComp}
-Show only a single scene with cohesive lighting and background.
-Depict {anchors} in a setting inspired by the theme: {theme}.
-{negatives}
+Depict {anchors} in a setting inspired by {theme} in a {style}
 """;
+        // Show only a single scene with cohesive lighting and background.
     }
 
     /// <summary>
