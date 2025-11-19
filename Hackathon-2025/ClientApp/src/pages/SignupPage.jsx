@@ -88,22 +88,43 @@ const SignupPage = () => {
             // Log in and send to profile (they can upgrade from there)
             login(data);
             navigate("/profile");
-        } catch (err) {
+             } catch (err) {
             console.error(err);
-            if (!err.response) {
+
+            const resp = err.response;
+
+            if (!resp) {
                 if (err.code === "ECONNABORTED") {
                     setStatus("Our servers are waking up. Please try again in a few seconds.");
                 } else {
                     setStatus("Server is starting up or unavailable. Please try again shortly.");
                 }
-            } else if ([502, 503, 504].includes(err.response.status)) {
+            } else if ([502, 503, 504].includes(resp.status)) {
                 setStatus("Server is waking up. Please wait a moment and retry.");
             } else {
-                const msg = err.response?.data?.message || err.response?.data || "Signup failed";
+                const data = resp.data;
+                let msg = "Signup failed.";
+
+                if (typeof data === "string") {
+                    msg = data;
+                } else if (data && typeof data.message === "string") {
+                    msg = data.message;
+                } else if (data && typeof data.title === "string") {
+                    msg = data.title;
+                } else if (data && data.errors && typeof data.errors === "object") {
+                    // Flatten ASP.NET Core validation errors
+                    const all = Object.values(data.errors)
+                        .flat()
+                        .filter(Boolean);
+                    if (all.length) {
+                        msg = all.join(" ");
+                    }
+                }
+
                 setStatus(msg);
             }
         } finally {
-            setIsLoading(false);
+        setIsLoading(false);
         }
     };
 
