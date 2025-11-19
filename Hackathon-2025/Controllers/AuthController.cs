@@ -1,7 +1,7 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
-using Hackathon_2025.Services;
 using Hackathon_2025.Models.Auth;
+using Hackathon_2025.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -22,7 +22,11 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IEmailService _emailService;
 
-    public AuthController(AppDbContext db, IPasswordHasher<User> hasher, IConfiguration config, IEmailService emailService)
+    public AuthController(
+        AppDbContext db,
+        IPasswordHasher<User> hasher,
+        IConfiguration config,
+        IEmailService emailService)
     {
         _db = db;
         _hasher = hasher;
@@ -30,32 +34,38 @@ public class AuthController : ControllerBase
         _emailService = emailService;
     }
 
+    // Stronger default than before (8+ with letters and digits)
     private static bool IsPasswordValid(string p) =>
-    !string.IsNullOrWhiteSpace(p) &&
-    p.Length >= 6 &&
-    p.Any(char.IsLetter) &&
-    p.Any(char.IsDigit);
+        !string.IsNullOrWhiteSpace(p) &&
+        p.Length >= 8 &&
+        p.Any(char.IsLetter) &&
+        p.Any(char.IsDigit);
 
     [HttpPost("signup")]
     public async Task<IActionResult> Signup(SignupRequest request)
     {
         if (!IsPasswordValid(request.Password))
-            return BadRequest(new { message = "Password must be at least 6 characters and include letters and numbers." });
+            return BadRequest(new { message = "Password must be at least 8 characters and include letters and numbers." });
 
-        if (await _db.Users.AnyAsync(u => u.Email == request.Email))
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (await _db.Users.AnyAsync(u => u.Email == email))
             return BadRequest(new { message = "Email already in use." });
 
-        var uname = request.Username.Trim().ToLowerInvariant();
-        if (await _db.Users.AnyAsync(u => u.UsernameNormalized == uname))
+        var uname = request.Username.Trim();
+        var unameNorm = uname.ToLowerInvariant();
+        if (await _db.Users.AnyAsync(u => u.UsernameNormalized == unameNorm))
             return BadRequest(new { message = "Username already in use." });
 
         var user = new User
         {
-            Email = request.Email.Trim(),
-            Username = request.Username.Trim(),
-            UsernameNormalized = uname,
-            Membership = request.Membership ?? "free",
-            EmailVerificationToken = Guid.NewGuid().ToString(),
+            Email = email,
+            Username = uname,
+            UsernameNormalized = unameNorm,
+
+            // If client omitted membership, default to Free
+            Membership = request.Membership ?? MembershipPlan.Free,
+
+            EmailVerificationToken = Guid.NewGuid().ToString("N"),
             EmailVerificationExpires = DateTime.UtcNow.AddDays(1),
             IsEmailVerified = false
         };
@@ -64,7 +74,7 @@ public class AuthController : ControllerBase
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        await _emailService.SendVerificationEmailAsync(user.Email, user.EmailVerificationToken);
+        await _emailService.SendVerificationEmailAsync(user.Email, user.EmailVerificationToken!);
 
         return Ok(new
         {
@@ -82,7 +92,7 @@ public class AuthController : ControllerBase
             u.EmailVerificationToken == request.Token &&
             u.EmailVerificationExpires > DateTime.UtcNow);
 
-        if (user == null)
+        if (user is null)
             return BadRequest(new { message = "Invalid or expired verification token." });
 
         user.IsEmailVerified = true;
@@ -98,26 +108,28 @@ public class AuthController : ControllerBase
             token,
             email = user.Email,
             username = user.Username,
-            membership = user.Membership
+            membership = user.Membership.ToString()
         });
     }
 
     [HttpPost("resend-verification")]
     public async Task<IActionResult> ResendVerification(ResendVerificationRequest request)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
 
-        if (user == null)
+        // Do not reveal existence
+        if (user is null)
             return Ok(new { message = "If an account with that email exists, we've sent a verification email." });
 
         if (user.IsEmailVerified)
             return BadRequest(new { message = "Email is already verified." });
 
-        user.EmailVerificationToken = Guid.NewGuid().ToString();
+        user.EmailVerificationToken = Guid.NewGuid().ToString("N");
         user.EmailVerificationExpires = DateTime.UtcNow.AddDays(1);
 
         await _db.SaveChangesAsync();
-        await _emailService.SendVerificationEmailAsync(user.Email, user.EmailVerificationToken);
+        await _emailService.SendVerificationEmailAsync(user.Email, user.EmailVerificationToken!);
 
         return Ok(new { message = "Verification email sent successfully." });
     }
@@ -127,17 +139,19 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login(LoginRequest request)
     {
         User? user;
-        if (request.Identifier.Contains("@"))
+
+        if (request.Identifier.Contains('@'))
         {
-            user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Identifier);
+            var email = request.Identifier.Trim().ToLowerInvariant();
+            user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
         else
         {
-            var uname = request.Identifier.Trim().ToLowerInvariant();
-            user = await _db.Users.FirstOrDefaultAsync(u => u.UsernameNormalized == uname);
+            var unameNorm = request.Identifier.Trim().ToLowerInvariant();
+            user = await _db.Users.FirstOrDefaultAsync(u => u.UsernameNormalized == unameNorm);
         }
 
-        if (user == null)
+        if (user is null)
             return Unauthorized("Username/email or password is incorrect.");
 
         var result = _hasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
@@ -145,20 +159,33 @@ public class AuthController : ControllerBase
             return Unauthorized("Username/email or password is incorrect.");
 
         if (!user.IsEmailVerified)
-            return Unauthorized(new { message = "Please verify your email before logging in.", requiresVerification = true, email = user.Email });
+            return Unauthorized(new
+            {
+                message = "Please verify your email before logging in.",
+                requiresVerification = true,
+                email = user.Email
+            });
 
         var token = GenerateJwtToken(user);
-        return Ok(new { token, email = user.Email, username = user.Username, membership = user.Membership });
+        return Ok(new
+        {
+            token,
+            email = user.Email,
+            username = user.Username,
+            membership = user.Membership.ToString()
+        });
     }
 
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
 
-        if (user != null)
+        // Always succeed to avoid user enumeration
+        if (user is not null)
         {
-            var resetToken = Guid.NewGuid().ToString();
+            var resetToken = Guid.NewGuid().ToString("N");
             user.PasswordResetToken = resetToken;
             user.PasswordResetExpires = DateTime.UtcNow.AddHours(1);
 
@@ -173,13 +200,15 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
     {
         if (!IsPasswordValid(request.NewPassword))
-            return BadRequest(new { message = "Password must be at least 6 characters and include letters and numbers." });
+            return BadRequest(new { message = "Password must be at least 8 characters and include letters and numbers." });
+
+        var email = request.Email.Trim().ToLowerInvariant();
 
         var user = await _db.Users.FirstOrDefaultAsync(u =>
-            u.Email == request.Email &&
+            u.Email == email &&
             u.PasswordResetExpires > DateTime.UtcNow);
 
-        if (user == null || !SlowEquals(user.PasswordResetToken, request.Token))
+        if (user is null || !SlowEquals(user.PasswordResetToken, request.Token))
             return BadRequest(new { message = "Invalid or expired reset token." });
 
         user.PasswordHash = _hasher.HashPassword(user, request.NewPassword);
@@ -193,21 +222,26 @@ public class AuthController : ControllerBase
 
     private string GenerateJwtToken(User user)
     {
+        var jwtKey = _config["Jwt:Key"] ?? throw new InvalidOperationException("Missing Jwt:Key");
+        var issuer = _config["Jwt:Issuer"];
+        var audience = _config["Jwt:Audience"];
+        var expiresInMinutes = Convert.ToDouble(_config["Jwt:ExpiresInMinutes"] ?? "60");
+
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Email, user.Email),
-            new Claim("membership", user.Membership ?? "free"),
-            new Claim("username", user.Username ?? "")
+            new Claim("username", user.Username),
+            new Claim("membership", user.Membership.ToString())
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expires = DateTime.UtcNow.AddMinutes(Convert.ToDouble(_config["Jwt:ExpiresInMinutes"]!));
+        var expires = DateTime.UtcNow.AddMinutes(expiresInMinutes);
 
         var token = new JwtSecurityToken(
-            issuer: _config["Jwt:Issuer"],
-            audience: _config["Jwt:Audience"],
+            issuer: issuer,
+            audience: audience,
             claims: claims,
             expires: expires,
             signingCredentials: creds
@@ -216,16 +250,13 @@ public class AuthController : ControllerBase
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private bool SlowEquals(string? a, string? b)
+    private static bool SlowEquals(string? a, string? b)
     {
-        if (a == null || b == null || a.Length != b.Length)
-            return false;
+        if (a is null || b is null || a.Length != b.Length) return false;
 
         var diff = 0;
         for (int i = 0; i < a.Length; i++)
-        {
             diff |= a[i] ^ b[i];
-        }
 
         return diff == 0;
     }
