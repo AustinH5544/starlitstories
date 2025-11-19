@@ -74,6 +74,21 @@ export default function StoryViewerPage({ mode = "private" }) {
     const dotRefs = useRef([]);
     const contentRef = useRef(null);
 
+    // ===== RESET SCROLL WHEN PAGE / SPREAD CHANGES =====
+    const scrollToTop = useCallback(() => {
+        const root = contentRef.current;
+        if (!root) return;
+
+        // main scroll container
+        root.scrollTop = 0;
+
+        // inner scrollable text containers (mobile, small screens)
+        const scrollers = root.querySelectorAll(".page-text-container");
+        scrollers.forEach((el) => {
+            el.scrollTop = 0;
+        });
+    }, []);
+
     // ===== NEW: flip queuing to play multi-step close sequence =====
     const flipQueue = useRef([]);              // [{ dir: "prev"|"to-cover", targetRight?: number }, ...]
     const currentPageRef = useRef(currentPage);
@@ -161,6 +176,11 @@ export default function StoryViewerPage({ mode = "private" }) {
     const isLastSpread = !isCover && currentPage >= lastRightIndex;
     const onFirstSpread = !isCover && currentPage <= 1;
 
+    // scroll reset after we know isCover/isBook
+    useEffect(() => {
+        scrollToTop();
+    }, [currentPage, isBook, isCover, story?.id, scrollToTop]);
+
     // ----- spread helpers -----
     const totalSpreads = Math.ceil(pageCount / 2);
     const spreadOf = (idx) => Math.ceil((idx + 1) / 2);
@@ -242,9 +262,8 @@ export default function StoryViewerPage({ mode = "private" }) {
             setShowCompletion(false);
             if (isFlipping) return;
 
-            // --- NEW: special case when on the COVER ---
+            // --- special case when on the COVER ---
             if (isCover) {
-                // mirror startReading()/goToPage() "opening from cover" flow
                 const firstRight = pageCount >= 2 ? 1 : 0;
 
                 setOpeningFromCover(true);
@@ -260,14 +279,13 @@ export default function StoryViewerPage({ mode = "private" }) {
 
                 performAfterFlip.current = () => {
                     setCurrentPage(firstRight);
-                    // clear the temporary targeting flag once we land
                     setOpeningFromCover(false);
                     setOpeningTargetRight(null);
                 };
                 return;
             }
 
-            // --- Normal in-book next (advance by one spread) ---
+            // Normal in-book next (advance by one spread)
             const targetRight = Math.min(currentPage + 2, lastRightIndex);
 
             setFlipDir("next");
@@ -361,8 +379,6 @@ export default function StoryViewerPage({ mode = "private" }) {
     const playCloseToCoverSequence = useCallback(() => {
         if (!isBook || isCover || isFlipping) return;
 
-        // Do NOT change currentPage. Just play the special close animation
-        // with front face = current left page, back face = cover (-1).
         setOpeningFromCover(false);
         startFlip("to-cover"); // performAfterFlip will setCurrentPage(-1)
     }, [isBook, isCover, isFlipping, startFlip]);
@@ -378,46 +394,35 @@ export default function StoryViewerPage({ mode = "private" }) {
         }
         if (isFlipping) return;
 
-        // === Cover clicked → any page: play opening animation showing the target spread ===
+        // Cover → some page
         if (isCover && pageIndex !== -1) {
-            // compute desired targetRight (right page of target spread)
             let desiredRight = pageIndex;
             if (desiredRight % 2 === 0) {
                 desiredRight = (desiredRight + 1 <= pageCount - 1) ? desiredRight + 1 : desiredRight;
             }
             if (desiredRight > lastRightIndex) desiredRight = lastRightIndex;
 
-            // record which spread we’re opening to
             setOpeningTargetRight(desiredRight);
-
-            // kick the special opening choreography (full-width edge-open)
             setOpeningFromCover(true);
 
-            // IMPORTANT: use desiredRight for the mid-flip swap so the destination spread
-            // is visible during the second half of the animation.
             startFlip("next", desiredRight, () => {
-                // after open finishes, clear flags; we're already on desiredRight
                 setOpeningFromCover(false);
                 setOpeningTargetRight(null);
             });
             return;
         }
 
-        // === Existing: cover dot (to-cover) handled elsewhere ===
+        // clicked cover dot
         if (pageIndex === -1) {
             playCloseToCoverSequence();
             return;
         }
 
-        // === Normal jump between spreads while not on cover ===
+        // Normal jump between spreads
         let targetRight = pageIndex;
         if (targetRight % 2 === 0) {
-            // If the user clicked a left page dot, jump to that spread’s right page
-            // If no real right page exists (odd page count), use the virtual right index (pageCount)
             targetRight = (targetRight + 1 <= pageCount - 1) ? targetRight + 1 : pageCount;
         }
-
-        // Clamp to the computed last spread
         if (targetRight > lastRightIndex) targetRight = lastRightIndex;
 
         setFlipDir(targetRight > currentPage ? "next" : "prev");
@@ -432,7 +437,6 @@ export default function StoryViewerPage({ mode = "private" }) {
     };
 
     const onFlipEnd = (e) => {
-        // For close-to-cover we now use ONE animation: bookClose_L2R_WithNudge
         if (flipDir === "to-cover") {
             if (e?.animationName !== "bookClose_L2R_WithNudge") return;
         }
