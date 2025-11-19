@@ -57,24 +57,24 @@ const UpgradePage = () => {
         setIsProcessing(true);
 
         try {
-            // Map UI ids to backend enum names
-            let membershipEnum;
+            // Map UI ids to numeric enum values (Free=0, Pro=1, Premium=2)
+            let membershipValue;
 
             switch (selectedPlan) {
                 case "pro":
-                    membershipEnum = "Pro";
+                    membershipValue = 1;
                     break;
                 case "premium":
-                    membershipEnum = "Premium";
+                    membershipValue = 2;
                     break;
                 case "free":
                 default:
-                    membershipEnum = "Free";
+                    membershipValue = 0;
                     break;
             }
 
             const { data } = await api.post("/payments/create-checkout-session", {
-                membership: membershipEnum,
+                membership: membershipValue,
             });
 
             window.location.href = data.checkoutUrl;
@@ -83,6 +83,9 @@ const UpgradePage = () => {
             const resp = err.response;
             if (resp?.data) {
                 console.log("Checkout error payload:", resp.data);
+                if (resp.data.errors) {
+                    console.log("Validation errors:", resp.data.errors);
+                }
             }
             alert("Error starting payment session");
             setIsProcessing(false);

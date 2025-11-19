@@ -1,6 +1,9 @@
-﻿namespace Hackathon_2025.Models;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Hackathon_2025.Models;
 
 public sealed record CheckoutRequest
 {
-    public required MembershipPlan Membership { get; init; }
+    [Required]
+    public MembershipPlan Membership { get; init; }
 }
