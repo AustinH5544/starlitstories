@@ -76,7 +76,6 @@ const SignupPage = () => {
                 email,
                 username: uname,
                 password,
-                membership: "free",
             });
 
             if (data?.requiresVerification) {
