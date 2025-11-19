@@ -33,6 +33,7 @@ const StoryForm = ({ onSubmit }) => {
     const [theme, setTheme] = useState("")
     const [lesson, setLesson] = useState("")
     const [selectedCategory, setSelectedCategory] = useState("")
+    const [includeLesson, setIncludeLesson] = useState(false)
 
     const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
     const API_BASE = import.meta.env.VITE_API_BASE ?? ""
@@ -63,7 +64,7 @@ const StoryForm = ({ onSubmit }) => {
                 console.error("Failed to load /api/config:", err)
                 setLengthHintEnabled(false)
             })
-    }, [])
+    }, [API_BASE])
 
     const availableLengths = lengthOptionsByMembership[membership] || lengthOptionsByMembership.free
     const isLengthAllowed = (v) => availableLengths.some(o => o.value === v)
@@ -230,13 +231,17 @@ const StoryForm = ({ onSubmit }) => {
 
         const finalArtStyle = isFree ? "watercolor" : artStyle
 
+        const trimmedLesson = (lesson ?? "").trim()
+        const lessonForRequest =
+            includeLesson && trimmedLesson ? trimmedLesson : null
+
         // Shape expected by backend StoryRequest
         const request = {
             theme,
             readingLevel,
             artStyle: finalArtStyle,
             characters: processedCharacters,
-            lessonLearned: lesson || null,
+            lessonLearned: lessonForRequest,
             lengthHintEnabled,
         }
 
@@ -247,7 +252,12 @@ const StoryForm = ({ onSubmit }) => {
         onSubmit(request)
     }
 
-    const renderDropdownWithCustom = (index, field, label, options = []) => {
+    const renderDropdownWithCustom = (
+        index,
+        field,
+        label,
+        options = []
+    ) => {
         const customValue = characters[index].descriptionFields[field + "Custom"] || ""
 
         return (
@@ -404,6 +414,31 @@ const StoryForm = ({ onSubmit }) => {
                     Lesson Learned (Optional)
                 </h3>
 
+                {/* Toggle to include/exclude lesson */}
+                <div className="field-group">
+                    <label className="toggle-label">
+                        <input
+                            type="checkbox"
+                            className="toggle-checkbox"
+                            checked={includeLesson}
+                            onChange={(e) => {
+                                const checked = e.target.checked
+                                setIncludeLesson(checked)
+                                if (!checked) {
+                                    setSelectedCategory("")
+                                    setLesson("")
+                                }
+                            }}
+                        />
+                        <span className="toggle-slider" />
+                        <span className="toggle-text">
+                            Include a life lesson in this story
+                        </span>
+                    </label>
+                    <p className="field-hint">
+                        Turn this on if you want the story to teach something specific. Leave it off for a purely fun adventure.
+                    </p>
+                </div>
 
                 <div className="field-group">
                     <label className="field-label">What lesson should the story teach?</label>
@@ -416,8 +451,11 @@ const StoryForm = ({ onSubmit }) => {
                                 setSelectedCategory(e.target.value)
                                 setLesson("") // reset when switching category
                             }}
+                            disabled={!includeLesson}
                         >
-                            <option value="">Select Category</option>
+                            <option value="" disabled>
+                                Select Category
+                            </option>
                             {Object.keys(lessonsByCategory).map((cat) => (
                                 <option key={cat} value={cat}>{cat}</option>
                             ))}
@@ -428,6 +466,7 @@ const StoryForm = ({ onSubmit }) => {
                             value={!isPresetLesson(lesson) ? lesson : ""}
                             onChange={(e) => setLesson(e.target.value)}
                             className="form-input"
+                            disabled={!includeLesson}
                         />
                     </div>
 
@@ -437,9 +476,14 @@ const StoryForm = ({ onSubmit }) => {
                                 className="form-select"
                                 value={isPresetLesson(lesson) ? lesson : ""}
                                 onChange={(e) => setLesson(e.target.value)}
-                                disabled={!!(!isPresetLesson(lesson) && lesson.trim() !== "")}
+                                disabled={
+                                    !includeLesson ||
+                                    (!!(!isPresetLesson(lesson) && lesson.trim() !== ""))
+                                }
                             >
-                                <option value="">Select Lesson</option>
+                                <option value="" disabled>
+                                    Select Category
+                                </option>
                                 {lessonsByCategory[selectedCategory].map((l) => (
                                     <option key={l} value={l}>{l}</option>
                                 ))}
@@ -604,18 +648,20 @@ const StoryForm = ({ onSubmit }) => {
                             <span>Add Another Character</span>
                         </button>
                     ) : (
-                        <div className="character-limit-notice">
-                            <div className="limit-icon">🔒</div>
-                            <div className="limit-content">
-                                <h4>Want to add more characters?</h4>
-                                <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
-                                <div className="limit-benefits">
-                                    <span className="benefit">✨ Multiple characters</span>
-                                    <span className="benefit">🎨 Premium illustrations</span>
-                                    <span className="benefit">📚 More stories per month</span>
+                        isAtCharacterLimit && (
+                            <div className="character-limit-notice">
+                                <div className="limit-icon">🔒</div>
+                                <div className="limit-content">
+                                    <h4>Want to add more characters?</h4>
+                                    <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
+                                    <div className="limit-benefits">
+                                        <span className="benefit">✨ Multiple characters</span>
+                                        <span className="benefit">🎨 Premium illustrations</span>
+                                        <span className="benefit">📚 More stories per month</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )
                     )
                 )}
 

@@ -471,3 +471,10 @@
     .upsell-button:hover {
         filter: brightness(1.05);
     }
+
+.field-hint {
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.4;
+}

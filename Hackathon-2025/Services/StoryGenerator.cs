@@ -64,11 +64,24 @@ public class StoryGenerator : IStoryGeneratorService
         int pageCount = _config.GetValue<int?>("Story:DefaultParagraphs") ?? 10;
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
 
-        var systemContent =
-            "You are a creative children's story writer. " +
-            "Never describe physical appearance. " +
-            "Use only the provided character names and roles; do not invent other named characters. " +
-            "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
+        // ----- System prompt depends on whether a lesson is required -----
+        string systemContent;
+        if (mustLesson)
+        {
+            systemContent =
+                "You are a creative children's story writer. " +
+                "Never describe physical appearance. " +
+                "Use only the provided character names and roles; do not invent other named characters. " +
+                "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
+        }
+        else
+        {
+            systemContent =
+                "You are a creative children's story writer. " +
+                "Never describe physical appearance. " +
+                "Use only the provided character names and roles; do not invent other named characters. " +
+                "If any moral or takeaway emerges, keep it subtle and do NOT add any explicit line that starts with 'Lesson:'.";
+        }
 
         // Enforce the explicit page delimiter
         const string DelimiterRule =
@@ -91,7 +104,7 @@ Use '---' between pages. Do not return code fences or markdown.";
 Ensure the story naturally reflects this moral: "{request.LessonLearned}".
 After you finish the {pageCount} paragraphs, write one extra line that begins with "Lesson:" and states this moral in simple words. Do not count this line as a paragraph.
 """
-            : "If a gentle lesson emerges naturally, keep it subtle.";
+            : "If a gentle lesson emerges naturally, keep it subtle. Do not add any line that begins with \"Lesson:\".";
 
         // ----- Character-aware text (single vs multi) -----
         var hasMultipleCharacters = characters.Count > 1;
@@ -199,9 +212,9 @@ Put a line containing only --- between paragraphs. Do not include any other divi
             model = "gpt-4.1-mini",
             messages = new[]
             {
-            new { role = "system", content = systemContent },
-            new { role = "user",   content = prompt }
-        },
+                new { role = "system", content = systemContent },
+                new { role = "user",   content = prompt }
+            },
             temperature = 0.6,
             max_tokens = maxTokens
         };
@@ -226,16 +239,21 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         // Normalize line endings
         storyText = storyText.Replace("\r\n", "\n").Replace("\r", "\n");
 
-        // ---- Extract (and strip) Lesson line, if present ----
+        // ---- Extract (and strip) Lesson line, if present AND required ----
         string? extractedLesson = null;
-        var lessonMatch = Regex.Match(storyText, @"(?mi)^\s*Lesson:\s*(.+)\s*$");
-        if (lessonMatch.Success)
+        if (mustLesson)
         {
-            extractedLesson = lessonMatch.Groups[1].Value.Trim();
-            storyText = Regex.Replace(storyText, @"(?mi)^\s*Lesson:.*$", "").Trim();
+            var lessonMatch = Regex.Match(storyText, @"(?mi)^\s*Lesson:\s*(.+)\s*$");
+            if (lessonMatch.Success)
+            {
+                extractedLesson = lessonMatch.Groups[1].Value.Trim();
+                storyText = Regex.Replace(storyText, @"(?mi)^\s*Lesson:.*$", "").Trim();
+            }
+
+            // If we required a moral but didn't get one explicitly, fall back to the requested lesson text
+            if (string.IsNullOrWhiteSpace(extractedLesson))
+                extractedLesson = request.LessonLearned?.Trim();
         }
-        if (mustLesson && string.IsNullOrWhiteSpace(extractedLesson))
-            extractedLesson = request.LessonLearned?.Trim();
 
         // --- Split into pages ---
         static string[] SplitIntoPages(string? text)
@@ -284,7 +302,7 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         var paragraphsForImages = paragraphs.ToArray();
 
         // Append the Lesson as an extra line to the last page text only (no image comes from it)
-        if (!string.IsNullOrWhiteSpace(extractedLesson) && paragraphs.Length > 0)
+        if (mustLesson && !string.IsNullOrWhiteSpace(extractedLesson) && paragraphs.Length > 0)
             paragraphs[^1] = paragraphs[^1].TrimEnd() + "\n\nLesson: " + extractedLesson;
 
         // Image prompts strictly from scene paragraphs (no "Lesson:" line)
