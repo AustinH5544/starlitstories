@@ -12,6 +12,9 @@ const StoryForm = ({ onSubmit }) => {
     const membership = String(membershipRaw).toLowerCase()
     const isFree = membership === "free"
 
+    // Toggle for showing character type toggle + extra character button/notice
+    const showCharacterTypeAndExtraButton = false
+
     const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
     const [artStyle, setArtStyle] = useState("watercolor")
     const [theme, setTheme] = useState("")
@@ -415,6 +418,7 @@ const StoryForm = ({ onSubmit }) => {
                     {/* Lesson selector appears once a category is chosen */}
                     {selectedCategory && (
                         <div className="dual-input-container" style={{ marginTop: "0.5rem" }}>
+
                             <select
                                 className="form-select"
                                 value={isPresetLesson(lesson) ? lesson : ""}
@@ -516,18 +520,22 @@ const StoryForm = ({ onSubmit }) => {
                         </div>
                     )}
 
-                    <div className="character-type-toggle">
-                        <label className="toggle-label">
-                            <input
-                                type="checkbox"
-                                checked={char.isAnimal}
-                                onChange={(e) => handleCharacterChange(i, "isAnimal", e.target.checked)}
-                                className="toggle-checkbox"
-                            />
-                            <span className="toggle-slider"></span>
-                            <span className="toggle-text">{char.isAnimal ? "🐾 Animal Character" : "👤 Human Character"}</span>
-                        </label>
-                    </div>
+                    {showCharacterTypeAndExtraButton && (
+                        <div className="character-type-toggle">
+                            <label className="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    checked={char.isAnimal}
+                                    onChange={(e) => handleCharacterChange(i, "isAnimal", e.target.checked)}
+                                    className="toggle-checkbox"
+                                />
+                                <span className="toggle-slider"></span>
+                                <span className="toggle-text">
+                                    {char.isAnimal ? "🐾 Animal Character" : "👤 Human Character"}
+                                </span>
+                            </label>
+                        </div>
+                    )}
 
                     <div className="character-details">
                         {char.isAnimal ? (
@@ -576,24 +584,26 @@ const StoryForm = ({ onSubmit }) => {
             ))}
 
             <div className="form-actions">
-                {canAddMoreCharacters ? (
-                    <button type="button" onClick={addCharacter} className="add-character-btn">
-                        <span className="button-icon">➕</span>
-                        <span>Add Another Character</span>
-                    </button>
-                ) : (
-                    <div className="character-limit-notice">
-                        <div className="limit-icon">🔒</div>
-                        <div className="limit-content">
-                            <h4>Want to add more characters?</h4>
-                            <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
-                            <div className="limit-benefits">
-                                <span className="benefit">✨ Multiple characters</span>
-                                <span className="benefit">🎨 Premium illustrations</span>
-                                <span className="benefit">📚 More stories per month</span>
+                {showCharacterTypeAndExtraButton && (
+                    canAddMoreCharacters ? (
+                        <button type="button" onClick={addCharacter} className="add-character-btn">
+                            <span className="button-icon">➕</span>
+                            <span>Add Another Character</span>
+                        </button>
+                    ) : (
+                        <div className="character-limit-notice">
+                            <div className="limit-icon">🔒</div>
+                            <div className="limit-content">
+                                <h4>Want to add more characters?</h4>
+                                <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
+                                <div className="limit-benefits">
+                                    <span className="benefit">✨ Multiple characters</span>
+                                    <span className="benefit">🎨 Premium illustrations</span>
+                                    <span className="benefit">📚 More stories per month</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )
                 )}
 
                 <button type="submit" className="generate-story-btn">
