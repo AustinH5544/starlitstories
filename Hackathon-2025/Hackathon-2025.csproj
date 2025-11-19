@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+	<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Hackathon_2025</RootNamespace>
     <UserSecretsId>19037689-d894-4f80-8955-fdc3bf490948</UserSecretsId>
   </PropertyGroup>
@@ -27,7 +28,6 @@
     <PackageReference Include="OpenAI" Version="2.1.0" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.8" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.8" />
     <PackageReference Include="Stripe.net" Version="48.1.0" />
   </ItemGroup>

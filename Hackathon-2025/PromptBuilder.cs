@@ -336,15 +336,15 @@ Paragraph: "{paragraph}"
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
-        const string coverComp =
-            "Cover page";
+        //const string coverComp =
+        //    "Cover page";
         //+
         //" Cover composition: portrait 4:5 or 5:7 aspect with a clear focal subject. " +
         //" Soft, cohesive background; avoid busy layouts. Do not draw any text. " +
         //" Gentle, even lighting; keep the scene readable at thumbnail size. ";
 
-        const string negatives =
-            " ";
+        //const string negatives =
+        //    " ";
         //" Depict the group once as a single scene. Do not repeat or mirror any character. ";
 
         return $"""

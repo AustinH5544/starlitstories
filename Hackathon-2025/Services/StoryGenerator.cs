@@ -12,16 +12,16 @@ public class StoryGenerator : IStoryGeneratorService
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
     private readonly IImageGeneratorService _imageService;
-    private readonly BlobUploadService _blobUploader;
+    private readonly BlobUploadService _blobUploader; // kept for DI consistency (unused here)
     private readonly ILogger<StoryGenerator> _logger;
     private readonly IConfiguration _config;
 
     public StoryGenerator(
-    HttpClient httpClient,
-    IConfiguration config,
-    IImageGeneratorService imageService,
-    BlobUploadService blobUploader,
-    ILogger<StoryGenerator> logger)
+        HttpClient httpClient,
+        IConfiguration config,
+        IImageGeneratorService imageService,
+        BlobUploadService blobUploader,
+        ILogger<StoryGenerator> logger)
     {
         _httpClient = httpClient;
         _apiKey = config["OpenAI:ApiKey"]!;
@@ -31,10 +31,19 @@ public class StoryGenerator : IStoryGeneratorService
         _config = config;
     }
 
+    // enum -> string used in prompts
+    private static string ToRoleString(CharacterRole role) => role switch
+    {
+        CharacterRole.Main => "main",
+        CharacterRole.Friend => "friend",
+        CharacterRole.Guardian => "guardian",
+        _ => "character"
+    };
+
     public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
     {
         var characterList = string.Join(", ", request.Characters.Select(c =>
-            c.Role?.ToLowerInvariant() == "main" ? c.Name : $"{c.Name} the {c.Role}"
+            c.Role == CharacterRole.Main ? c.Name : $"{c.Name} the {ToRoleString(c.Role)}"
         ));
 
         var style = BuildReadingStyle(request.ReadingLevel);
@@ -44,10 +53,10 @@ public class StoryGenerator : IStoryGeneratorService
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
 
         var systemContent =
-        "You are a creative children's story writer. " +
-        "Never describe physical appearance. " +
-        "Use only the provided character names and roles; do not invent other named characters. " +
-        "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
+            "You are a creative children's story writer. " +
+            "Never describe physical appearance. " +
+            "Use only the provided character names and roles; do not invent other named characters. " +
+            "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
 
         // Enforce the explicit page delimiter
         const string DelimiterRule =
@@ -76,17 +85,15 @@ After you finish the {pageCount} paragraphs, write one extra line that begins wi
         {
             var cast = request.Characters.Select(c =>
             {
-                var role = string.IsNullOrWhiteSpace(c.Role) ? "character" : c.Role;
-                // If your Character model has IsAnimal/species fields, include them; otherwise just name + role.
+                var role = ToRoleString(c.Role);
                 string species = "";
-                try
+
+                if (c.DescriptionFields is not null &&
+                    c.DescriptionFields.TryGetValue("species", out var sv) &&
+                    !string.IsNullOrWhiteSpace(sv))
                 {
-                    // If your model exposes description fields with a "species" key:
-                    var dict = (IDictionary<string, object>?)c.DescriptionFields;
-                    if (dict != null && dict.TryGetValue("species", out var s) && s is string sv && !string.IsNullOrWhiteSpace(sv))
-                        species = $", {sv}";
+                    species = $", {sv}";
                 }
-                catch { /* no-op if not present */ }
 
                 return $"{c.Name} ({role}{species})";
             });
@@ -136,9 +143,9 @@ Put a line containing only --- between paragraphs. Do not include any other divi
             model = "gpt-4.1-mini",
             messages = new[]
             {
-            new { role = "system", content = systemContent },
-            new { role = "user",   content = prompt }
-        },
+                new { role = "system", content = systemContent },
+                new { role = "user",   content = prompt }
+            },
             temperature = 0.6,
             max_tokens = maxTokens
         };
@@ -231,36 +238,26 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
 
-        // Assemble pages (images match scene paragraphs count)
-        var storyPages = new List<StoryPage>();
-        for (int i = 0; i < paragraphs.Length; i++)
-        {
-            storyPages.Add(new StoryPage
-            {
-                Text = paragraphs[i],
-                ImagePrompt = imagePrompts[i]
-            });
-        }
-
+        // Generate images for each page
         var externalImageUrls = await _imageService.GenerateImagesAsync(imagePrompts.ToList());
 
+        // Title + cover prompt / cover image
         var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
-
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
             request.Characters, request.Theme, request.ReadingLevel, request.ArtStyle);
-
         var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
+
+        // Assemble DTO pages (NOT EF entities) with image prompts included
+        var dtoPages = paragraphs
+            .Select((text, i) => new StoryPageDto(text, imagePrompts[i], externalImageUrls.ElementAtOrDefault(i)))
+            .ToList();
 
         return new StoryResult
         {
             Title = title,
             CoverImagePrompt = coverPrompt,
             CoverImageUrl = coverExternalUrl,
-            Pages = storyPages.Select((p, i) =>
-            {
-                p.ImageUrl = externalImageUrls[i];
-                return p;
-            }).ToList()
+            Pages = dtoPages
         };
     }
 
@@ -283,7 +280,6 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         // 1) If too few, split the longest paragraphs by sentences until we reach target
         while (parts.Count < target)
         {
-            // pick the longest paragraph
             int idx = Enumerable.Range(0, parts.Count)
                                 .OrderByDescending(i => parts[i].Length)
                                 .First();
