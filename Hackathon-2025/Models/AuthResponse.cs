@@ -1,7 +1,9 @@
-﻿namespace Hackathon_2025.Models;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class AuthResponse
+namespace Hackathon_2025.Models;
+
+public sealed record AuthResponse
 {
-    public string Email { get; set; } = string.Empty;
-    public string Membership { get; set; } = string.Empty;
+    [EmailAddress] public required string Email { get; init; }
+    public required MembershipPlan Membership { get; init; }
 }

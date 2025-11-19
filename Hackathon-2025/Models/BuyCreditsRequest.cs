@@ -1,11 +1,8 @@
-﻿namespace Hackathon_2025.Models
-{
-    public class BuyCreditsRequest
-    {
-        // "plus5" or "plus11"
-        public string Pack { get; set; } = "plus5";
+﻿namespace Hackathon_2025.Models;
 
-        // Optional: allow buying multiple of the same pack in one checkout (defaults to 1)
-        public int Quantity { get; set; } = 1;
-    }
+public sealed record BuyCreditsRequest
+{
+    public required CreditPack Pack { get; init; }
+    [System.ComponentModel.DataAnnotations.Range(1, 100)]
+    public int Quantity { get; init; } = 1;
 }

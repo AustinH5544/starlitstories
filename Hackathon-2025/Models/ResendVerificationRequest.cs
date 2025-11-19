@@ -1,6 +1,8 @@
-﻿namespace Hackathon_2025.Models;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class ResendVerificationRequest
+namespace Hackathon_2025.Models;
+
+public sealed record ResendVerificationRequest
 {
-    public string Email { get; set; } = string.Empty;
+    [EmailAddress] public required string Email { get; init; }
 }

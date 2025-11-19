@@ -1,13 +1,12 @@
 ﻿namespace Hackathon_2025.Models;
 
-public class StripeSettings
+public sealed record StripeSettings
 {
-    public string SecretKey { get; set; }
-    public string PublishableKey { get; set; }
-    public string WebhookSecret { get; set; }
-
-    public string PriceIdPro { get; set; }
-    public string PriceIdPremium { get; set; }
-    public string PriceIdAddon5 { get; set; }
-    public string PriceIdAddon11 { get; set; }
+    public required string SecretKey { get; init; }
+    public required string PublishableKey { get; init; }
+    public required string WebhookSecret { get; init; }
+    public required string PriceIdPro { get; init; }
+    public required string PriceIdPremium { get; init; }
+    public required string PriceIdAddon5 { get; init; }
+    public required string PriceIdAddon11 { get; init; }
 }

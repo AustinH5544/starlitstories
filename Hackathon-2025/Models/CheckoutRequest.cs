@@ -1,6 +1,6 @@
 ﻿namespace Hackathon_2025.Models;
 
-public class CheckoutRequest
+public sealed record CheckoutRequest
 {
-    public string Membership { get; set; } = "";
+    public required MembershipPlan Membership { get; init; }
 }

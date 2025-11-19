@@ -1,8 +1,11 @@
-﻿namespace Hackathon_2025.Models;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class ResetPasswordRequest
+namespace Hackathon_2025.Models;
+
+public sealed record ResetPasswordRequest
 {
-    public string Email { get; set; } = string.Empty;
-    public string Token { get; set; } = string.Empty;
-    public string NewPassword { get; set; } = string.Empty;
+    [EmailAddress] public required string Email { get; init; }
+    public required string Token { get; init; }
+    [StringLength(256, MinimumLength = 8)]
+    public required string NewPassword { get; init; }
 }
