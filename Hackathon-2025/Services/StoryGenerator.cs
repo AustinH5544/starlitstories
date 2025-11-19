@@ -31,20 +31,32 @@ public class StoryGenerator : IStoryGeneratorService
         _config = config;
     }
 
-    // enum -> string used in prompts
-    private static string ToRoleString(CharacterRole role) => role switch
+    // string -> canonical role label used in prompts (only used if >1 character)
+    private static string ToRoleString(string? role)
     {
-        CharacterRole.Main => "main",
-        CharacterRole.Friend => "friend",
-        CharacterRole.Guardian => "guardian",
-        _ => "character"
-    };
+        if (string.IsNullOrWhiteSpace(role))
+            return "character";
+
+        var r = role.Trim();
+
+        return r.ToLowerInvariant() switch
+        {
+            "main" => "main character",
+            "friend" => "friend",
+            "guardian" => "guardian",
+            "mom" or "mother" => "mom",
+            "dad" or "father" => "dad",
+            "pet" => "pet",
+            "sibling" or "brother" or "sister" => "sibling",
+            "teacher" => "teacher",
+            _ => r   // fallback: whatever you stored on the frontend
+        };
+    }
 
     public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
     {
-        var characterList = string.Join(", ", request.Characters.Select(c =>
-            c.Role == CharacterRole.Main ? c.Name : $"{c.Name} the {ToRoleString(c.Role)}"
-        ));
+        // Normalize characters list so it's never null
+        var characters = request.Characters ?? new List<CharacterSpec>();
 
         var style = BuildReadingStyle(request.ReadingLevel);
 
@@ -81,28 +93,72 @@ After you finish the {pageCount} paragraphs, write one extra line that begins wi
 """
             : "If a gentle lesson emerges naturally, keep it subtle.";
 
+        // ----- Character-aware text (single vs multi) -----
+        var hasMultipleCharacters = characters.Count > 1;
+        var firstName = characters.FirstOrDefault()?.Name;
+
         string BuildRosterLine()
         {
-            var cast = request.Characters.Select(c =>
+            // Frontend guarantees at least 1 character
+            if (characters.Count == 1)
             {
-                var role = ToRoleString(c.Role);
-                string species = "";
+                var c = characters[0];
+                var name = string.IsNullOrWhiteSpace(c.Name) ? "the child" : c.Name;
 
+                return $"Use only this character by name throughout the story: {name}. " +
+                       "Do not introduce new named characters; unnamed extras are okay.";
+            }
+
+            // Multi-character branch (only used once you support more characters)
+            var cast = characters.Select(c =>
+            {
+                var pieces = new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(c.Name))
+                    pieces.Add(c.Name);
+
+                var roleLabel = ToRoleString(c.Role);
+                if (!string.IsNullOrWhiteSpace(roleLabel) &&
+                    !string.Equals(roleLabel, "character", StringComparison.OrdinalIgnoreCase))
+                {
+                    pieces.Add($"the {roleLabel}");
+                }
+
+                // Species is only considered when you actually add it for extra characters
                 if (c.DescriptionFields is not null &&
                     c.DescriptionFields.TryGetValue("species", out var sv) &&
                     !string.IsNullOrWhiteSpace(sv))
                 {
-                    species = $", {sv}";
+                    pieces.Add($"({sv})");
                 }
 
-                return $"{c.Name} ({role}{species})";
+                return string.Join(" ", pieces.Where(p => !string.IsNullOrWhiteSpace(p)));
             });
 
             return "Use only these characters by name throughout the story: " +
                    string.Join(", ", cast) +
                    ". Do not introduce new named characters; unnamed extras are okay.";
         }
+
         var rosterLine = BuildRosterLine();
+
+        var referLine = hasMultipleCharacters
+            ? "- Refer to the characters by the exact names above and keep their relationships consistent."
+            : "- Refer to the character by the exact name above.";
+
+        string introLine;
+        if (!string.IsNullOrWhiteSpace(firstName))
+        {
+            introLine = hasMultipleCharacters
+                ? $"- On page 1, introduce {firstName} by name in the first sentence as the main character."
+                : $"- On page 1, introduce {firstName} by name in the first sentence.";
+        }
+        else
+        {
+            introLine = hasMultipleCharacters
+                ? "- On page 1, introduce the main character by name in the first sentence."
+                : "- On page 1, introduce the character by name in the first sentence.";
+        }
 
         var prompt = $"""
 {lengthLine}
@@ -113,9 +169,9 @@ CAST:
 {rosterLine}
 
 Rules:
-- Refer to the characters by the exact names above and keep their roles consistent.
+{referLine}
 - Do not invent new named characters.
-- On page 1, introduce the main character by name in the first sentence.
+{introLine}
 - Keep each page to 1–3 sentences.
 
 {style.AudienceLine}
@@ -143,9 +199,9 @@ Put a line containing only --- between paragraphs. Do not include any other divi
             model = "gpt-4.1-mini",
             messages = new[]
             {
-                new { role = "system", content = systemContent },
-                new { role = "user",   content = prompt }
-            },
+            new { role = "system", content = systemContent },
+            new { role = "user",   content = prompt }
+        },
             temperature = 0.6,
             max_tokens = maxTokens
         };
@@ -233,7 +289,7 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         // Image prompts strictly from scene paragraphs (no "Lesson:" line)
         var imagePromptTasks = paragraphsForImages.Select(p =>
-            PromptBuilder.BuildImagePromptAsync(request.Characters, p, _httpClient, _apiKey, request.ArtStyle));
+            PromptBuilder.BuildImagePromptAsync(characters, p, _httpClient, _apiKey, request.ArtStyle));
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
@@ -242,9 +298,9 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         var externalImageUrls = await _imageService.GenerateImagesAsync(imagePrompts.ToList());
 
         // Title + cover prompt / cover image
-        var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
+        var title = await GenerateTitleAsync(characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
-            request.Characters, request.Theme, request.ReadingLevel, request.ArtStyle);
+            characters, request.Theme, request.ReadingLevel, request.ArtStyle);
         var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
 
         // Assemble DTO pages (NOT EF entities) with image prompts included

@@ -45,12 +45,12 @@ public class StoryRequestTests
             new CharacterSpec
             {
                 Name = "Luna",
-                Role = CharacterRole.Main,
-                IsAnimal = true,
+                Role = "Main", // string now, not CharacterRole
+                IsAnimal = false, // human-only for now
                 DescriptionFields = new Dictionary<string, string>
                 {
-                    { "species", "fox" },
-                    { "color", "silver" }
+                    { "age", "7" },
+                    { "hairColor", "brown" }
                 }
             }
         };
@@ -77,9 +77,12 @@ public class StoryRequestTests
 
         Assert.IsNotNull(request.Characters);
         Assert.AreEqual(1, request.Characters.Count);
-        Assert.AreEqual("Luna", request.Characters[0].Name);
-        Assert.AreEqual(CharacterRole.Main, request.Characters[0].Role);
-        Assert.IsTrue(request.Characters[0].IsAnimal);
-        Assert.AreEqual("fox", request.Characters[0].DescriptionFields["species"]);
+
+        var character = request.Characters[0];
+        Assert.AreEqual("Luna", character.Name);
+        Assert.AreEqual("Main", character.Role);
+        Assert.IsFalse(character.IsAnimal);
+        Assert.AreEqual("7", character.DescriptionFields["age"]);
+        Assert.AreEqual("brown", character.DescriptionFields["hairColor"]);
     }
 }

@@ -79,21 +79,21 @@ const CreatePage = () => {
     /**
      * Try the SSE flow first; fall back to single-call if needed.
      */
-    const generateStory = async (formData) => {
-        if (inFlightRef.current) return; // block double-submits
+    const generateStory = async (request) => {
+        if (inFlightRef.current) return;
         inFlightRef.current = true;
 
         startedJobRef.current = null;
         finalizedRef.current = false;
 
-        setLastFormData(formData);
+        setLastFormData(request);
         setIsLoading(true);
         setStoryReady(false);
         setError(null);
         setStory(null);
         resetProgress();
 
-        const payload = { ...formData };
+        const payload = { ...request };
 
         try {
             // ---- Attempt SSE job flow ----
@@ -105,11 +105,11 @@ const CreatePage = () => {
                     startedJobRef.current = jobId;
 
                     try {
-                        await runSSE(jobId); // normal SSE completion path
+                        await runSSE(jobId);
                         return;
                     } catch (sseErr) {
                         console.warn("SSE dropped after job started; polling result:", sseErr);
-                        const result = await pollResult(jobId, 120000, 1000); // 2 min window
+                        const result = await pollResult(jobId, 120000, 1000);
                         if (result) {
                             setProgressPhase("done");
                             setProgress(100);
@@ -123,7 +123,6 @@ const CreatePage = () => {
                     }
                 }
 
-                // If no jobId returned, use the single-call fallback
                 await runSingleCallFallback(payload);
             } catch (startErr) {
                 console.warn("SSE start failed; using single-call fallback:", startErr);
@@ -131,7 +130,7 @@ const CreatePage = () => {
             }
         } catch (fallbackErr) {
             console.error("Fallback API Error:", fallbackErr);
-            const message = fallbackErr?.response?.data ?? "Oops! Something went wrong generating your story.";
+            const message = extractErrorMessage(fallbackErr);
             setError(message);
         } finally {
             inFlightRef.current = false;
@@ -290,6 +289,28 @@ const CreatePage = () => {
         setProgressHint("Done!");
         setStory(res.data);
         setStoryReady(true);
+    };
+
+    const extractErrorMessage = (err) => {
+        const data = err?.response?.data;
+
+        if (!data) {
+            return "Oops! Something went wrong generating your story.";
+        }
+
+        if (typeof data === "string") {
+            return data;
+        }
+
+        if (typeof data === "object" && typeof data.message === "string") {
+            return data.message;
+        }
+
+        try {
+            return JSON.stringify(data);
+        } catch {
+            return "Oops! Something went wrong generating your story.";
+        }
     };
 
     const isValidStory =

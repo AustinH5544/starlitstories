@@ -4,6 +4,19 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import "./StoryForm.css"
 
+const normalizeDescFields = (df = {}) => {
+    const out = { ...df }
+    for (const k of Object.keys(df)) {
+        if (k.endsWith("Custom")) {
+            const base = k.slice(0, -6) // strip "Custom"
+            const val = (df[k] || "").trim()
+            if (val) out[base] = val    // custom takes precedence
+            delete out[k]               // remove the *Custom key
+        }
+    }
+    return out
+}
+
 const StoryForm = ({ onSubmit }) => {
     const { user } = useAuth()
 
@@ -12,7 +25,7 @@ const StoryForm = ({ onSubmit }) => {
     const membership = String(membershipRaw).toLowerCase()
     const isFree = membership === "free"
 
-    // Toggle for showing character type toggle + extra character button/notice
+    // Feature flag: hide the extra UI for now
     const showCharacterTypeAndExtraButton = false
 
     const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
@@ -102,7 +115,7 @@ const StoryForm = ({ onSubmit }) => {
             "Stay close to a trusted adult in public",
             "Wear a helmet when riding a bike or scooter",
         ],
-    };
+    }
 
     const allPresetLessons = Object.values(lessonsByCategory).flat()
     const isPresetLesson = (val) => allPresetLessons.includes(val)
@@ -208,13 +221,17 @@ const StoryForm = ({ onSubmit }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault()
+
         const processedCharacters = characters.map((c) => ({
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
+            descriptionFields: normalizeDescFields(c.descriptionFields),
         }))
+
         const finalArtStyle = isFree ? "watercolor" : artStyle
 
-        const body = {
+        // Shape expected by backend StoryRequest
+        const request = {
             theme,
             readingLevel,
             artStyle: finalArtStyle,
@@ -222,11 +239,12 @@ const StoryForm = ({ onSubmit }) => {
             lessonLearned: lesson || null,
             lengthHintEnabled,
         }
+
         if (lengthHintEnabled) {
-            body.storyLength = storyLength
+            request.storyLength = storyLength
         }
 
-        onSubmit(body)
+        onSubmit(request)
     }
 
     const renderDropdownWithCustom = (index, field, label, options = []) => {
@@ -336,12 +354,10 @@ const StoryForm = ({ onSubmit }) => {
                         </select>
 
                         {isFree && (
-                            <>
-                                <p className="style-lock-hint">
-                                    Watercolor is included on the Free plan.{" "}
-                                    <a href="/upgrade">Upgrade</a> to unlock every style.
-                                </p>
-                            </>
+                            <p className="style-lock-hint">
+                                Watercolor is included on the Free plan.{" "}
+                                <a href="/upgrade">Upgrade</a> to unlock every style.
+                            </p>
                         )}
                     </div>
                 </div>
@@ -387,17 +403,18 @@ const StoryForm = ({ onSubmit }) => {
                     <span className="section-icon">🌟</span>
                     Lesson Learned (Optional)
                 </h3>
+
+
                 <div className="field-group">
                     <label className="field-label">What lesson should the story teach?</label>
 
-                    {/* Category selector */}
                     <div className="dual-input-container">
                         <select
                             className="form-select"
                             value={selectedCategory}
                             onChange={(e) => {
                                 setSelectedCategory(e.target.value)
-                                setLesson("") // reset lesson when switching category
+                                setLesson("") // reset when switching category
                             }}
                         >
                             <option value="">Select Category</option>
@@ -406,7 +423,6 @@ const StoryForm = ({ onSubmit }) => {
                             ))}
                         </select>
 
-                        {/* If user types a custom lesson, lock the dropdown to avoid conflicts */}
                         <input
                             placeholder="Or enter your own lesson"
                             value={!isPresetLesson(lesson) ? lesson : ""}
@@ -415,10 +431,8 @@ const StoryForm = ({ onSubmit }) => {
                         />
                     </div>
 
-                    {/* Lesson selector appears once a category is chosen */}
                     {selectedCategory && (
                         <div className="dual-input-container" style={{ marginTop: "0.5rem" }}>
-
                             <select
                                 className="form-select"
                                 value={isPresetLesson(lesson) ? lesson : ""}
@@ -550,24 +564,23 @@ const StoryForm = ({ onSubmit }) => {
                                 {renderDropdownWithCustom(i, "age", "Age", defaultOptions.age)}
                                 {renderDropdownWithCustom(i, "gender", "Gender", defaultOptions.gender)}
                                 {(() => {
-                                    const genderDropdown = (char.descriptionFields.gender || "").trim();
-                                    const genderCustom = (char.descriptionFields.genderCustom || "").trim();
-                                    const isStandard = genderDropdown === "boy" || genderDropdown === "girl";
+                                    const genderDropdown = (char.descriptionFields.gender || "").trim()
+                                    const genderCustom = (char.descriptionFields.genderCustom || "").trim()
+                                    const isStandard = genderDropdown === "boy" || genderDropdown === "girl"
 
-                                    let hairOptions = [];
+                                    let hairOptions = []
                                     if (isStandard) {
-                                        hairOptions = defaultOptions.hairstylesByGender[genderDropdown];
+                                        hairOptions = defaultOptions.hairstylesByGender[genderDropdown]
                                     } else if (genderCustom) {
-                                        // Custom gender provided → use the neutral/default hairstyles
-                                        hairOptions = defaultOptions.hairstylesByGender.default;
+                                        // Custom gender → use neutral/default hairstyles
+                                        hairOptions = defaultOptions.hairstylesByGender.default
                                     } else {
-                                        // No gender selected or typed yet → don't show hairstyle picker
-                                        hairOptions = [];
+                                        hairOptions = []
                                     }
 
                                     return hairOptions.length > 0
                                         ? renderDropdownWithCustom(i, "hairStyle", "Hair Style", hairOptions)
-                                        : null;
+                                        : null
                                 })()}
 
                                 {renderDropdownWithCustom(i, "skinTone", "Skin Tone", defaultOptions.skinTone)}

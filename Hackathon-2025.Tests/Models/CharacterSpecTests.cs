@@ -14,7 +14,7 @@ namespace Hackathon_2025.Tests.Models
             var character = new CharacterSpec { Name = "" };
 
             // Assert
-            Assert.AreEqual(CharacterRole.Main, character.Role);
+            Assert.AreEqual("Main", character.Role);
             Assert.AreEqual("", character.Name);
             Assert.IsFalse(character.IsAnimal);
             Assert.IsNotNull(character.DescriptionFields);
@@ -27,7 +27,7 @@ namespace Hackathon_2025.Tests.Models
             // Arrange
             var character = new CharacterSpec
             {
-                Role = CharacterRole.Friend,
+                Role = "Friend",
                 Name = "Max",
                 IsAnimal = true,
                 DescriptionFields = new Dictionary<string, string>
@@ -38,7 +38,7 @@ namespace Hackathon_2025.Tests.Models
             };
 
             // Assert
-            Assert.AreEqual(CharacterRole.Friend, character.Role);
+            Assert.AreEqual("Friend", character.Role);
             Assert.AreEqual("Max", character.Name);
             Assert.IsTrue(character.IsAnimal);
             Assert.AreEqual(2, character.DescriptionFields.Count);

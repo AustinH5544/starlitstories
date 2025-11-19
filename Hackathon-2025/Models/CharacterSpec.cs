@@ -2,8 +2,13 @@
 
 public sealed record CharacterSpec
 {
-    public CharacterRole Role { get; init; } = CharacterRole.Main;
+    /// <summary>
+    /// Free-form role label (e.g., "Main", "Mom", "Dad", "Pet", "Teacher", etc.).
+    /// </summary>
+    public string Role { get; init; } = "Main";
+
     public required string Name { get; init; }
+
     public bool IsAnimal { get; init; }
 
     public Dictionary<string, string> DescriptionFields { get; init; }
