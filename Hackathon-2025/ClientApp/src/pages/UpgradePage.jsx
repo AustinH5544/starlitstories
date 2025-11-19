@@ -51,22 +51,43 @@ const UpgradePage = () => {
 
     const handleUpgrade = async () => {
         if (!selectedPlan || selectedPlan === "free") {
-            return
+            return;
         }
 
-        setIsProcessing(true)
+        setIsProcessing(true);
 
         try {
+            // Map UI ids to backend enum names
+            let membershipEnum;
+
+            switch (selectedPlan) {
+                case "pro":
+                    membershipEnum = "Pro";
+                    break;
+                case "premium":
+                    membershipEnum = "Premium";
+                    break;
+                case "free":
+                default:
+                    membershipEnum = "Free";
+                    break;
+            }
+
             const { data } = await api.post("/payments/create-checkout-session", {
-                membership: selectedPlan,
-            })
-            window.location.href = data.checkoutUrl
+                membership: membershipEnum,
+            });
+
+            window.location.href = data.checkoutUrl;
         } catch (err) {
-            console.error(err)
-            alert("Error starting payment session")
-            setIsProcessing(false)
+            console.error(err);
+            const resp = err.response;
+            if (resp?.data) {
+                console.log("Checkout error payload:", resp.data);
+            }
+            alert("Error starting payment session");
+            setIsProcessing(false);
         }
-    }
+    };
 
     const getCurrentPlanFeatures = () => {
         const currentPlan = plans.find((p) => p.id === user?.membership)
