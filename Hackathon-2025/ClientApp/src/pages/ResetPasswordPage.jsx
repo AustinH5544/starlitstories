@@ -156,10 +156,10 @@ const ResetPasswordPage = () => {
                                 <p className="missing-reqs-title">Missing requirements:</p>
                                 <ul>
                                     {Object.entries(requirements)
-                                        .filter(([key, met]) => !met)
-                                        .map(([key]) => (
-                                            <li key={key} className="missing-req">
-                                                {labels[key]}
+                                        .filter(([, met]) => !met)          // ignore the first tuple element
+                                        .map(([reqKey]) => (
+                                            <li key={reqKey} className="missing-req">
+                                                {labels[reqKey]}
                                             </li>
                                         ))}
                                 </ul>

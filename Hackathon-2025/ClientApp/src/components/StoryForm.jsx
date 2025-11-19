@@ -4,29 +4,20 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import "./StoryForm.css"
 
-const normalizeDescFields = (df = {}) => {
-    const out = { ...df };
-    for (const k of Object.keys(df)) {
-        if (k.endsWith("Custom")) {
-            const base = k.slice(0, -6); // strip "Custom"
-            const val = (df[k] ?? "").trim();
-            if (val) out[base] = val;      // custom takes precedence
-            delete out[k];                  // remove the *Custom key
-        }
-    }
-    return out;
-};
-
 const StoryForm = ({ onSubmit }) => {
     const { user } = useAuth()
-    const isFree = user?.membership === "free"
+
+    // Normalize membership to a lowercase string
+    const membershipRaw = user?.membership ?? "free"
+    const membership = String(membershipRaw).toLowerCase()
+    const isFree = membership === "free"
+
     const [readingLevel, setReadingLevel] = useState("early") // "pre" | "early" | "independent"
     const [artStyle, setArtStyle] = useState("watercolor")
     const [theme, setTheme] = useState("")
     const [lesson, setLesson] = useState("")
     const [selectedCategory, setSelectedCategory] = useState("")
 
-    const membership = (user?.membership || "free").toLowerCase()
     const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
     const API_BASE = import.meta.env.VITE_API_BASE ?? ""
     const [storyLength, setStoryLength] = useState("short")
@@ -123,8 +114,6 @@ const StoryForm = ({ onSubmit }) => {
         },
     ])
 
-    const showCharacterTypeAndExtraButton = false; // set to false to hide them
-
     const defaultOptions = {
         age: Array.from({ length: 17 }, (_, i) => (i + 2).toString()),
         gender: ["boy", "girl"], // keep just boy/girl
@@ -219,7 +208,6 @@ const StoryForm = ({ onSubmit }) => {
         const processedCharacters = characters.map((c) => ({
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
-            descriptionFields: normalizeDescFields(c.descriptionFields),
         }))
         const finalArtStyle = isFree ? "watercolor" : artStyle
 
@@ -270,8 +258,8 @@ const StoryForm = ({ onSubmit }) => {
     }
 
     // Check if user can add more characters
-    const canAddMoreCharacters = user?.membership !== "free" || characters.length < 1
-    const isAtCharacterLimit = user?.membership === "free" && characters.length >= 1
+    const canAddMoreCharacters = membership !== "free" || characters.length < 1
+    const isAtCharacterLimit = membership === "free" && characters.length >= 1
 
     return (
         <form onSubmit={handleSubmit} className="story-form">
@@ -528,22 +516,18 @@ const StoryForm = ({ onSubmit }) => {
                         </div>
                     )}
 
-                    {showCharacterTypeAndExtraButton && (
-                        <div className="character-type-toggle">
-                            <label className="toggle-label">
-                                <input
-                                    type="checkbox"
-                                    checked={char.isAnimal}
-                                    onChange={(e) => handleCharacterChange(i, "isAnimal", e.target.checked)}
-                                    className="toggle-checkbox"
-                                />
-                                <span className="toggle-slider"></span>
-                                <span className="toggle-text">
-                                    {char.isAnimal ? "🐾 Animal Character" : "👤 Human Character"}
-                                </span>
-                            </label>
-                        </div>
-                    )}
+                    <div className="character-type-toggle">
+                        <label className="toggle-label">
+                            <input
+                                type="checkbox"
+                                checked={char.isAnimal}
+                                onChange={(e) => handleCharacterChange(i, "isAnimal", e.target.checked)}
+                                className="toggle-checkbox"
+                            />
+                            <span className="toggle-slider"></span>
+                            <span className="toggle-text">{char.isAnimal ? "🐾 Animal Character" : "👤 Human Character"}</span>
+                        </label>
+                    </div>
 
                     <div className="character-details">
                         {char.isAnimal ? (
@@ -592,26 +576,24 @@ const StoryForm = ({ onSubmit }) => {
             ))}
 
             <div className="form-actions">
-                {showCharacterTypeAndExtraButton && (
-                    canAddMoreCharacters ? (
-                        <button type="button" onClick={addCharacter} className="add-character-btn">
-                            <span className="button-icon">➕</span>
-                            <span>Add Another Character</span>
-                        </button>
-                    ) : (
-                        <div className="character-limit-notice">
-                            <div className="limit-icon">🔒</div>
-                            <div className="limit-content">
-                                <h4>Want to add more characters?</h4>
-                                <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
-                                <div className="limit-benefits">
-                                    <span className="benefit">✨ Multiple characters</span>
-                                    <span className="benefit">🎨 Premium illustrations</span>
-                                    <span className="benefit">📚 More stories per month</span>
-                                </div>
+                {canAddMoreCharacters ? (
+                    <button type="button" onClick={addCharacter} className="add-character-btn">
+                        <span className="button-icon">➕</span>
+                        <span>Add Another Character</span>
+                    </button>
+                ) : (
+                    <div className="character-limit-notice">
+                        <div className="limit-icon">🔒</div>
+                        <div className="limit-content">
+                            <h4>Want to add more characters?</h4>
+                            <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
+                            <div className="limit-benefits">
+                                <span className="benefit">✨ Multiple characters</span>
+                                <span className="benefit">🎨 Premium illustrations</span>
+                                <span className="benefit">📚 More stories per month</span>
                             </div>
                         </div>
-                    )
+                    </div>
                 )}
 
                 <button type="submit" className="generate-story-btn">

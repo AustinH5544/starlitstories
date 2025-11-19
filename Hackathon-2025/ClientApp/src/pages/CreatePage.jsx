@@ -1,52 +1,60 @@
-﻿import { useEffect, useRef, useState } from "react"
-import { useAuth } from "../context/AuthContext"
-import StoryForm from "../components/StoryForm"
-import api from "../api"
-import "./CreatePage.css"
-import { useNavigate } from "react-router-dom"
-import useUserProfile from "../hooks/useUserProfile"
+﻿import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import StoryForm from "../components/StoryForm";
+import api from "../api";
+import "./CreatePage.css";
+import { useNavigate } from "react-router-dom";
+import useUserProfile from "../hooks/useUserProfile";
 import useWarmup from "../hooks/useWarmup";
 import DoodlePad from "../Components/DoodlePad";
 
 const CreatePage = () => {
     useWarmup();
-    const { user } = useAuth()
-    const [story, setStory] = useState(null)
-    const [isLoading, setIsLoading] = useState(false)
-    const [storyReady, setStoryReady] = useState(false)
-    const [error, setError] = useState(null)
-    const [progress, setProgress] = useState(0)
-    const [progressPhase, setProgressPhase] = useState("idle") // "idle" | "upload" | "generating" | "download" | "done"
-    const [progressHint, setProgressHint] = useState("")
-    const [lastFormData, setLastFormData] = useState(null)
+    const { user } = useAuth();
+    const [story, setStory] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [storyReady, setStoryReady] = useState(false);
+    const [error, setError] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [progressPhase, setProgressPhase] = useState("idle"); // "idle" | "upload" | "generating" | "download" | "done"
+    const [progressHint, setProgressHint] = useState("");
+    const [lastFormData, setLastFormData] = useState(null);
 
-    const { profile: userProfile, loading: profileLoading, error: profileError } = useUserProfile()
-    const navigate = useNavigate()
+    const { profile: userProfile, loading: profileLoading, error: profileError } = useUserProfile();
+    const navigate = useNavigate();
+
     const inFlightRef = useRef(false);
     const startedJobRef = useRef(null);
     const finalizedRef = useRef(false);
 
     // Keep a ref to the current SSE connection to close it on unmount / finish
-    const esRef = useRef(null)
+    const esRef = useRef(null);
+
+    const safeClose = (es) => {
+        if (!es) return;
+        try {
+            es.close();
+        } catch (e) {
+            // use e to satisfy lint and aid debugging
+            console.debug("EventSource close ignored:", e);
+        }
+    };
 
     useEffect(() => {
         return () => {
-            if (esRef.current) {
-                esRef.current.close()
-                esRef.current = null
-            }
-        }
-    }, [])
+            safeClose(esRef.current);
+            esRef.current = null;
+        };
+    }, []);
 
-    // Put near the top of CreatePage.jsx
+    // Prefer the axios baseURL (same host your other API calls use)
     const buildApiUrl = (path) => {
-        // Prefer the axios baseURL (same host your other API calls use)
         const base = (api && api.defaults && api.defaults.baseURL) || "";
         if (!base) return path; // fall back to relative if no base
         return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
     };
 
-    // ADDED: simple polling if SSE drops after a job has started
+    // Simple polling if SSE drops after a job has started
     const pollResult = async (jobId, timeoutMs = 60000, intervalMs = 1000) => {
         const end = Date.now() + timeoutMs;
         while (Date.now() < end) {
@@ -54,7 +62,8 @@ const CreatePage = () => {
                 const resp = await api.get(`/story/result/${encodeURIComponent(jobId)}`, { timeout: 5000 });
                 if (resp?.data) return resp.data;
             } catch (e) {
-                // ignore & keep polling
+                // keep polling; log for dev visibility
+                console.debug("pollResult retry after error:", e);
             }
             await new Promise((resolve) => setTimeout(resolve, intervalMs));
         }
@@ -62,26 +71,18 @@ const CreatePage = () => {
     };
 
     const resetProgress = () => {
-        setProgress(0)
-        setProgressPhase("idle")
-        setProgressHint("")
-    }
+        setProgress(0);
+        setProgressPhase("idle");
+        setProgressHint("");
+    };
 
     /**
-     * Try the SSE flow first:
-     * 1) POST /api/story/generate-full/start  -> { jobId }
-     * 2) Open EventSource /api/story/progress/{jobId} -> { percent?, stage?, index?, total?, message?, done?, story? }
-     * 3) On done: if story not included, GET /api/story/result/{jobId}
-     *
-     * If any step fails (endpoint not found, SSE blocked, etc.), fall back to the single-call flow.
+     * Try the SSE flow first; fall back to single-call if needed.
      */
-    // CHANGED
     const generateStory = async (formData) => {
-        // ADDED: hard block double-submits
-        if (inFlightRef.current) return;
+        if (inFlightRef.current) return; // block double-submits
         inFlightRef.current = true;
 
-        // ADDED: reset guards each run
         startedJobRef.current = null;
         finalizedRef.current = false;
 
@@ -103,10 +104,9 @@ const CreatePage = () => {
                 if (jobId) {
                     startedJobRef.current = jobId;
 
-                    // CHANGED: poll longer (2 minutes) before giving up
                     try {
-                        await runSSE(jobId);        // normal SSE completion path
-                        return;                     // finalizeSSE will set story + UI
+                        await runSSE(jobId); // normal SSE completion path
+                        return;
                     } catch (sseErr) {
                         console.warn("SSE dropped after job started; polling result:", sseErr);
                         const result = await pollResult(jobId, 120000, 1000); // 2 min window
@@ -118,7 +118,6 @@ const CreatePage = () => {
                             setStoryReady(true);
                             return;
                         }
-                        // softer message: story is likely saved even if we couldn’t fetch it
                         setError("We lost the live connection while generating your story. Your story should be in your Profile.");
                         return;
                     }
@@ -127,7 +126,6 @@ const CreatePage = () => {
                 // If no jobId returned, use the single-call fallback
                 await runSingleCallFallback(payload);
             } catch (startErr) {
-                // If /start itself failed outright (404, 5xx, etc.), use the single-call fallback
                 console.warn("SSE start failed; using single-call fallback:", startErr);
                 await runSingleCallFallback(payload);
             }
@@ -136,25 +134,20 @@ const CreatePage = () => {
             const message = fallbackErr?.response?.data ?? "Oops! Something went wrong generating your story.";
             setError(message);
         } finally {
-            // ADDED: release the submit lock
             inFlightRef.current = false;
             setIsLoading(false);
         }
     };
 
     // ---- SSE runner ----
-    // CHANGED
-    // CHANGED: only reject on error if we haven't finalized yet
     const runSSE = (jobId) =>
         new Promise((resolve, reject) => {
             setProgressPhase("generating");
             setProgressHint("Creating your magical pages…");
             setProgress((p) => Math.max(p, 5));
 
-            if (esRef.current) {
-                try { esRef.current.close(); } catch { }
-                esRef.current = null;
-            }
+            safeClose(esRef.current);
+            esRef.current = null;
 
             const url = buildApiUrl(`/story/progress/${encodeURIComponent(jobId)}`);
             const es = new EventSource(url);
@@ -166,7 +159,7 @@ const CreatePage = () => {
                 if (s.includes("text") || s.includes("chat")) return 10 + Math.min(30, (index ?? 1) * 10);
                 if (s.includes("image")) {
                     if (!total || total <= 0) return 60;
-                    const done = Math.max(0, Math.min(total, (index ?? 0)));
+                    const done = Math.max(0, Math.min(total, index ?? 0));
                     const frac = done / total;
                     return Math.round(30 + frac * 65); // 30 -> 95
                 }
@@ -184,7 +177,7 @@ const CreatePage = () => {
                         if (finalizedRef.current) return;
                         finalizedRef.current = true;
                         await finalizeSSE(data, jobId);
-                        try { es.close(); } catch { }
+                        safeClose(es);
                         esRef.current = null;
                         resolve();
                     };
@@ -207,38 +200,36 @@ const CreatePage = () => {
             };
 
             es.onerror = (e) => {
-                // CHANGED: if we already finalized, ignore late errors
                 if (finalizedRef.current) {
-                    try { es.close(); } catch { }
+                    safeClose(es);
                     esRef.current = null;
                     return;
                 }
                 console.error("SSE error:", e);
-                try { es.close(); } catch { }
+                safeClose(es);
                 esRef.current = null;
                 reject(new Error("SSE connection error"));
             };
         });
 
-    // CHANGED: retry result fetch a few times before giving up
+    // Retry result fetch a few times before giving up
     const finalizeSSE = async (data, jobId) => {
-        if (esRef.current) {
-            try { esRef.current.close(); } catch { }
-            esRef.current = null;
-        }
+        safeClose(esRef.current);
+        esRef.current = null;
 
         let result = data?.story;
 
-        // ADDED: small retry window in case SetResult/DB write is a tick behind
         const tryFetchResult = async () => {
-            const maxTries = 6;        // ~3s total
+            const maxTries = 6; // ~3s total
             const delayMs = 500;
             for (let i = 0; i < maxTries; i++) {
                 try {
                     const r = await api.get(`/story/result/${encodeURIComponent(jobId)}`, { timeout: 5000 });
                     if (r?.data) return r.data;
-                } catch { /* ignore */ }
-                await new Promise(res => setTimeout(res, delayMs));
+                } catch (e) {
+                    console.debug("result fetch retry after error:", e);
+                }
+                await new Promise((res) => setTimeout(res, delayMs));
             }
             return null;
         };
@@ -246,7 +237,6 @@ const CreatePage = () => {
         if (!result) {
             result = await tryFetchResult();
             if (!result) {
-                // still nothing—show a soft message but don’t block the user
                 setError("We lost the live connection. Your story should be in your Profile.");
                 setProgressPhase("done");
                 setProgress(100);
@@ -262,56 +252,54 @@ const CreatePage = () => {
         setStoryReady(true);
     };
 
-    // ---- Existing single-call fallback (kept, improved) ----
+    // ---- Single-call fallback ----
     const runSingleCallFallback = async (payload) => {
-        setProgressPhase("upload")
-        setProgressHint("Uploading details…")
+        setProgressPhase("upload");
+        setProgressHint("Uploading details…");
 
         const res = await api.post("/story/generate-full", payload, {
             onUploadProgress: (evt) => {
-                if (!evt.total) return
-                const pct = Math.min(30, Math.round((evt.loaded / evt.total) * 30)) // 0–30%
-                setProgress(pct)
+                if (!evt.total) return;
+                const pct = Math.min(30, Math.round((evt.loaded / evt.total) * 30)); // 0–30%
+                setProgress(pct);
             },
             onDownloadProgress: (evt) => {
-                setProgressPhase("download")
-                setProgressHint("Downloading your story…")
+                setProgressPhase("download");
+                setProgressHint("Downloading your story…");
                 if (evt.total) {
-                    const downloadedPortion = Math.round((evt.loaded / evt.total) * 30) // 70–100%
-                    setProgress((prev) => Math.max(prev, 70 + downloadedPortion))
+                    const downloadedPortion = Math.round((evt.loaded / evt.total) * 30); // 70–100%
+                    setProgress((prev) => Math.max(prev, 70 + downloadedPortion));
                 } else {
-                    setProgress((prev) => Math.min(95, prev + 1))
+                    setProgress((prev) => Math.min(95, prev + 1));
                 }
             },
             timeout: 180000,
-        })
+        });
 
-        // If server took a long time to compute and we never saw download progress,
-        // at least show a "generating" phase so the bar isn't stuck low.
         setProgress((p) => {
             if (p < 70) {
-                setProgressPhase("generating")
-                setProgressHint("Creating your magical pages…")
-                return 70
+                setProgressPhase("generating");
+                setProgressHint("Creating your magical pages…");
+                return 70;
             }
-            return p
-        })
+            return p;
+        });
 
-        setProgressPhase("done")
-        setProgress(100)
-        setProgressHint("Done!")
-        setStory(res.data)
-        setStoryReady(true)
-    }
+        setProgressPhase("done");
+        setProgress(100);
+        setProgressHint("Done!");
+        setStory(res.data);
+        setStoryReady(true);
+    };
 
     const isValidStory =
         story &&
         Array.isArray(story.pages) &&
         story.pages.length > 0 &&
         story.pages[0].text?.toLowerCase().startsWith("oops") === false &&
-        !error
+        !error;
 
-    const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1
+    const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1;
 
     // Not logged in
     if (!user) {
@@ -340,7 +328,7 @@ const CreatePage = () => {
                     </div>
                 </div>
             </div>
-        )
+        );
     }
 
     // Error loading profile
@@ -359,7 +347,7 @@ const CreatePage = () => {
                     </div>
                 </div>
             </div>
-        )
+        );
     }
 
     // Still loading profile
@@ -382,7 +370,7 @@ const CreatePage = () => {
                     </div>
                 </div>
             </div>
-        )
+        );
     }
 
     return (
@@ -472,7 +460,7 @@ const CreatePage = () => {
                 )}
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default CreatePage
+export default CreatePage;

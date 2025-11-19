@@ -206,7 +206,7 @@ const SignupPage = () => {
                                 <p className="missing-reqs-title">Missing requirements:</p>
                                 <ul>
                                     {Object.entries(requirements)
-                                        .filter(([key, met]) => !met)
+                                        .filter(([, met]) => !met)
                                         .map(([key]) => (
                                             <li key={key} className="missing-req">
                                                 {labels[key]}

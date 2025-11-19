@@ -10,6 +10,29 @@ import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 import { publicBase } from "../utils/urls";
 
+const normalizeMembership = (value) => {
+    if (value === null || value === undefined) return "free";
+    if (typeof value === "string") return value.toLowerCase();
+    if (typeof value === "number") {
+        // Enum mapping: 0 = Free, 1 = Pro, 2 = Premium
+        switch (value) {
+            case 0: return "free";
+            case 1: return "pro";
+            case 2: return "premium";
+            default: return "free";
+        }
+    }
+    return "free";
+};
+
+const prettyMembershipLabel = (key) => {
+    switch (key) {
+        case "pro": return "Pro";
+        case "premium": return "Premium";
+        default: return "Free";
+    }
+};
+
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
     const [editingU, setEditingU] = useState(false);
@@ -130,6 +153,10 @@ const ProfilePage = () => {
         return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     };
 
+    // membership helpers (handle enum/number or string)
+    const membershipKey = normalizeMembership(user?.membership);
+    const membershipLabel = prettyMembershipLabel(membershipKey);
+
     // fetch summaries (lightweight)
     useEffect(() => {
         let alive = true;
@@ -186,7 +213,7 @@ const ProfilePage = () => {
     useEffect(() => {
         let alive = true;
         (async () => {
-            const tier = String(user?.membership || "").toLowerCase();
+            const tier = normalizeMembership(user?.membership);
             if (!user?.email || tier === "free") { if (alive) setBilling(null); return; }
             try {
                 const { data } = await api.get("payments/subscription");
@@ -199,8 +226,8 @@ const ProfilePage = () => {
         return () => { alive = false; };
     }, [user?.email, user?.membership]);
 
-    const isPaid = ((user?.membership ?? "free").toLowerCase() !== "free") || Boolean(billing?.cancelAt);
-    const isPremium = String(user?.membership || "").toLowerCase() === "premium";
+    const isPaid = membershipKey !== "free" || Boolean(billing?.cancelAt);
+    const isPremium = membershipKey === "premium";
     const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
     const renewalLabel = billing?.cancelAt ? "Ends on" : "Next renewal";
 
@@ -280,7 +307,7 @@ const ProfilePage = () => {
         setImgError(false);
     }, [user?.profileImage, BASE, avatarVersion]);
 
-    const canDownload = ["pro", "premium"].includes(String(user?.membership || "free").toLowerCase());
+    const canDownload = ["pro", "premium"].includes(membershipKey);
 
     // ---- ADDED: lazy loader for full story (used by open/download/share) ----
     const fetchFullStory = async (id) => {
@@ -494,7 +521,7 @@ const ProfilePage = () => {
                         <div className="detail-icon">⭐</div>
                         <div className="detail-content">
                             <span className="detail-label">Membership</span>
-                            <span className="detail-value">{user.membership || "Free"}</span>
+                            <span className="detail-value">{membershipLabel}</span>
                         </div>
                     </div>
 
@@ -533,7 +560,7 @@ const ProfilePage = () => {
                         <span>Create New Story</span>
                     </button>
 
-                    {String(user.membership || "").toLowerCase() === "free" ? (
+                    {membershipKey === "free" ? (
                         <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
                             <span className="button-icon">🚀</span>
                             <span>Upgrade Plan</span>
