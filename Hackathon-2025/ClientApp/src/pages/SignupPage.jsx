@@ -150,8 +150,8 @@ const SignupPage = () => {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            pattern="^[A-Za-z0-9._-]{3,24}$"
-                            title="3–24 chars: letters (A–Z or a–z), numbers (0–9), dot, underscore, hyphen"
+                            pattern="[A-Za-z0-9_.]{3,32}"
+                            title="3–32 characters: letters (A–Z, a–z), numbers (0–9), underscore (_), or dot (.)"
                             aria-describedby={isUsernameFocused ? "username-reqs" : undefined}
                             autoComplete="username"
                             onFocus={() => setIsUsernameFocused(true)}
