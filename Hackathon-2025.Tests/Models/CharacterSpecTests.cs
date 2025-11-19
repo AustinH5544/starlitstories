@@ -2,47 +2,48 @@
 using Hackathon_2025.Models;
 using System.Collections.Generic;
 
-namespace Hackathon_2025.Tests.Models;
-
-[TestClass]
-public class CharacterSpecTests
+namespace Hackathon_2025.Tests.Models
 {
-    [TestMethod]
-    public void DefaultConstructor_SetsExpectedDefaults()
+    [TestClass]
+    public class CharacterSpecTests
     {
-        // Arrange
-        var character = new CharacterSpec();
-
-        // Assert
-        Assert.AreEqual("main", character.Role);
-        Assert.AreEqual("", character.Name);
-        Assert.IsFalse(character.IsAnimal);
-        Assert.IsNotNull(character.DescriptionFields);
-        Assert.AreEqual(0, character.DescriptionFields.Count);
-    }
-
-    [TestMethod]
-    public void CanAssignCustomValues()
-    {
-        // Arrange
-        var character = new CharacterSpec
+        [TestMethod]
+        public void DefaultInit_SetsExpectedDefaults()
         {
-            Role = "friend",
-            Name = "Max",
-            IsAnimal = true,
-            DescriptionFields = new Dictionary<string, string>
-            {
-                { "species", "dog" },
-                { "color", "brown" }
-            }
-        };
+            // Arrange: Name is required, so provide it (empty is fine for default test)
+            var character = new CharacterSpec { Name = "" };
 
-        // Assert
-        Assert.AreEqual("friend", character.Role);
-        Assert.AreEqual("Max", character.Name);
-        Assert.IsTrue(character.IsAnimal);
-        Assert.AreEqual(2, character.DescriptionFields.Count);
-        Assert.AreEqual("dog", character.DescriptionFields["species"]);
-        Assert.AreEqual("brown", character.DescriptionFields["color"]);
+            // Assert
+            Assert.AreEqual(CharacterRole.Main, character.Role);
+            Assert.AreEqual("", character.Name);
+            Assert.IsFalse(character.IsAnimal);
+            Assert.IsNotNull(character.DescriptionFields);
+            Assert.AreEqual(0, character.DescriptionFields.Count);
+        }
+
+        [TestMethod]
+        public void CanAssignCustomValues()
+        {
+            // Arrange
+            var character = new CharacterSpec
+            {
+                Role = CharacterRole.Friend,
+                Name = "Max",
+                IsAnimal = true,
+                DescriptionFields = new Dictionary<string, string>
+                {
+                    { "species", "dog" },
+                    { "color", "brown" }
+                }
+            };
+
+            // Assert
+            Assert.AreEqual(CharacterRole.Friend, character.Role);
+            Assert.AreEqual("Max", character.Name);
+            Assert.IsTrue(character.IsAnimal);
+            Assert.AreEqual(2, character.DescriptionFields.Count);
+            Assert.AreEqual("dog", character.DescriptionFields["species"]);
+            Assert.AreEqual("brown", character.DescriptionFields["color"]);
+        }
     }
 }

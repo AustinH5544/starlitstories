@@ -7,21 +7,30 @@ namespace Hackathon_2025.Tests.Models;
 public class ForgotPasswordRequestTests
 {
     [TestMethod]
-    public void DefaultConstructor_SetsExpectedEmail()
+    public void Constructor_WithValidEmail_SetsEmailCorrectly()
     {
-        var request = new ForgotPasswordRequest();
+        // Arrange
+        var email = "user@example.com";
 
-        Assert.AreEqual(string.Empty, request.Email);
+        // Act
+        var request = new ForgotPasswordRequest
+        {
+            Email = email
+        };
+
+        // Assert
+        Assert.AreEqual(email, request.Email);
     }
 
     [TestMethod]
-    public void CanAssignEmail()
+    public void Constructor_RequiresEmailProperty()
     {
         var request = new ForgotPasswordRequest
         {
-            Email = "user@example.com"
+            Email = "test@example.com"
         };
 
-        Assert.AreEqual("user@example.com", request.Email);
+        // Assert
+        Assert.IsNotNull(request.Email);
     }
 }

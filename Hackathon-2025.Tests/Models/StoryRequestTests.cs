@@ -8,20 +8,32 @@ namespace Hackathon_2025.Tests.Models;
 public class StoryRequestTests
 {
     [TestMethod]
-    public void Constructor_DefaultValues_ContainExpectedDefaults()
+    public void Constructor_ThemeOnly_ContainsExpectedDefaults()
     {
         // Arrange
-        var request = new StoryRequest();
+        var request = new StoryRequest
+        {
+            Theme = string.Empty
+        };
+
+        // Act
+        var theme = request.Theme;
+        var characters = request.Characters;
+        var readingLevel = request.ReadingLevel;
+        var artStyle = request.ArtStyle;
+        var pageCount = request.PageCount;
+        var lessonLearned = request.LessonLearned;
+        var storyLength = request.StoryLength;
 
         // Assert
-        Assert.AreEqual("", request.Theme);
-        Assert.IsNotNull(request.Characters);
-        Assert.AreEqual(0, request.Characters.Count);
-        Assert.IsNull(request.ReadingLevel);
-        Assert.IsNull(request.ArtStyle);
-        Assert.IsNull(request.PageCount);
-        Assert.IsNull(request.LessonLearned);
-        Assert.IsNull(request.StoryLength);
+        Assert.AreEqual(string.Empty, theme);
+        Assert.IsNotNull(characters);
+        Assert.AreEqual(0, characters.Count);
+        Assert.IsNull(readingLevel);
+        Assert.IsNull(artStyle);
+        Assert.IsNull(pageCount);
+        Assert.IsNull(lessonLearned);
+        Assert.IsNull(storyLength);
     }
 
     [TestMethod]
@@ -33,7 +45,7 @@ public class StoryRequestTests
             new CharacterSpec
             {
                 Name = "Luna",
-                Role = "main",
+                Role = CharacterRole.Main,
                 IsAnimal = true,
                 DescriptionFields = new Dictionary<string, string>
                 {
@@ -43,6 +55,7 @@ public class StoryRequestTests
             }
         };
 
+        // Act
         var request = new StoryRequest
         {
             ReadingLevel = "early",
@@ -65,6 +78,7 @@ public class StoryRequestTests
         Assert.IsNotNull(request.Characters);
         Assert.AreEqual(1, request.Characters.Count);
         Assert.AreEqual("Luna", request.Characters[0].Name);
+        Assert.AreEqual(CharacterRole.Main, request.Characters[0].Role);
         Assert.IsTrue(request.Characters[0].IsAnimal);
         Assert.AreEqual("fox", request.Characters[0].DescriptionFields["species"]);
     }
