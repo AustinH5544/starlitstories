@@ -7,41 +7,46 @@ namespace Hackathon_2025.Tests.Models;
 public class ResetPasswordRequestTests
 {
     [TestMethod]
-    public void Constructor_DefaultValues_ContainEmptyStrings()
+    public void Constructor_ValidValues_SetsPropertiesCorrectly()
     {
         // Arrange
-        var request = new ResetPasswordRequest();
+        var email = "reset@example.com";
+        var token = "abc123token";
+        var password = "NewSecurePassword!";
 
         // Act
-        var email = request.Email;
-        var token = request.Token;
-        var password = request.NewPassword;
+        var request = new ResetPasswordRequest
+        {
+            Email = email,
+            Token = token,
+            NewPassword = password
+        };
 
         // Assert
-        Assert.AreEqual(string.Empty, email);
-        Assert.AreEqual(string.Empty, token);
-        Assert.AreEqual(string.Empty, password);
+        Assert.AreEqual(email, request.Email);
+        Assert.AreEqual(token, request.Token);
+        Assert.AreEqual(password, request.NewPassword);
     }
 
     [TestMethod]
-    public void PropertyAssignment_CustomValues_AreStoredCorrectly()
+    public void NewPassword_AssignedDifferentValidValue_IsStoredCorrectly()
     {
         // Arrange
-        var request = new ResetPasswordRequest
-        {
-            Email = "reset@example.com",
-            Token = "abc123token",
-            NewPassword = "NewSecurePassword!"
-        };
+        var email = "user2@example.com";
+        var token = "differentToken456";
+        var password = "AnotherSecurePassword!";
 
         // Act
-        var email = request.Email;
-        var token = request.Token;
-        var password = request.NewPassword;
+        var request = new ResetPasswordRequest
+        {
+            Email = email,
+            Token = token,
+            NewPassword = password
+        };
 
         // Assert
-        Assert.AreEqual("reset@example.com", email);
-        Assert.AreEqual("abc123token", token);
-        Assert.AreEqual("NewSecurePassword!", password);
+        Assert.AreEqual("user2@example.com", request.Email);
+        Assert.AreEqual("differentToken456", request.Token);
+        Assert.AreEqual("AnotherSecurePassword!", request.NewPassword);
     }
 }

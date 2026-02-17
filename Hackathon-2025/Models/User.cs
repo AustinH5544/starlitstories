@@ -1,40 +1,49 @@
-﻿namespace Hackathon_2025.Models;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Hackathon_2025.Models;
 
 public class User
 {
-    public List<Story> Stories { get; set; } = new();
     public int Id { get; set; }
 
+    [EmailAddress, MaxLength(256)]
     public string Email { get; set; } = string.Empty;
 
-    // NEW: public handle used for login and public identity
+    [MaxLength(32)]
     public string Username { get; set; } = string.Empty;
-    public string UsernameNormalized { get; set; } = string.Empty; // lowercase for unique index
 
+    [MaxLength(32)]
+    public string UsernameNormalized { get; set; } = string.Empty;
+
+    [MaxLength(256)]
     public string PasswordHash { get; set; } = string.Empty;
-    public string Membership { get; set; } = "free";
-    public int BooksGenerated { get; set; } = 0;
-    public int AddOnBalance { get; set; } = 0;
-    public int AddOnSpentThisPeriod { get; set; } = 0;
+
+    public MembershipPlan Membership { get; set; } = MembershipPlan.Free;
+
+    public int BooksGenerated { get; set; }
+    public int AddOnBalance { get; set; }
+    public int AddOnSpentThisPeriod { get; set; }
     public DateTime LastReset { get; set; } = DateTime.UtcNow;
+
     public string? ProfileImage { get; set; }
 
-    // Password reset
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetExpires { get; set; }
 
-    // Email verification
-    public bool IsEmailVerified { get; set; } = false;
+    public bool IsEmailVerified { get; set; }
     public string? EmailVerificationToken { get; set; }
     public DateTime? EmailVerificationExpires { get; set; }
 
-    // Billing / subscription
     public string? BillingProvider { get; set; }
     public string? BillingCustomerRef { get; set; }
     public string? BillingSubscriptionRef { get; set; }
-    public string PlanKey { get; set; } = "free";
-    public string PlanStatus { get; set; } = "none";
+
+    [MaxLength(32)] public string PlanKey { get; set; } = "free";
+    [MaxLength(32)] public string PlanStatus { get; set; } = "none";
+
     public DateTime? CurrentPeriodEndUtc { get; set; }
     public DateTime? CurrentPeriodStartUtc { get; set; }
     public DateTime? CancelAtUtc { get; set; }
+
+    public ICollection<Story> Stories { get; set; } = new List<Story>();
 }

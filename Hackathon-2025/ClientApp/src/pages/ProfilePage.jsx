@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useLocation } from "react-router-dom";
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
@@ -10,6 +10,29 @@ import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 import { publicBase } from "../utils/urls";
 
+const normalizeMembership = (value) => {
+    if (value === null || value === undefined) return "free";
+    if (typeof value === "string") return value.toLowerCase();
+    if (typeof value === "number") {
+        // Enum mapping: 0 = Free, 1 = Pro, 2 = Premium
+        switch (value) {
+            case 0: return "free";
+            case 1: return "pro";
+            case 2: return "premium";
+            default: return "free";
+        }
+    }
+    return "free";
+};
+
+const prettyMembershipLabel = (key) => {
+    switch (key) {
+        case "pro": return "Pro";
+        case "premium": return "Premium";
+        default: return "Free";
+    }
+};
+
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
     const [editingU, setEditingU] = useState(false);
@@ -17,7 +40,10 @@ const ProfilePage = () => {
     const [uStatus, setUStatus] = useState("");
     const [savingU, setSavingU] = useState(false);
     const [stories, setStories] = useState([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(true);      // initial load only
+    const [loadingMore, setLoadingMore] = useState(false);
+    const loadMoreRef = useRef(null);
+    const shouldStickToBottomRef = useRef(false);
     const navigate = useNavigate()
     const [avatarVersion, setAvatarVersion] = useState(0);
     const [working, setWorking] = useState(false);
@@ -28,11 +54,15 @@ const ProfilePage = () => {
     const [billing, setBilling] = useState(null);
     const isCancelScheduled = Boolean(billing?.cancelAt);
 
-    // NEW: usage state (stories remaining / addons)
-    const [usage, setUsage] = useState(null)             // NEW
-    const [usageLoading, setUsageLoading] = useState(true) // NEW
-    const [usageError, setUsageError] = useState("")       // NEW
-    const [buyWorking, setBuyWorking] = useState(false)    // NEW
+    const [storiesPage, setStoriesPage] = useState(1);
+    const [storiesTotal, setStoriesTotal] = useState(0);
+    const pageSize = 8; // pick your grid size
+
+    // usage state (stories remaining / addons)
+    const [usage, setUsage] = useState(null)
+    const [usageLoading, setUsageLoading] = useState(true)
+    const [usageError, setUsageError] = useState("")
+    const [buyWorking, setBuyWorking] = useState(false)
     // Compact add-on selector
     const [selectedPack, setSelectedPack] = useState("plus5");
 
@@ -126,7 +156,63 @@ const ProfilePage = () => {
         return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
     };
 
-    // close on escape
+    // membership helpers (handle enum/number or string)
+    const membershipKey = normalizeMembership(user?.membership);
+    const membershipLabel = prettyMembershipLabel(membershipKey);
+
+    // fetch summaries (lightweight)
+    useEffect(() => {
+        let alive = true;
+
+        const isFirstPage = storiesPage === 1;
+
+        // Only show the big loader on the first page.
+        if (isFirstPage) setLoading(true);
+        else setLoadingMore(true);
+
+        (async () => {
+            if (!user?.email) {
+                if (alive) {
+                    setLoading(false);
+                    setLoadingMore(false);
+                }
+                return;
+            }
+
+            try {
+                const { data } = await api.get(
+                    `/profile/me/stories?page=${storiesPage}&pageSize=${pageSize}`
+                );
+
+                if (!alive) return;
+
+                setStories(prev => (isFirstPage ? data.items : [...prev, ...data.items]));
+                setStoriesTotal(data.total ?? 0);
+            } catch (e) {
+                if (alive) console.error("Error loading story summaries:", e);
+            } finally {
+                if (!alive) return;
+                setLoading(false);
+                setLoadingMore(false);
+            }
+        })();
+
+        return () => { alive = false; };
+    }, [user?.email, storiesPage]);
+
+    useEffect(() => {
+        if (!loadingMore && shouldStickToBottomRef.current) {
+            shouldStickToBottomRef.current = false;
+
+            // Keep the "Load more" area at the bottom of the viewport
+            loadMoreRef.current?.scrollIntoView({
+                block: "end",
+                behavior: "smooth",
+            });
+        }
+    }, [loadingMore, stories.length]);
+
+    // close add-on dropdown on escape
     useEffect(() => {
         if (!addonOpen) return;
         const onKey = (e) => { if (e.key === "Escape") setAddonOpen(false); };
@@ -134,7 +220,7 @@ const ProfilePage = () => {
         return () => window.removeEventListener("keydown", onKey);
     }, [addonOpen]);
 
-    // NEW: load usage (stories remaining)
+    // load usage (stories remaining)
     useEffect(() => {
         let alive = true;
         (async () => {
@@ -151,12 +237,13 @@ const ProfilePage = () => {
             }
         })();
         return () => { alive = false; };
-    }, [user]); // NEW
+    }, [user]);
 
+    // load subscription/billing
     useEffect(() => {
         let alive = true;
         (async () => {
-            const tier = String(user?.membership || "").toLowerCase();
+            const tier = normalizeMembership(user?.membership);
             if (!user?.email || tier === "free") { if (alive) setBilling(null); return; }
             try {
                 const { data } = await api.get("payments/subscription");
@@ -169,8 +256,8 @@ const ProfilePage = () => {
         return () => { alive = false; };
     }, [user?.email, user?.membership]);
 
-    const isPaid = ((user?.membership ?? "free").toLowerCase() !== "free") || Boolean(billing?.cancelAt);
-    const isPremium = String(user?.membership || "").toLowerCase() === "premium";
+    const isPaid = membershipKey !== "free" || Boolean(billing?.cancelAt);
+    const isPremium = membershipKey === "premium";
     const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
     const renewalLabel = billing?.cancelAt ? "Ends on" : "Next renewal";
 
@@ -205,8 +292,8 @@ const ProfilePage = () => {
         }
     };
 
-    // NEW: Buy credits (same API as UpgradePage)
-    const buyCredits = async (pack /* "plus5" | "plus11" */) => {   // NEW
+    // Buy credits (same API as UpgradePage)
+    const buyCredits = async (pack /* "plus5" | "plus11" */) => {
         try {
             setBuyWorking(true);
             const { data } = await api.post("payments/buy-credits", { pack, quantity: 1 });
@@ -250,41 +337,76 @@ const ProfilePage = () => {
         setImgError(false);
     }, [user?.profileImage, BASE, avatarVersion]);
 
-    useEffect(() => {
-        const fetchStories = async () => {
-            try {
-                const res = await api.get("profile/me/stories")
-                setStories(res.data)
-            } catch (err) {
-                console.error("Error loading stories:", err)
-            } finally {
-                setLoading(false)
-            }
-        }
-        if (user?.email) fetchStories()
-    }, [user])
+    const canDownload = ["pro", "premium"].includes(membershipKey);
 
-    const canDownload = user?.membership === "pro" || user?.membership === "premium"
+    // ---- ADDED: lazy loader for full story (used by open/download/share) ----
+    const fetchFullStory = async (id) => {
+        const { data } = await api.get(`/profile/me/stories/${id}`);
+        return data; // expects { id, title, coverImageUrl, pages: [...], ... }
+    };
 
-    const onOpen = (story) => { navigate("/view", { state: { story } }) }
-    const onShare = async (story) => {
+    // ---- UPDATED: open viewer only after fetching full story ----
+    const onOpen = async (storySummary) => {
         try {
-            const { data } = await api.post(`stories/${story.id}/share`);
-            const { token } = data;
+            const story = await fetchFullStory(storySummary.id);
+            navigate("/view", { state: { story } });
+        } catch (e) {
+            console.error("Open failed:", e);
+            alert("Could not open story.");
+        }
+    };
+
+    // ---- UPDATED: share with route fallback; summary-only ok (no pages needed) ----
+    const onShare = async (storySummary) => {
+        try {
+            let resp;
+            try {
+                // Preferred new singular path
+                resp = await api.post(`/story/${storySummary.id}/share`);
+            } catch (e1) {
+                const status = e1?.response?.status;
+                if (status === 404 || status === 405) {
+                    // Fallback to former plural path
+                    resp = await api.post(`/stories/${storySummary.id}/share`);
+                } else {
+                    throw e1;
+                }
+            }
+
+            const { token } = resp.data || {};
             if (!token) throw new Error("No token returned");
+
             const url = new URL(`/s/${token}`, publicBase()).toString();
-            if (navigator.share) { try { await navigator.share({ title: story.title, url }); return; } catch { } }
+
+            if (navigator.share) {
+                try {
+                    await navigator.share({ title: storySummary.title, url });
+                    return;
+                } catch {
+                    // fall back to clipboard
+                }
+            }
             await navigator.clipboard.writeText(url);
             alert("Share link copied!");
         } catch (e) {
+            console.error("Share failed:", e);
             const status = e?.response?.status;
             alert(`Could not create share link${status ? ` (${status})` : ""}.`);
         }
     };
-    const onDownload = async (story, format) => {
-        if (format === "pdf") await downloadStoryPdf(story)
-        else await downloadAsImages(story)
-    }
+
+    // ---- UPDATED: download now fetches full story first ----
+    const onDownload = async (storySummary, format) => {
+        try {
+            const story = await fetchFullStory(storySummary.id);
+            if (format === "pdf") await downloadStoryPdf(story);
+            else await downloadAsImages(story);
+        } catch (e) {
+            console.error("Download failed:", e);
+            alert("Could not download the story. Please try again.");
+        }
+    };
+
     const onDelete = async (storyId) => {
         const prev = stories;
         setStories(prev.filter(s => s.id !== storyId));
@@ -336,6 +458,11 @@ const ProfilePage = () => {
     }
 
     const downloadAsImages = async (story) => {
+        // Guard so summaries don't slip through
+        if (!Array.isArray(story.pages) || story.pages.length === 0) {
+            throw new Error("Story pages not loaded.");
+        }
+
         const zip = await import("jszip")
         const JSZip = zip.default
         const zipFile = new JSZip()
@@ -377,6 +504,9 @@ const ProfilePage = () => {
             </div>
         )
     }
+
+    // ADDED: simple hasMore for "Load more"
+    const hasMore = stories.length < storiesTotal;
 
     return (
         <div className="profile-page">
@@ -421,7 +551,7 @@ const ProfilePage = () => {
                         <div className="detail-icon">⭐</div>
                         <div className="detail-content">
                             <span className="detail-label">Membership</span>
-                            <span className="detail-value">{user.membership || "Free"}</span>
+                            <span className="detail-value">{membershipLabel}</span>
                         </div>
                     </div>
 
@@ -436,7 +566,7 @@ const ProfilePage = () => {
                     )}
 
                     {/* NEW: Stories Remaining (from /users/me/usage) */}
-                    <div className="detail-card"> {/* NEW */}
+                    <div className="detail-card">
                         <div className="detail-icon">📦</div>
                         <div className="detail-content">
                             <span className="detail-label">Stories Remaining</span>
@@ -460,7 +590,7 @@ const ProfilePage = () => {
                         <span>Create New Story</span>
                     </button>
 
-                    {String(user.membership || "").toLowerCase() === "free" ? (
+                    {membershipKey === "free" ? (
                         <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
                             <span className="button-icon">🚀</span>
                             <span>Upgrade Plan</span>
@@ -471,15 +601,15 @@ const ProfilePage = () => {
                                 <span className="button-icon">🛠️</span>
                                 <span>{working ? "Opening..." : "Change Plan"}</span>
                             </button>
-                                {!isCancelScheduled && (
-                                    <button
-                                        className="btn btn-danger"
-                                        onClick={() => setShowCancelModal(true)}
-                                        disabled={working}
-                                    >
-                                        Cancel membership
-                                    </button>
-                                )}
+                            {!isCancelScheduled && (
+                                <button
+                                    className="btn btn-danger"
+                                    onClick={() => setShowCancelModal(true)}
+                                    disabled={working}
+                                >
+                                    Cancel membership
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -555,13 +685,6 @@ const ProfilePage = () => {
                                         "Add-ons aren’t available at the moment."}
                             </div>
                         )}
-
-                        {/* OPTIONAL: mini pill buttons instead of dropdown
-    <div className="addon-mini-pills">
-      <button className="pill" disabled={buyWorking} onClick={() => buyCredits("plus5")}>+5 · $4</button>
-      <button className="pill" disabled={buyWorking} onClick={() => buyCredits("plus11")}>+11 · $8</button>
-    </div>
-    */}
                     </div>
                 )}
 
@@ -589,21 +712,38 @@ const ProfilePage = () => {
                             </button>
                         </div>
                     ) : (
-                        <div className="story-grid">
-                            {stories.map((story) => (
-                                <StoryCard
-                                    key={story.id}
-                                    story={story}
-                                    canCustomize={true}
-                                    canDownload={canDownload}
-                                    onShare={onShare}
-                                    onDownload={onDownload}
-                                    onDelete={onDelete}
-                                    onOpen={onOpen}
-                                    onCustomize={(s) => navigate("/customize", { state: { story: s } })}
-                                />
-                            ))}
-                        </div>
+                        <>
+                            <div className="story-grid">
+                                {stories.map((story) => (
+                                    <StoryCard
+                                        key={story.id}
+                                        story={story}
+                                        canCustomize={true}
+                                        canDownload={canDownload}
+                                        onShare={onShare}
+                                        onDownload={onDownload}
+                                        onDelete={onDelete}
+                                        onOpen={onOpen}
+                                        onCustomize={(s) => navigate("/customize", { state: { story: s } })}
+                                    />
+                                ))}
+                            </div>
+
+                            {hasMore && !loading && (
+                                <div className="load-more" ref={loadMoreRef}>
+                                    <button
+                                        className="btn"
+                                        disabled={loadingMore}
+                                        onClick={() => {
+                                            shouldStickToBottomRef.current = true;
+                                            setStoriesPage(p => p + 1);
+                                        }}
+                                    >
+                                        {loadingMore ? "Loading..." : "Load more"}
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
 

@@ -1,0 +1,26 @@
+﻿{
+  "routes": [
+    {
+      "route": "/sitemap.xml",
+      "rewrite": "https://starlitstories-api-dev-cva4fbdgc4bsbbad.westus2-01.azurewebsites.net/sitemap.xml"
+    },
+    {
+      "route": "/sitemaps/*",
+      "rewrite": "https://starlitstories-api-dev-cva4fbdgc4bsbbad.westus2-01.azurewebsites.net/sitemaps/{*}"
+    }
+  ],
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "/images/*",
+      "/favicon*",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/sitemaps/*"
+    ]
+  },
+  "mimeTypes": {
+    ".js": "text/javascript"
+  }
+}

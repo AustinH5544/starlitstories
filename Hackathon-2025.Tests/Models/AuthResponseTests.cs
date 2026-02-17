@@ -7,31 +7,55 @@ namespace Hackathon2025.Tests.Models;
 public class AuthResponseTests
 {
     [TestMethod]
-    public void AuthResponse_DefaultConstructor_SetsDefaultValues()
+    public void Constructor_ValidValues_SetsPropertiesCorrectly()
     {
         // Arrange
-        AuthResponse response;
+        var email = "user@example.com";
+        var membership = MembershipPlan.Pro;
 
         // Act
-        response = new AuthResponse();
+        var response = new AuthResponse
+        {
+            Email = email,
+            Membership = membership
+        };
 
         // Assert
-        Assert.AreEqual(string.Empty, response.Email);
-        Assert.AreEqual(string.Empty, response.Membership);
+        Assert.AreEqual(email, response.Email);
+        Assert.AreEqual(membership, response.Membership);
     }
 
     [TestMethod]
-    public void AuthResponse_PropertySetters_AssignValuesCorrectly()
+    public void Membership_AssignedEnumValue_IsStoredCorrectly()
     {
         // Arrange
-        AuthResponse response = new AuthResponse();
+        var membership = MembershipPlan.Premium;
 
         // Act
-        response.Email = "user@example.com";
-        response.Membership = "Pro";
+        var response = new AuthResponse
+        {
+            Email = "test@example.com",
+            Membership = membership
+        };
 
         // Assert
-        Assert.AreEqual("user@example.com", response.Email);
-        Assert.AreEqual("Pro", response.Membership);
+        Assert.AreEqual(MembershipPlan.Premium, response.Membership);
+    }
+
+    [TestMethod]
+    public void Email_AssignedValidEmail_SetsCorrectValue()
+    {
+        // Arrange
+        var email = "valid@example.com";
+
+        // Act
+        var response = new AuthResponse
+        {
+            Email = email,
+            Membership = MembershipPlan.Free
+        };
+
+        // Assert
+        Assert.AreEqual(email, response.Email);
     }
 }

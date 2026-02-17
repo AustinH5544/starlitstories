@@ -2,57 +2,104 @@ name: Frontend (SWA)
 
 on:
   push:
-    branches: [ main, staging ]
+    branches: [main, staging]
   workflow_dispatch: {}
 
 jobs:
-  build-and-deploy:
+  deploy-staging:
+    name: Frontend deploy (staging)
+    if: ${{ github.ref == 'refs/heads/staging' }}
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        include:
-          - branch: staging
-            env_name: staging
-            build_mode: staging
-            swa_name: swa-starlitstories-dev
-            swa_location: westus2
-          - branch: main
-            env_name: production
-            build_mode: production
-            swa_name: swa-starlitstories-prod
-            swa_location: westus2
-
-    if: ${{ github.ref_name == matrix.branch }}
-    environment: ${{ matrix.env_name }}
+    environment: staging
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Use Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+          cache-dependency-path: Hackathon-2025/ClientApp/package-lock.json
 
       - name: Install deps
-        working-directory: ClientApp
+        working-directory: Hackathon-2025/ClientApp
         run: npm ci
 
-      - name: Build
-        working-directory: ClientApp
+      - name: Prepare robots.txt (staging)
+        working-directory: Hackathon-2025/ClientApp
         run: |
-          if [ "${{ matrix.build_mode }}" = "staging" ]; then
-            npm run build:staging || npm run build
-          else
-            npm run build
-          fi
+          mkdir -p public
+          cp robots.staging.txt public/robots.txt
 
-      - name: Deploy to Static Web Apps
+      - name: Build (staging)
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run build:staging
+
+      - name: Copy SWA config (staging)
+        working-directory: Hackathon-2025/ClientApp
+        run: cp staticwebapp.staging.config.json dist/staticwebapp.config.json
+
+      - name: Show dist contents (sanity)
+        run: |
+          ls -la Hackathon-2025/ClientApp/dist
+          test -f Hackathon-2025/ClientApp/dist/index.html
+          test -f Hackathon-2025/ClientApp/dist/robots.txt
+          test -f Hackathon-2025/ClientApp/dist/staticwebapp.config.json
+
+      - name: Deploy to Static Web Apps (staging)
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
-          action: "upload"
-          app_location: "ClientApp"
-          output_location: "dist"
+          action: upload
+          app_location: Hackathon-2025/ClientApp/dist
           skip_app_build: true
+          skip_api_build: true
+
+  deploy-prod:
+    name: Frontend deploy (prod)
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Hackathon-2025/ClientApp/package-lock.json
+
+      - name: Install deps
+        working-directory: Hackathon-2025/ClientApp
+        run: npm ci
+
+      - name: Prepare robots.txt (prod)
+        working-directory: Hackathon-2025/ClientApp
+        run: |
+          mkdir -p public
+          cp robots.prod.txt public/robots.txt
+
+      - name: Build (prod)
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run build
+
+      - name: Copy SWA config (prod)
+        working-directory: Hackathon-2025/ClientApp
+        run: cp staticwebapp.prod.config.json dist/staticwebapp.config.json
+
+      - name: Show dist contents (sanity)
+        run: |
+          ls -la Hackathon-2025/ClientApp/dist
+          test -f Hackathon-2025/ClientApp/dist/index.html
+          test -f Hackathon-2025/ClientApp/dist/robots.txt
+          test -f Hackathon-2025/ClientApp/dist/staticwebapp.config.json
+
+      - name: Deploy to Static Web Apps (prod)
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SWA_DEPLOYMENT_TOKEN }}
+          action: upload
+          app_location: Hackathon-2025/ClientApp/dist
+          skip_app_build: true
+          skip_api_build: true

@@ -1,9 +1,17 @@
-﻿namespace Hackathon_2025.Models.Auth;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class SignupRequest
+namespace Hackathon_2025.Models.Auth;
+
+public sealed record SignupRequest
 {
-    public string Email { get; set; } = "";
-    public string Username { get; set; } = "";
-    public string Password { get; set; } = "";
-    public string? Membership { get; set; }
+    [System.ComponentModel.DataAnnotations.EmailAddress, StringLength(256)]
+    public required string Email { get; init; }
+
+    [System.ComponentModel.DataAnnotations.RegularExpression(@"^[a-zA-Z0-9_\.]{3,32}$")]
+    public required string Username { get; init; }
+
+    [StringLength(256, MinimumLength = 8)]
+    public required string Password { get; init; }
+
+    public MembershipPlan? Membership { get; init; }
 }

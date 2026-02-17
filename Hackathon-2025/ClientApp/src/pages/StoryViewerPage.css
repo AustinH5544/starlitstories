@@ -1,36 +1,63 @@
-﻿/* --- Story Viewer (lean) --- */
+﻿/* =========================
+   Story Viewer (static layout)
+   - Page doesn't scroll
+   - Only the text pane scrolls
+   - Progress pill hidden on mobile
+   ========================= */
+
+/* --- Global knobs --- */
+:root {
+    /* Site nav heights */
+    --site-nav-h: 64px;
+    --site-nav-h-mobile: 72px;
+    /* Viewer chrome */
+    --viewer-header-h: 68px; /* desktop progress pill */
+    --viewer-header-h-mobile: 0px; /* hidden on phones */
+    --viewer-nav-h: 72px; /* bottom control bar */
+    --gap-top: 72px; /* space under site nav */
+    --gap-bottom: -130px; /* space above story nav */
+    --progress-clearance: 72px; /* extra space under the progress pill (desktop only) */
+    --page-text-size: 1.125rem; /* ~18px on mobile */
+    --page-line: 1.8;
+}
+
+/* --- Container --- */
 .story-viewer {
     position: relative;
-    min-height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
     width: 100%;
+    overflow: hidden; /* lock page scroll */
     display: flex;
     flex-direction: column;
     color: #fff;
-    overflow: hidden;
     user-select: none;
     cursor: pointer;
+    overscroll-behavior: contain;
 }
 
-   
-@keyframes move-twinkle {
+    .cover-image,
+    .page-image,
+    .story-viewer img {
+        -webkit-user-drag: none;
+        user-select: none;
+    }
+
+/* --- Background layers --- */
+@keyframes move-clouds {
     from {
-        background-position: 0 0
+        background-position: 0 0;
     }
 
     to {
-        background-position: -10000px 5000px
+        background-position: 10000px 0;
     }
 }
 
-/* Animated background elements */
 .story-viewer .stars,
-/*.small-clouds,*/
 .story-viewer .clouds {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
     display: block;
@@ -51,49 +78,33 @@
     height: 50%;
 }
 
-@keyframes move-small-clouds {
-    from {
-        background-position: 0 0;
-    }
-
-    to {
-        background-position: 10000px 0;
-    }
-}
-
-@keyframes move-clouds {
-    from {
-        background-position: 0 0;
-    }
-
-    to {
-        background-position: 10000px 0;
-    }
-}
-
-/* Header: progress only, centered, transparent, sits below site nav */
+/* --- Progress header (centered pill) --- */
 .story-header {
     position: fixed;
-    top: 90px; /* tweak if your site nav height differs */
     left: 0;
     right: 0;
-    z-index: 100;
+    z-index: 90;
     display: flex;
     justify-content: center;
-    pointer-events: none; /* let clicks pass through */
+    pointer-events: none;
     transition: transform .25s ease, opacity .25s ease;
+    top: calc(var(--site-nav-h) + env(safe-area-inset-top, 0px) + 12px);
 }
 
     .story-header.only-progress .story-progress {
-        pointer-events: auto; /* allow hovering text if needed */
+        pointer-events: auto;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: .4rem;
-        min-width: 200px;
-        padding: .4rem .8rem;
-        border-radius: 12px;
-        background: rgba(0,0,0,.15); /* subtle pad; feel free to remove */
+        min-width: 220px;
+        padding: .5rem .9rem;
+        border-radius: 999px;
+        background: rgba(12,20,69,.58);
+        backdrop-filter: saturate(120%) blur(10px);
+        -webkit-backdrop-filter: saturate(120%) blur(10px);
+        border: 1px solid rgba(255,255,255,.18);
+        box-shadow: 0 6px 24px rgba(0,0,0,.25);
     }
 
     .story-header.hidden {
@@ -107,15 +118,15 @@
     }
 
 .progress-text {
+    color: rgba(255,255,255,.92);
+    font-weight: 700;
     font-size: .9rem;
-    color: rgba(255,255,255,.85);
-    font-weight: 600;
 }
 
 .progress-bar {
     width: 100%;
-    height: 4px;
-    background: rgba(255,255,255,.25);
+    height: 5px;
+    background: rgba(255,255,255,.22);
     border-radius: 2px;
     overflow: hidden;
 }
@@ -127,17 +138,26 @@
     transition: width .25s ease;
 }
 
-/* Main content wrapper */
+/* Hide progress pill on phones */
+@media (max-width: 768px) {
+    .story-header {
+        display: none !important;
+    }
+}
+
+/* --- Main content (between top & bottom chrome) --- */
 .story-content {
-    flex: 1;
+    padding: calc(var(--gap-top) + var(--progress-clearance) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
+    /* Reserve space for navs + progress pill + gaps */
+    height: calc(100dvh - var(--site-nav-h) - var(--viewer-header-h) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+    min-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem 1rem;
-    min-height: 100vh;
+    touch-action: none;
 }
 
-/* Cover */
+/* --- Cover page --- */
 .cover-page {
     width: 100%;
     max-width: 800px;
@@ -149,7 +169,7 @@
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
     border-radius: 20px;
-    padding: 2.5rem;
+    padding: 2rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
 }
@@ -157,7 +177,7 @@
 .story-title {
     font-size: 2.2rem;
     font-weight: 800;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
     background: linear-gradient(45deg,#f5b8ff,#a18cd1);
     -webkit-background-clip: text;
     background-clip: text;
@@ -168,7 +188,7 @@
     position: relative;
     border-radius: 15px;
     overflow: hidden;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.2rem;
     box-shadow: 0 10px 30px rgba(0,0,0,.3);
 }
 
@@ -220,51 +240,59 @@
 
 .story-info {
     color: rgba(255,255,255,.85);
-    margin-bottom: .8rem;
+    margin-bottom: .6rem;
 }
 
 .story-stats {
     display: flex;
     justify-content: center;
-    gap: 1.25rem;
+    gap: 1rem;
     flex-wrap: wrap;
     color: rgba(255,255,255,.75);
 }
 
-/* Reading page */
+/* --- Reading page layout (stack image over text on desktop too) --- */
 .story-page {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
+    height: 100%;
+    min-height: 0;
 }
 
+/* Default = single column (image above text) */
 .page-container {
     display: grid;
-    grid-template-columns: 1.2fr .8fr;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr); /* image natural height, text fills rest */
     gap: 2rem;
-    align-items: center;
+    align-items: stretch;
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
     border-radius: 20px;
     padding: 2rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
-    min-height: 560px;
+    height: 100%;
+    min-height: 0;
 }
 
+/* Left/top: image */
 .page-image-container {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-height: 0;
+    height: auto;
 }
 
 .page-image {
     width: 100%;
     max-width: 600px;
     height: auto;
-    min-height: 420px;
-    object-fit: cover;
+    max-height: 60vh; /* keeps room for text */
+    object-fit: contain;
     border-radius: 15px;
     box-shadow: 0 10px 30px rgba(0,0,0,.3);
     transition: transform .2s ease;
@@ -292,12 +320,61 @@
     opacity: 1;
 }
 
+/* Right/bottom: TEXT pane (fixed wrapper; does NOT scroll) */
 .page-text-container {
+    position: relative;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
-    padding: 1rem;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1.2rem;
+    padding: 1rem 1.5rem 1rem 1rem; /* extra right padding for scrollbar */
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
+    overflow: visible; /* wrapper never scrolls */
+}
+
+/* Inner scrollable area */
+.page-text-inner {
+    flex: 1;
+    max-height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+    /* Hide native scrollbar in WebKit (Chrome, Edge, Safari) */
+    .page-text-inner::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+    }
+
+/* Hide native scrollbar in Firefox */
+.page-text-inner {
+    scrollbar-width: none;
+}
+
+.fake-scrollbar {
+    position: absolute;
+    top: 1rem;
+    bottom: 1rem;
+    right: 0.4rem;
+    width: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18); /* track */
+    pointer-events: none; /* don't intercept clicks */
+    opacity: 1; /* always visible; or tweak if you like */
+}
+
+.fake-scrollbar-thumb {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.35);
+    transform: translateY(0);
+    transition: transform 0.1s linear;
 }
 
 .page-text {
@@ -307,6 +384,8 @@
     font-family: Georgia, serif;
     text-shadow: 0 1px 3px rgba(0,0,0,.3);
     margin: 0;
+    width: 100%;
+    word-break: break-word;
 }
 
 .finish-story-section {
@@ -334,7 +413,7 @@
         box-shadow: 0 7px 20px rgba(76,175,80,.5);
     }
 
-/* Navigation (bottom) */
+/* --- Bottom navigation bar (fixed) --- */
 .story-navigation {
     position: fixed;
     left: 0;
@@ -344,7 +423,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
+    height: var(--viewer-nav-h);
+    padding: .75rem 1rem;
     background: linear-gradient(to top, rgba(12,20,69,.9), transparent);
     backdrop-filter: blur(10px);
     transition: transform .25s ease, opacity .25s ease;
@@ -364,7 +444,7 @@
     display: inline-flex;
     align-items: center;
     gap: .5rem;
-    padding: .7rem 1.2rem;
+    padding: .7rem .95rem;
     min-width: 120px;
     border-radius: 24px;
     border: 1px solid rgba(255,255,255,.2);
@@ -423,7 +503,7 @@
         box-shadow: 0 4px 15px rgba(161,140,209,.35);
     }
 
-/* Image modal */
+/* --- Image Modal --- */
 .story-viewer .image-modal {
     position: fixed;
     inset: 0;
@@ -480,7 +560,7 @@
     color: rgba(255,255,255,.75);
 }
 
-/* Completion overlay */
+/* --- Completion overlay --- */
 .completion-overlay {
     position: fixed;
     inset: 0;
@@ -568,9 +648,9 @@
         transform: translateY(-2px);
     }
 
-/* Error state (kept simple) */
+/* --- Error state --- */
 .error-container {
-    min-height: 100vh;
+    height: 100dvh;
     display: grid;
     place-items: center;
     padding: 2rem;
@@ -610,7 +690,7 @@
     border: 1px solid rgba(255,255,255,.2);
 }
 
-/* Reading hint */
+/* --- Reading hint --- */
 .reading-hint {
     position: fixed;
     left: 50%;
@@ -625,32 +705,268 @@
     z-index: 50;
 }
 
-/* --- Responsive --- */
+/* =========================
+   Responsive adjustments
+   ========================= */
+
+/* 4) Very large screens (optional) */
+@media (min-width: 1440px) {
+    :root {
+        --page-text-size: 1.65rem; /* ~26.4px */
+        --page-line: 2.0;
+    }
+}
+
+/* Tablet and below (minor sizing tweaks) */
 @media (max-width: 1024px) {
+    :root {
+        --page-text-size: 1.5rem; /* 24px */
+        --page-line: 1.9;
+    }
+
     .page-container {
-        grid-template-columns: 1fr;
         max-width: 820px;
         margin: 0 auto;
+        gap: 1rem;
     }
 
     .page-image {
-        max-width: 520px;
-        min-height: 360px;
+        width: 100%;
+        max-height: 50vh;
     }
 
     .page-text {
         text-align: center;
-        font-size: 1.15rem;
+        font-size: var(--page-text-size);
+        line-height: var(--page-line);
     }
 }
 
-@media (max-width: 768px) {
-    .story-header {
-        top: 100px;
+/* --- Wide but short screens (e.g., 1024x600) --- */
+@media (min-width: 900px) and (max-height: 900px) {
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* image left, text right */
+        align-items: stretch; /* let children fill height */
+        gap: 1.5rem;
+        height: 100%; /* keep fixed viewer height */
+        min-height: 0; /* crucial for scrollable children */
+        overflow: hidden; /* clip child overflow */
+        border-radius: 20px; /* ensures clipping shape */
+        padding: 1.5rem; /* less padding = more room */
     }
 
-    .story-content {
-        padding: 1rem;
+    .cover-image-container {
+        margin-bottom: 1rem;
+    }
+
+    .cover-image {
+        height: 300px; /* was 400px */
+        border-radius: 15px;
+        object-fit: cover;
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden; /* clip image + shadow */
+        border-radius: inherit; /* match card rounding */
+        height: 100%; /* full height for column */
+        min-height: 0; /* allow proper sizing */
+        display: flex;
+        padding: 0;
+    }
+
+    .page-image {
+        height: 100%; /* fill column height */
+        max-height: 100%;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain; /* preserve aspect ratio */
+        transform: none !important; /* cancel hover zoom */
+    }
+
+        .page-image:hover {
+            transform: none !important;
+        }
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        text-align: left;
+        padding: 1rem 2rem;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0; /* allow scrolling inside */
+        overflow: auto; /* scroll the text, not the page */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .image-enlarge-hint {
+        display: none; /* optional, avoids extra spacing */
+    }
+}
+
+/* --- Compact cover for short widescreen displays (≈1024x600) --- */
+@media (min-width: 900px) and (max-height: 650px) {
+    .cover-container {
+        padding: 1.2rem 1.4rem; /* tighter padding */
+        transform: scale(0.9) translateY(20px);
+    }
+
+    .story-title {
+        font-size: 1.6rem; /* smaller title */
+        margin-bottom: 0.6rem;
+    }
+
+    .cover-image {
+        height: 240px; /* reduce image height */
+        border-radius: 15px;
+        object-fit: cover;
+    }
+}
+
+@media (min-width: 900px) and (max-height: 900px) {
+    .page-text-container:has(.page-text) {
+        font-size: 1.15rem;
+    }
+
+    /* If the text block is short, enlarge further */
+    .page-text-container:has(.page-text:only-child) .page-text {
+        font-size: 1.35rem;
+        line-height: 1.9;
+    }
+}
+
+@media (max-width: 950px) and (max-height: 500px) {
+    .story-content:has(.story-page) {
+        --gap-bottom: -190px; /* extend downward */
+    }
+
+    .cover-container {
+        padding: 1rem 1.2rem; /* tighter padding */
+        transform: scale(0.75) translateY(90px); /* smaller & moved down */
+        transform-origin: top center; /* shrink downward */
+    }
+
+    .story-title {
+        font-size: 1.4rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .cover-image {
+        height: 200px; /* smaller image height */
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .story-info {
+        font-size: 0.9rem;
+    }
+
+    .story-stats {
+        flex-direction: column; /* stack for narrow height */
+        gap: 0.3rem;
+        font-size: 0.8rem;
+    }
+
+    .start-reading-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.85rem;
+    }
+
+    .page-text {
+        font-size: 1rem !important; /* smaller text for low height */
+        line-height: 1.6; /* tighter lines */
+        text-align: left; /* prevent center crowding */
+    }
+}
+
+/* --- Landscape phone layout (≈667x375) --- */
+@media (max-width: 700px) and (max-height: 400px) {
+    .story-content:has(.story-page) {
+        --gap-bottom: -200px; /* extend reading area a bit */
+    }
+
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* image left, text right */
+        align-items: stretch;
+        gap: 0.8rem;
+        height: 100%;
+        min-height: 0;
+        padding: 0.8rem;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        flex: 0.9;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: inherit;
+        min-height: 0;
+    }
+
+    /*    .page-image {
+        width: 100%;
+        height: auto;
+        max-height: 60vh;
+        object-fit: contain;
+        transform: none !important;
+    }*/
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        padding: 0.6rem 1rem;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .page-text {
+        font-size: 0.85rem !important;
+        line-height: 1.4;
+        text-align: left;
+    }
+
+    .finish-story-btn {
+        padding: 0.5rem 0.9rem;
+        font-size: 0.8rem;
+    }
+
+    /* Optional: shrink nav bar for landscape */
+    .story-navigation {
+        height: 56px;
+        padding: 0.4rem 0.8rem;
+    }
+
+    .nav-button {
+        min-width: 80px;
+        padding: 0.5rem 0.7rem;
+        font-size: 0.8rem;
+    }
+
+    .page-dot {
+        width: 32px;
+        height: 32px;
+        font-size: 0.7rem;
+    }
+}
+
+/* Phones */
+@media (max-width: 768px) {
+    :root {
+        --page-text-size: 1.00rem; /* ~21.6px */
+        --page-line: 1.85;
+        --progress-clearance: 10px;
     }
 
     .cover-container, .page-container {
@@ -661,14 +977,16 @@
         font-size: 1.8rem;
     }
 
-    .page-image {
-        max-width: 420px;
-        min-height: 300px;
+    /* Smaller nav buttons & tighter bar */
+    .nav-button {
+        min-width: 40px;
+        padding: .55rem .75rem;
     }
 
-    .nav-button {
-        min-width: 104px;
-        padding: .6rem 1rem;
+    .story-navigation {
+        justify-content: space-evenly;
+        height: var(--viewer-nav-h);
+        padding: .5rem 1rem;
     }
 
     .nav-text {
@@ -678,8 +996,19 @@
     .page-indicators {
         max-width: 260px;
     }
+
+    .image-enlarge-hint {
+        display: none;
+    }
+
+    /* Recompute story-content height for mobile nav sizes */
+    .story-content {
+        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
+        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+    }
 }
 
+/* Small phones */
 @media (max-width: 480px) {
     .story-title {
         font-size: 1.6rem;
@@ -691,7 +1020,6 @@
 
     .page-image {
         max-width: 340px;
-        min-height: 240px;
     }
 
     .page-dot {
@@ -699,12 +1027,863 @@
         height: 36px;
         font-size: .75rem;
     }
+}
 
-    .story-header {
-        top: 52px;
+.give-feedback-btn {
+    margin-top: 1rem;
+    background: linear-gradient(to right, #f9fafb, #e5e7eb);
+    color: #111;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 0.7rem 1.4rem;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+    .give-feedback-btn:hover {
+        background: linear-gradient(to right, #ffffff, #f3f4f6);
+        transform: translateY(-2px);
     }
 
-        .story-header.only-progress .story-progress {
-            padding: .35rem .6rem;
+    .give-feedback-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+.give-feedback-sent {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(76,175,80,.15);
+    color: #b2ffb2;
+    font-weight: 700;
+}
+/* Hide the top progress pill on landscape phones (short height) */
+@media (orientation: landscape) and (max-height: 450px) and (max-width: 915px) {
+    .story-header {
+        display: none !important;
+    }
+
+    /* Reclaim the reserved space for the pill */
+    :root {
+        --viewer-header-h: 0px; /* no header height */
+        --progress-clearance: 10px; /* minimal top padding */
+    }
+
+    /* Ensure the content height is recomputed without the header */
+    .story-content {
+        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
+    }
+}
+
+/* Optional: exact match for 896×414 devices (belt & suspenders) */
+@media (width: 896px) and (height: 414px) {
+    .story-header {
+        display: none !important;
+    }
+
+    :root {
+        --viewer-header-h: 0px;
+        --progress-clearance: 10px;
+    }
+}
+/* Landscape phones (≈896x414): image left, text right */
+@media (orientation: landscape) and (max-height: 430px) and (max-width: 930px) {
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* image left, text right */
+        align-items: stretch;
+        gap: 1rem;
+        height: 100%;
+        min-height: 0;
+        padding: 1rem;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: inherit;
+        min-height: 0;
+    }
+
+    .page-image {
+        width: 100%;
+        height: auto;
+        max-height: 80vh;
+        object-fit: contain;
+        transform: none !important;
+    }
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        text-align: left;
+        padding: 0.8rem 1.2rem;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .page-text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        text-align: left;
+    }
+
+    .story-content {
+        padding-bottom: calc(var(--viewer-nav-h) + 0px);
+    }
+}
+
+/* Landscape phones (≈896x414–932x430): image left, text right, no progress pill */
+@media (orientation: landscape) and (max-height: 440px) and (max-width: 950px) {
+    /* Hide progress pill */
+    .story-header {
+        display: none !important;
+    }
+
+    :root {
+        --viewer-header-h: 0px; /* no header space */
+        --progress-clearance: 10px; /* reduce extra gap */
+    }
+
+    /* Layout: image left, text right */
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: stretch;
+        gap: 1rem;
+        height: 100%;
+        min-height: 0;
+        padding: 1rem;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: inherit;
+        min-height: 0;
+    }
+
+    .page-image {
+        width: 100%;
+        height: auto;
+        max-height: 80vh;
+        object-fit: contain;
+        transform: none !important;
+    }
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        text-align: left;
+        padding: 0.8rem 1.2rem;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .page-text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        text-align: left;
+    }
+
+    .story-content {
+        padding-bottom: calc(var(--viewer-nav-h) + 0px);
+    }
+}
+
+/* iPad Pro 12.9" landscape (≈1366x1024): image left, text right, keep progress pill */
+@media (orientation: landscape) and (min-width: 1180px) and (max-width: 1400px) and (min-height: 900px) {
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1.1fr; /* image left, text right */
+        align-items: stretch;
+        gap: 1.5rem;
+        height: 100%;
+        min-height: 0;
+        padding: 1.25rem 1.5rem;
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .page-image-container {
+        grid-column: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        border-radius: inherit;
+        min-height: 0;
+    }
+
+    .page-image {
+        width: 100%;
+        height: auto;
+        max-height: 78vh;
+        object-fit: contain;
+        transform: none !important;
+    }
+
+    .page-text-container {
+        grid-column: 2;
+        justify-content: flex-start;
+        align-items: flex-start;
+        text-align: left;
+        padding: 1rem 1.5rem;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .page-text {
+        font-size: 1.05rem;
+        line-height: 1.6;
+        text-align: left;
+    }
+}
+
+/* iPad Pro & wide tablets (e.g. 1366x1024, 1180x768): image left, text right */
+@media (min-width: 1000px) and (max-height: 1100px) and (orientation: landscape) {
+    .page-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* image left, text right */
+        align-items: center; /* center vertically instead of stretch */
+        gap: 1.5rem;
+        height: auto; /* let it shrink to fit */
+        padding: 1.5rem;
+    }
+
+    .page-image {
+        max-height: 70vh; /* less tall to avoid excess bottom gap */
+        object-fit: contain;
+    }
+
+    .page-text-container {
+        font-size: 1.25rem; /* increase text size */
+        line-height: 1.7;
+        text-align: left;
+    }
+}
+
+/* ==== Book layout (two pages; cover = single page) ==== */
+.book-wrapper {
+    display: grid;
+    place-items: center;
+    width: 100%;
+}
+
+.book {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: min(1000px, 92vw);
+    aspect-ratio: 3/2;
+    perspective: 2000px;
+}
+
+.book-left,
+.book-right {
+    position: relative;
+    overflow: visible;
+}
+
+/* Single centered cover */
+.book.cover-state {
+    grid-template-columns: 1fr;
+    width: min(760px, 92vw);
+}
+
+    .book.cover-state .book-left {
+        display: none;
+    }
+
+    .book.cover-state .book-right {
+        grid-column: 1;
+    }
+
+    .book.cover-state .paper.static {
+        margin: 0 auto;
+    }
+
+    /* remove spine/gutter look on cover */
+    .book.cover-state .paper.static,
+    .paper.static.no-spine {
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    }
+
+        .book.cover-state .paper.static::before,
+        .book.cover-state .paper.static::after {
+            display: none !important;
         }
+
+/* Optional faint spine when NOT on cover */
+.book::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 calc(50% - 1px);
+    width: 2px;
+    background: linear-gradient(#0003, transparent, #0003);
+    z-index: 1;
+}
+
+.book.cover-state::after {
+    display: none;
+}
+
+/* ==== Static paper + content framing ==== */
+.paper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #fdfaf5;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 0 1px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+}
+
+    .paper::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background: linear-gradient(90deg, rgba(0,0,0,.06), transparent 12%, transparent 88%, rgba(0,0,0,.06));
+        pointer-events: none;
+    }
+
+    .paper.static {
+        overflow: hidden;
+        padding: 18px 22px;
+    }
+
+/* ==== Flipping sheet (generic) ==== */
+.sheet {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    transform-style: preserve-3d;
+    pointer-events: none;
+    z-index: 5;
+    animation: none;
+    perspective: none;
+}
+
+    /* normal page turns */
+    .sheet.turn-left {
+        left: 50%;
+        transform-origin: left center; /* hinge on spine for right->left turn */
+        animation: pageTurnLeft 650ms ease-in-out forwards;
+    }
+
+    .sheet.turn-right {
+        left: 0;
+        transform-origin: right center; /* hinge on spine for left->right turn */
+        animation: pageTurnRight 650ms ease-in-out forwards;
+    }
+
+    /* Opening from cover (slide then flip from left edge) */
+    .sheet.edge-open,
+    .book.opening-from-cover .sheet.turn-left {
+        left: 0;
+        width: 100%;
+        transform-origin: left center;
+        z-index: 7;
+        opacity: 1;
+        animation: pageTurnLeftFromShift 650ms ease-in-out both;
+        animation-delay: var(--cover-nudge-ms);
+    }
+
+/* =========================================================
+   CLOSE FIRST SPREAD → COVER  (left page swings left→right)
+   ========================================================= */
+.book.closing-to-cover {
+    /* bias perspective toward the left page hinge (center spine) */
+    perspective-origin: 0% 50%;
+    animation: settleBook 260ms ease-out 720ms both; /* tiny settle */
+}
+
+    /* During close: ensure left static column cannot peek */
+    .book.closing-to-cover .book-left {
+        visibility: hidden !important; /* keep the column, hide its contents */
+        pointer-events: none;
+    }
+
+    /* kill other sheet anims just during this transition */
+    .book.closing-to-cover .sheet {
+        animation: none !important;
+    }
+
+    /* Hide all statics during the close… */
+    .book.closing-to-cover .paper.static {
+        visibility: hidden;
+    }
+        /* …except the landing cover target, which opts in to remain visible */
+        .book.closing-to-cover .paper.static.keep-visible {
+            visibility: visible;
+        }
+
+    /* >>> Clip right static page to its right half so the left half is empty */
+    .book.closing-to-cover .book-right .paper.static.keep-visible {
+        clip-path: inset(0 0 0 50%); /* top right bottom left */
+        -webkit-clip-path: inset(0 0 0 50%);
+        will-change: clip-path, transform;
+    }
+/* Reset clip outside of this special transition */
+.book:not(.closing-to-cover) .book-right .paper.static.keep-visible {
+    clip-path: none;
+    -webkit-clip-path: none;
+}
+
+/* The moving sheet IS THE LEFT HALF hinged at the spine (its right edge) */
+.book.closing-to-cover .sheet.close-book {
+    position: absolute;
+    top: 0;
+    left: 0; /* left half */
+    width: 50%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform-origin: right center; /* hinge at spine */
+    transform-box: border-box;
+    z-index: 6; /* above the clipped right page */
+    will-change: transform, box-shadow;
+    animation: bookClose_LeftToRight 720ms ease-in-out forwards !important;
+}
+
+/* Faces for the flipping sheet */
+.paper-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 8px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    overflow: hidden;
+    background: #fdfaf5;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25), inset 0 0 1px rgba(0,0,0,.2);
+    box-sizing: border-box;
+    padding: 18px 22px;
+    transform: translateZ(0);
+}
+
+.story-viewer.is-book .paper-face {
+    padding-bottom: 34px;
+}
+
+.paper-face.front {
+    transform: rotateY(0deg);
+}
+
+.paper-face.back {
+    transform: rotateY(180deg);
+}
+/* correct for 0→+180deg close */
+
+/* Keep page image sizing identical whether static or flipping */
+.paper.static .page-image,
+.paper-face .page-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.paper-face *,
+.paper.static * {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+/* Core close animation: LEFT page 0 → +180deg (left→right) */
+@keyframes bookClose_LeftToRight {
+    0% {
+        transform: rotateY(0deg);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: rotateY(90deg);
+        box-shadow: 0 12px 36px rgba(0,0,0,.30);
+    }
+
+    100% {
+        transform: rotateY(180deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}
+
+/* Tiny settle (optional) */
+@keyframes settleBook {
+    0% {
+        transform: scale(1.005);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* ==== Page Turn Animations ==== */
+@keyframes pageTurnLeft {
+    0% {
+        transform: rotateY(0);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: rotateY(-90deg);
+        box-shadow: 0 12px 36px rgba(0,0,0,.3);
+    }
+
+    100% {
+        transform: rotateY(-180deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}
+
+@keyframes pageTurnRight {
+    0% {
+        transform: rotateY(0);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: rotateY(90deg);
+        box-shadow: 0 12px 36px rgba(0,0,0,.3);
+    }
+
+    100% {
+        transform: rotateY(180deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}
+
+/* Opening from a shifted cover position */
+@keyframes pageTurnLeftFromShift {
+    0% {
+        transform: translateX(var(--cover-nudge)) rotateY(0deg);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: translateX(var(--cover-nudge)) rotateY(-90deg);
+        box-shadow: 0 12px 36px rgba(0,0,0,.3);
+    }
+
+    100% {
+        transform: translateX(var(--cover-nudge)) rotateY(-180deg);
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
+}
+
+/* ==== Reduced motion ==== */
+@media (prefers-reduced-motion: reduce) {
+    .sheet.turn-left,
+    .sheet.turn-right,
+    .sheet.edge-open,
+    .sheet.close-book,
+    .book.closing-to-cover {
+        animation: none !important;
+    }
+
+        .book.closing-to-cover .paper.static {
+            visibility: visible;
+        }
+}
+
+/* =======================
+   Typography / Color Modes
+   ======================= */
+.story-viewer {
+    --page-text-color: #ffffff;
+    --page-title-color: #ffffff;
+}
+
+    .story-viewer.is-book {
+        --page-text-color: #1f222b;
+        --page-title-color: #1a1d24;
+    }
+
+.page-text {
+    color: var(--page-text-color);
+}
+
+.paper, .paper * {
+    color: inherit;
+}
+
+    .paper .story-title, .paper .page-title {
+        color: var(--page-title-color);
+    }
+
+.story-viewer.is-book .paper {
+    color: var(--page-text-color);
+}
+
+.page-text, .story-viewer.is-book .page-text {
+    text-shadow: none;
+}
+
+.paper-face-content {
+    position: relative;
+    height: 100%;
+}
+
+.story-viewer.is-book .page-number {
+    position: absolute;
+    bottom: 12px;
+    font-size: 0.85rem;
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 3;
+}
+
+    .story-viewer.is-book .page-number.left {
+        left: 16px;
+    }
+
+    .story-viewer.is-book .page-number.right {
+        right: 16px;
+    }
+
+.story-viewer.is-book .paper.static {
+    padding-bottom: 34px;
+}
+
+/* ========= Book-mode COVER upgrades ========= */
+.story-viewer.is-book .book.cover-state .paper.static {
+    background: #fdfaf5;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 18px 60px rgba(12, 20, 69, 0.35), 0 2px 0 rgba(0, 0, 0, 0.07) inset;
+    transition: box-shadow 0.35s ease;
+    transform: perspective(1400px) rotateX(0) rotateY(0) translateZ(0);
+    will-change: transform, box-shadow;
+}
+/* disable tilt baseline */
+.story-viewer.is-book .book.cover-state:not(.opening-from-cover) .paper.static,
+.story-viewer.is-book .book.cover-state:not(.opening-from-cover) .paper.static:hover {
+    transform: none;
+    transition: box-shadow 0.35s ease;
+    will-change: auto;
+}
+
+/* --- OPENING CHOREOGRAPHY --- */
+:root {
+    --cover-nudge: 50%;
+    --cover-nudge-ms: 220ms;
+    --cover-nudge-ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+
+@keyframes coverNudge {
+    0% {
+        transform: translateX(0) translateZ(0);
+    }
+
+    100% {
+        transform: translateX(var(--cover-nudge)) translateZ(0);
+    }
+}
+
+.story-viewer.is-book .book.opening-from-cover .paper.static {
+    animation: coverNudge var(--cover-nudge-ms) var(--cover-nudge-ease) forwards;
+    will-change: transform;
+}
+/* Hover glow */
+.story-viewer.is-book .book.cover-state .paper.static:hover {
+    box-shadow: 0 28px 80px rgba(12, 20, 69, 0.45), 0 2px 0 rgba(0, 0, 0, 0.07) inset;
+}
+
+.story-viewer.is-book .book.cover-state .paper.static::before {
+    content: "";
+    position: absolute;
+    inset: 10px;
+    border-radius: 12px;
+    background: linear-gradient(#fff8, #fff0);
+    box-shadow: 0 0 0 2px rgba(0,0,0,.06) inset, 0 0 0 1px rgba(255,255,255,.5);
+    pointer-events: none;
+}
+
+/* Layout for cover contents */
+.paper-cover {
+    position: relative;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: 16px;
+}
+
+.cover-art {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 12px 38px rgba(0, 0, 0, 0.22);
+    isolation: isolate;
+}
+
+    .cover-art .cover-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* cover is intentionally different than page images */
+    }
+
+.cover-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120% 120% at 50% 60%, transparent 40%, rgba(0,0,0,.35) 100%);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+}
+
+.cover-sparkles {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(2px 2px at 20% 30%, #fff8, transparent 60%), radial-gradient(2px 2px at 70% 40%, #fff6, transparent 60%), radial-gradient(2px 2px at 40% 70%, #fff7, transparent 60%);
+    filter: blur(0.2px);
+    animation: sparkFloat 6s ease-in-out infinite alternate;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+@keyframes sparkFloat {
+    from {
+        transform: translateY(-2px);
+        opacity: 0.45;
+    }
+
+    to {
+        transform: translateY( 2px);
+        opacity: 0.75;
+    }
+}
+
+.cover-title {
+    margin: 0;
+    place-self: center;
+    text-align: center;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    position: relative;
+}
+
+    .cover-title .foil {
+        background: linear-gradient(100deg, #b38cff 0%, #ffd6a6 50%, #a18cd1 100%);
+        background-size: 200% 100%;
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: #1a1d24;
+        filter: drop-shadow(0 2px 10px rgba(0,0,0,.25));
+        font-size: clamp(1.6rem, 3.6vw, 2.4rem);
+    }
+
+    .cover-title .foil-shine {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,.65) 50%, transparent 100%);
+        transform: translateX(-120%);
+        mix-blend-mode: screen;
+        animation: foilGlint 3.6s ease-in-out infinite;
+        pointer-events: none;
+        border-radius: 8px;
+    }
+
+@keyframes foilGlint {
+    0%,70% {
+        transform: translateX(-120%);
+    }
+
+    85%,100% {
+        transform: translateX(120%);
+    }
+}
+
+.cover-ribbon {
+    position: absolute;
+    top: -8px;
+    right: 26px;
+    width: 22px;
+    height: 78px;
+    background: linear-gradient(180deg, #a18cd1, #845ec2);
+    box-shadow: 0 8px 20px rgba(0,0,0,.25);
+    clip-path: polygon(0 0, 100% 0, 100% 75%, 50% 100%, 0 75%);
+    border-radius: 6px 6px 2px 2px;
+}
+
+.cover-badge {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    padding: 6px 10px;
+    font-weight: 800;
+    font-size: 0.75rem;
+    color: #1a1d24;
+    background: linear-gradient(180deg, #ffe9b0, #ffd37a);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+}
+
+/* ========= Real-book open variables ========= */
+:root {
+    --cover-nudge: 50%;
+    --cover-nudge-ms: 220ms;
+    --cover-nudge-ease: cubic-bezier(0.2, 0.6, 0.2, 1);
+}
+/* bias perspective towards hinge during open */
+.book.cover-state.opening-from-cover {
+    perspective-origin: 100% 50%;
+}
+
+/* distance & easing you can tune */
+:root {
+    --close-nudge: -150px; /* how far the sheet slides left at the end */
+    --close-total-ms: 1000ms; /* total close duration */
+    --close-nudge-ease: cubic-bezier(0.2, 0.6, 0.2, 1); /* match your open ease */
+}
+
+/* The close-to-cover flipping sheet */
+.book.closing-to-cover .sheet.close-book {
+    animation: bookClose_L2R_WithNudge var(--close-total-ms) ease-in-out forwards !important;
+    transform-origin: right center;
+    left: 0;
+    width: 50%;
+    transform-box: border-box;
+    z-index: 6;
+    will-change: transform, box-shadow;
+}
+
+/* One animation: close (0→180deg), then a tiny left nudge */
+@keyframes bookClose_L2R_WithNudge {
+    0% {
+        transform: rotateY(0deg) translateX(0);
+        box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+
+    50% {
+        transform: rotateY(90deg) translateX(0);
+        box-shadow: 0 12px 36px rgba(0,0,0,.30);
+    }
+    /* Finish the rotation by 70%… */
+    70% {
+        transform: rotateY(180deg) translateX(0);
+        box-shadow: 0 6px 20px rgba(0,0,0,.22);
+        /* Use a slower, smoother easing for the remaining segment */
+        animation-timing-function: var(--close-nudge-ease);
+    }
+    /* …then spend 30% of the time doing the visible left slide */
+    100% {
+        transform: rotateY(180deg) translateX(calc(-1 * var(--close-nudge)));
+        box-shadow: 0 4px 16px rgba(0,0,0,.18);
+    }
 }

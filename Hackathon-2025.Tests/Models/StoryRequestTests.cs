@@ -8,21 +8,32 @@ namespace Hackathon_2025.Tests.Models;
 public class StoryRequestTests
 {
     [TestMethod]
-    public void Constructor_DefaultValues_ContainExpectedDefaults()
+    public void Constructor_ThemeOnly_ContainsExpectedDefaults()
     {
         // Arrange
-        var request = new StoryRequest();
+        var request = new StoryRequest
+        {
+            Theme = string.Empty
+        };
 
         // Act
-        var email = request.Email;
         var theme = request.Theme;
         var characters = request.Characters;
+        var readingLevel = request.ReadingLevel;
+        var artStyle = request.ArtStyle;
+        var pageCount = request.PageCount;
+        var lessonLearned = request.LessonLearned;
+        var storyLength = request.StoryLength;
 
         // Assert
-        Assert.AreEqual("", email);
-        Assert.AreEqual("", theme);
+        Assert.AreEqual(string.Empty, theme);
         Assert.IsNotNull(characters);
         Assert.AreEqual(0, characters.Count);
+        Assert.IsNull(readingLevel);
+        Assert.IsNull(artStyle);
+        Assert.IsNull(pageCount);
+        Assert.IsNull(lessonLearned);
+        Assert.IsNull(storyLength);
     }
 
     [TestMethod]
@@ -34,34 +45,44 @@ public class StoryRequestTests
             new CharacterSpec
             {
                 Name = "Luna",
-                Role = "main",
-                IsAnimal = true,
+                Role = "Main", // string now, not CharacterRole
+                IsAnimal = false, // human-only for now
                 DescriptionFields = new Dictionary<string, string>
                 {
-                    { "species", "fox" },
-                    { "color", "silver" }
+                    { "age", "7" },
+                    { "hairColor", "brown" }
                 }
             }
         };
 
+        // Act
         var request = new StoryRequest
         {
-            Email = "luna@example.com",
+            ReadingLevel = "early",
+            ArtStyle = "watercolor",
             Theme = "friendship",
-            Characters = characterList
+            Characters = characterList,
+            PageCount = 12,
+            LessonLearned = "teamwork matters",
+            StoryLength = "medium"
         };
 
-        // Act
-        var email = request.Email;
-        var theme = request.Theme;
-        var characters = request.Characters;
-
         // Assert
-        Assert.AreEqual("luna@example.com", email);
-        Assert.AreEqual("friendship", theme);
-        Assert.AreEqual(1, characters.Count);
-        Assert.AreEqual("Luna", characters[0].Name);
-        Assert.IsTrue(characters[0].IsAnimal);
-        Assert.AreEqual("fox", characters[0].DescriptionFields["species"]);
+        Assert.AreEqual("early", request.ReadingLevel);
+        Assert.AreEqual("watercolor", request.ArtStyle);
+        Assert.AreEqual("friendship", request.Theme);
+        Assert.AreEqual(12, request.PageCount);
+        Assert.AreEqual("teamwork matters", request.LessonLearned);
+        Assert.AreEqual("medium", request.StoryLength);
+
+        Assert.IsNotNull(request.Characters);
+        Assert.AreEqual(1, request.Characters.Count);
+
+        var character = request.Characters[0];
+        Assert.AreEqual("Luna", character.Name);
+        Assert.AreEqual("Main", character.Role);
+        Assert.IsFalse(character.IsAnimal);
+        Assert.AreEqual("7", character.DescriptionFields["age"]);
+        Assert.AreEqual("brown", character.DescriptionFields["hairColor"]);
     }
 }

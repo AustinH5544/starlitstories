@@ -7,47 +7,63 @@ namespace Hackathon2025.Tests.Models;
 public class AuthRequestTests
 {
     [TestMethod]
-    public void AuthRequest_DefaultConstructor_SetsDefaultValues()
+    public void Constructor_ValidValues_SetsPropertiesCorrectly()
     {
         // Arrange
-        AuthRequest request;
+        var email = "test@example.com";
+        var password = "secure123!";
 
         // Act
-        request = new AuthRequest();
+        var request = new AuthRequest
+        {
+            Email = email,
+            Password = password
+            // Membership intentionally omitted to use the default (null)
+        };
 
         // Assert
-        Assert.AreEqual(string.Empty, request.Email);
-        Assert.AreEqual(string.Empty, request.Password);
+        Assert.AreEqual(email, request.Email);
+        Assert.AreEqual(password, request.Password);
         Assert.IsNull(request.Membership);
     }
 
     [TestMethod]
-    public void AuthRequest_DefaultConstructor_SetsValuesCorrectly()
+    public void Membership_Default_WhenOmitted_IsNull()
     {
         // Arrange
-        AuthRequest request = new AuthRequest();
+        var email = "test@example.com";
+        var password = "secure123!";
 
         // Act
-        request.Email = "test@example.com";
-        request.Password = "secure123";
-        request.Membership = "Premium";
+        var request = new AuthRequest
+        {
+            Email = email,
+            Password = password
+            // Membership not set
+        };
 
         // Assert
-        Assert.AreEqual("test@example.com", request.Email);
-        Assert.AreEqual("secure123", request.Password);
-        Assert.AreEqual("Premium", request.Membership);
+        Assert.IsNull(request.Membership);
     }
 
     [TestMethod]
-    public void AuthRequest_Membership_AllowsNullValue()
+    public void Membership_WhenExplicitlyInitializedToNull_AllowsNullValue()
     {
         // Arrange
-        AuthRequest request = new AuthRequest();
+        var email = "test@example.com";
+        var password = "secure123!";
 
         // Act
-        request.Membership = null;
+        var request = new AuthRequest
+        {
+            Email = email,
+            Password = password,
+            Membership = null
+        };
 
         // Assert
+        Assert.AreEqual(email, request.Email);
+        Assert.AreEqual(password, request.Password);
         Assert.IsNull(request.Membership);
     }
 }

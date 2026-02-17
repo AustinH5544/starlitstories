@@ -1,10 +1,16 @@
 ﻿namespace Hackathon_2025.Models;
 
-public class CharacterSpec
+public sealed record CharacterSpec
 {
-    public string Role { get; set; } = "main"; // e.g. "main", "friend", "guardian"
-    public string Name { get; set; } = ""; // e.g. "Luna", "Max"
-    public bool IsAnimal { get; set; } // True if animal character
-                                       // Dictionary of customizable fields
-    public Dictionary<string, string> DescriptionFields { get; set; } = new();
+    /// <summary>
+    /// Free-form role label (e.g., "Main", "Mom", "Dad", "Pet", "Teacher", etc.).
+    /// </summary>
+    public string Role { get; init; } = "Main";
+
+    public required string Name { get; init; }
+
+    public bool IsAnimal { get; init; }
+
+    public Dictionary<string, string> DescriptionFields { get; init; }
+        = new(StringComparer.OrdinalIgnoreCase);
 }

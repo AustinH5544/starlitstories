@@ -28,7 +28,7 @@ public class UsersController : ControllerBase
     [HttpGet("me/usage")]
     public async Task<IActionResult> GetMyUsage()
     {
-        // Resolve user
+        // Resolve user id from common claim shapes
         var userIdStr =
             User.FindFirst("sub")?.Value ??
             User.FindFirst("id")?.Value ??
@@ -40,7 +40,7 @@ public class UsersController : ControllerBase
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId);
         if (user is null) return Unauthorized("User not found.");
 
-        // Roll period if boundary crossed (keeps period counters correct)
+        // Roll the period if a boundary was crossed (keeps counters correct)
         var now = DateTime.UtcNow;
         if (_period.IsPeriodBoundary(user, now))
         {
@@ -51,29 +51,33 @@ public class UsersController : ControllerBase
 
         // Derive usage numbers
         var (periodStart, periodEnd) = _period.CurrentPeriodUtc(user, now);
-        var plan = (user.Membership ?? "free").ToLowerInvariant();
-        var baseQuota = _quota.BaseQuotaFor(plan);
+
+        // Membership as enum → string key for services that still take strings
+        var planKey = user.Membership.ToString(); // e.g., "Free", "Pro", "Premium"
+
+        var baseQuota = _quota.BaseQuotaFor(planKey);
         var used = user.BooksGenerated;
         var baseRemaining = Math.Max(baseQuota - used, 0);
-        var addOnBalance = user.AddOnBalance;
+
+        var addOnBalance = user.AddOnBalance;              // carryover wallet
         var addOnSpentThisPeriod = user.AddOnSpentThisPeriod;
         var remaining = baseRemaining + addOnBalance;
 
         // Helpful for UI: whether to show/enable "Buy credits" button
-        var canBuyAddons = _quota.CanBuyAddons(plan, baseRemaining, addOnBalance);
+        var canBuyAddons = _quota.CanBuyAddons(planKey, baseRemaining, addOnBalance);
 
         return Ok(new
         {
-            plan,
+            plan = planKey.ToLowerInvariant(),
             baseQuota,
             used,
             baseRemaining,
-            addOnBalance,            // carryover wallet
+            addOnBalance,
             addOnSpentThisPeriod,
-            remaining,               // baseRemaining + addOnBalance
+            remaining,
             periodStart = periodStart.ToString("o"),
             periodEnd = periodEnd.ToString("o"),
-            canBuyAddons              // extra: convenient for the Profile page button
+            canBuyAddons
         });
     }
 }

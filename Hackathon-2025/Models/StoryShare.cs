@@ -7,10 +7,7 @@ public class StoryShare
 {
     public int Id { get; set; }
 
-    // Foreign key (must match Story.Id type)
     public int StoryId { get; set; }
-
-    // Navigation
     public Story Story { get; set; } = null!;
 
     [MaxLength(64)]

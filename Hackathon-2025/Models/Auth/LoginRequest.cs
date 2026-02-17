@@ -1,8 +1,11 @@
 ﻿namespace Hackathon_2025.Models.Auth;
 
-public class LoginRequest
+public sealed record LoginRequest
 {
-    // Identifier can be email OR username
-    public string Identifier { get; set; } = "";
-    public string Password { get; set; } = "";
+    // email OR username
+    [System.ComponentModel.DataAnnotations.StringLength(256)]
+    public required string Identifier { get; init; }
+
+    [System.ComponentModel.DataAnnotations.StringLength(256, MinimumLength = 8)]
+    public required string Password { get; init; }
 }

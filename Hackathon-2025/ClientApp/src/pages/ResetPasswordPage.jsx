@@ -5,6 +5,11 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import api from "../api"
 import "./ResetPasswordPage.css"
 
+// Shared password logic + UI
+import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passwordRules"
+import PasswordChecklist from "../components/PasswordChecklist"
+import PasswordMatch from "../components/PasswordMatch"
+
 const ResetPasswordPage = () => {
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
@@ -16,6 +21,13 @@ const ResetPasswordPage = () => {
     const [isLoading, setIsLoading] = useState(false)
     const [isSuccess, setIsSuccess] = useState(false)
     const [error, setError] = useState("")
+    const [isNewPasswordFocused, setIsNewPasswordFocused] = useState(false)
+
+    // Use defaults; you can override here later if you want stricter reset rules
+    const resetPageRuleSet = { ...defaultRuleSet };
+    const { requirements, allMet } = checkPassword(newPassword, resetPageRuleSet);
+    const labels = requirementLabels(resetPageRuleSet);
+    const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
 
     useEffect(() => {
         const emailParam = searchParams.get("email")
@@ -33,20 +45,14 @@ const ResetPasswordPage = () => {
         e.preventDefault()
         setError("")
 
-        if (newPassword !== confirmPassword) {
-            setError("Passwords don't match.")
+        if (!allMet) {
+            setError("Please meet all password requirements before continuing.")
             return
         }
 
-        if (newPassword.length < 6) {
-            alert("Password must be at least 6 characters.");
-            return;
-        }
-        // require at least letters and numbers (light-touch)
-        const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/;
-        if (!basic.test(newPassword)) {
-            alert("Use letters and numbers for better security.");
-            return;
+        if (!passwordsMatch) {
+            setError("Passwords don't match.")
+            return
         }
 
         setIsLoading(true)
@@ -113,7 +119,14 @@ const ResetPasswordPage = () => {
                 <form onSubmit={handleSubmit} className="reset-password-form">
                     <div className="form-group">
                         <label htmlFor="email">Email Address</label>
-                        <input id="email" type="email" value={email} disabled className="form-input disabled" />
+                        <input
+                            id="email"
+                            type="email"
+                            value={email}
+                            disabled
+                            className="form-input disabled"
+                            autoComplete="email"
+                        />
                     </div>
 
                     <div className="form-group">
@@ -125,10 +138,33 @@ const ResetPasswordPage = () => {
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             required
-                            minLength={6}
                             className="form-input"
                             disabled={isLoading}
+                            autoComplete="new-password"
+                            aria-describedby={isNewPasswordFocused ? "password-reqs" : undefined}
+                            onFocus={() => setIsNewPasswordFocused(true)}
+                            onBlur={() => setIsNewPasswordFocused(false)}
                         />
+
+                        {/* Show checklist ONLY while focused, with smooth expansion */}
+                        <div className={`collapsible ${isNewPasswordFocused ? "open" : ""}`}>
+                            <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
+                        </div>
+                        {/* If passwords match but missing requirements, show them under Password */}
+                        {passwordsMatch && !allMet && (
+                            <div className="missing-reqs">
+                                <p className="missing-reqs-title">Missing requirements:</p>
+                                <ul>
+                                    {Object.entries(requirements)
+                                        .filter(([, met]) => !met)          // ignore the first tuple element
+                                        .map(([reqKey]) => (
+                                            <li key={reqKey} className="missing-req">
+                                                {labels[reqKey]}
+                                            </li>
+                                        ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
 
                     <div className="form-group">
@@ -140,10 +176,13 @@ const ResetPasswordPage = () => {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
-                            minLength={6}
                             className="form-input"
                             disabled={isLoading}
+                            autoComplete="new-password"
                         />
+
+                        {/* Match indicator ALWAYS visible */}
+                        <PasswordMatch confirmValue={confirmPassword} isMatch={passwordsMatch} />
                     </div>
 
                     {error && (
@@ -153,7 +192,18 @@ const ResetPasswordPage = () => {
                         </div>
                     )}
 
-                    <button type="submit" className="reset-button" disabled={isLoading || !email || !token}>
+                    <button
+                        type="submit"
+                        className="reset-button"
+                        disabled={isLoading || !email || !token || !allMet || !passwordsMatch}
+                        title={
+                            !allMet
+                                ? "Meet all password requirements"
+                                : !passwordsMatch
+                                    ? "Passwords must match"
+                                    : undefined
+                        }
+                    >
                         {isLoading ? (
                             <>
                                 <div className="loading-spinner">
@@ -176,7 +226,7 @@ const ResetPasswordPage = () => {
                         <div className="security-content">
                             <h4>Password Security Tips</h4>
                             <ul className="tips-list">
-                                <li>Use at least 8 characters</li>
+                                <li>Use at least {defaultRuleSet.minLength}+ characters</li>
                                 <li>Include uppercase and lowercase letters</li>
                                 <li>Add numbers and special characters</li>
                                 <li>Avoid common words or personal information</li>

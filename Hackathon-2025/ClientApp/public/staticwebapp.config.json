@@ -1,26 +1,36 @@
 ﻿{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/api/*",
+      "/assets/*",
+      "/*.js",
+      "/*.css",
+      "/favicon*",
+      "/images/*"
+    ]
+  },
   "routes": [
     {
-      "route": "/*",
-      "serve": "/index.html",
-      "statusCode": 200
+      "route": "/login",
+      "rewrite": "/index.html"
+    },
+    {
+      "route": "/signup",
+      "rewrite": "/index.html"
     }
   ],
   "responseOverrides": {
     "404": {
-      "serve": "/index.html",
+      "rewrite": "/index.html",
       "statusCode": 200
     }
   },
   "globalHeaders": {
+    //"Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+    //"X-Frame-Options": "DENY",
+    //"Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin"
   }
 }
-// May want to add this later to prevent indexing by search engines for staging.
-
-//{
-//  "globalHeaders": {
-//    "X-Robots-Tag": "noindex, nofollow"
-//  }
-//}

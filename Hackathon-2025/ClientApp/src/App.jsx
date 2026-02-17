@@ -17,12 +17,14 @@ import VerifyEmailPage from "./pages/VerifyEmailPage"
 import FAQPage from "./pages/FAQPage"
 import SupportPage from "./pages/SupportPage"
 import StoryCustomizePage from "./pages/StoryCustomizePage"
+import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
     return (
         <AuthProvider>
             <BrowserRouter>
                 <NavBar />
+                <ScrollToTop />
                 <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/create" element={<CreatePage />} />

@@ -1,6 +1,9 @@
-﻿namespace Hackathon_2025.Models;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class CheckoutRequest
+namespace Hackathon_2025.Models;
+
+public sealed record CheckoutRequest
 {
-    public string Membership { get; set; } = "";
+    [Required]
+    public MembershipPlan Membership { get; init; }
 }

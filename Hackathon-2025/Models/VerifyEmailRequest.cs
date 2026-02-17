@@ -1,6 +1,6 @@
 ﻿namespace Hackathon_2025.Models;
 
-public class VerifyEmailRequest
+public sealed record VerifyEmailRequest
 {
-    public string Token { get; set; } = string.Empty;
+    public required string Token { get; init; }
 }

@@ -12,16 +12,16 @@ public class StoryGenerator : IStoryGeneratorService
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
     private readonly IImageGeneratorService _imageService;
-    private readonly BlobUploadService _blobUploader;
+    private readonly BlobUploadService _blobUploader; // kept for DI consistency (unused here)
     private readonly ILogger<StoryGenerator> _logger;
     private readonly IConfiguration _config;
 
     public StoryGenerator(
-    HttpClient httpClient,
-    IConfiguration config,
-    IImageGeneratorService imageService,
-    BlobUploadService blobUploader,
-    ILogger<StoryGenerator> logger)
+        HttpClient httpClient,
+        IConfiguration config,
+        IImageGeneratorService imageService,
+        BlobUploadService blobUploader,
+        ILogger<StoryGenerator> logger)
     {
         _httpClient = httpClient;
         _apiKey = config["OpenAI:ApiKey"]!;
@@ -31,11 +31,32 @@ public class StoryGenerator : IStoryGeneratorService
         _config = config;
     }
 
+    // string -> canonical role label used in prompts (only used if >1 character)
+    private static string ToRoleString(string? role)
+    {
+        if (string.IsNullOrWhiteSpace(role))
+            return "character";
+
+        var r = role.Trim();
+
+        return r.ToLowerInvariant() switch
+        {
+            "main" => "main character",
+            "friend" => "friend",
+            "guardian" => "guardian",
+            "mom" or "mother" => "mom",
+            "dad" or "father" => "dad",
+            "pet" => "pet",
+            "sibling" or "brother" or "sister" => "sibling",
+            "teacher" => "teacher",
+            _ => r   // fallback: whatever you stored on the frontend
+        };
+    }
+
     public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
     {
-        var characterList = string.Join(", ", request.Characters.Select(c =>
-            c.Role?.ToLowerInvariant() == "main" ? c.Name : $"{c.Name} the {c.Role}"
-        ));
+        // Normalize characters list so it's never null
+        var characters = request.Characters ?? new List<CharacterSpec>();
 
         var style = BuildReadingStyle(request.ReadingLevel);
 
@@ -43,11 +64,24 @@ public class StoryGenerator : IStoryGeneratorService
         int pageCount = _config.GetValue<int?>("Story:DefaultParagraphs") ?? 10;
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
 
-        var systemContent =
-        "You are a creative children's story writer. " +
-        "Never describe physical appearance. " +
-        "Use only the provided character names and roles; do not invent other named characters. " +
-        "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
+        // ----- System prompt depends on whether a lesson is required -----
+        string systemContent;
+        if (mustLesson)
+        {
+            systemContent =
+                "You are a creative children's story writer. " +
+                "Never describe physical appearance. " +
+                "Use only the provided character names and roles; do not invent other named characters. " +
+                "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
+        }
+        else
+        {
+            systemContent =
+                "You are a creative children's story writer. " +
+                "Never describe physical appearance. " +
+                "Use only the provided character names and roles; do not invent other named characters. " +
+                "If any moral or takeaway emerges, keep it subtle and do NOT add any explicit line that starts with 'Lesson:'.";
+        }
 
         // Enforce the explicit page delimiter
         const string DelimiterRule =
@@ -70,32 +104,74 @@ Use '---' between pages. Do not return code fences or markdown.";
 Ensure the story naturally reflects this moral: "{request.LessonLearned}".
 After you finish the {pageCount} paragraphs, write one extra line that begins with "Lesson:" and states this moral in simple words. Do not count this line as a paragraph.
 """
-            : "If a gentle lesson emerges naturally, keep it subtle.";
+            : "If a gentle lesson emerges naturally, keep it subtle. Do not add any line that begins with \"Lesson:\".";
+
+        // ----- Character-aware text (single vs multi) -----
+        var hasMultipleCharacters = characters.Count > 1;
+        var firstName = characters.FirstOrDefault()?.Name;
 
         string BuildRosterLine()
         {
-            var cast = request.Characters.Select(c =>
+            // Frontend guarantees at least 1 character
+            if (characters.Count == 1)
             {
-                var role = string.IsNullOrWhiteSpace(c.Role) ? "character" : c.Role;
-                // If your Character model has IsAnimal/species fields, include them; otherwise just name + role.
-                string species = "";
-                try
-                {
-                    // If your model exposes description fields with a "species" key:
-                    var dict = (IDictionary<string, object>?)c.DescriptionFields;
-                    if (dict != null && dict.TryGetValue("species", out var s) && s is string sv && !string.IsNullOrWhiteSpace(sv))
-                        species = $", {sv}";
-                }
-                catch { /* no-op if not present */ }
+                var c = characters[0];
+                var name = string.IsNullOrWhiteSpace(c.Name) ? "the child" : c.Name;
 
-                return $"{c.Name} ({role}{species})";
+                return $"Use only this character by name throughout the story: {name}. " +
+                       "Do not introduce new named characters; unnamed extras are okay.";
+            }
+
+            // Multi-character branch (only used once you support more characters)
+            var cast = characters.Select(c =>
+            {
+                var pieces = new List<string>();
+
+                if (!string.IsNullOrWhiteSpace(c.Name))
+                    pieces.Add(c.Name);
+
+                var roleLabel = ToRoleString(c.Role);
+                if (!string.IsNullOrWhiteSpace(roleLabel) &&
+                    !string.Equals(roleLabel, "character", StringComparison.OrdinalIgnoreCase))
+                {
+                    pieces.Add($"the {roleLabel}");
+                }
+
+                // Species is only considered when you actually add it for extra characters
+                if (c.DescriptionFields is not null &&
+                    c.DescriptionFields.TryGetValue("species", out var sv) &&
+                    !string.IsNullOrWhiteSpace(sv))
+                {
+                    pieces.Add($"({sv})");
+                }
+
+                return string.Join(" ", pieces.Where(p => !string.IsNullOrWhiteSpace(p)));
             });
 
             return "Use only these characters by name throughout the story: " +
                    string.Join(", ", cast) +
                    ". Do not introduce new named characters; unnamed extras are okay.";
         }
+
         var rosterLine = BuildRosterLine();
+
+        var referLine = hasMultipleCharacters
+            ? "- Refer to the characters by the exact names above and keep their relationships consistent."
+            : "- Refer to the character by the exact name above.";
+
+        string introLine;
+        if (!string.IsNullOrWhiteSpace(firstName))
+        {
+            introLine = hasMultipleCharacters
+                ? $"- On page 1, introduce {firstName} by name in the first sentence as the main character."
+                : $"- On page 1, introduce {firstName} by name in the first sentence.";
+        }
+        else
+        {
+            introLine = hasMultipleCharacters
+                ? "- On page 1, introduce the main character by name in the first sentence."
+                : "- On page 1, introduce the character by name in the first sentence.";
+        }
 
         var prompt = $"""
 {lengthLine}
@@ -106,9 +182,9 @@ CAST:
 {rosterLine}
 
 Rules:
-- Refer to the characters by the exact names above and keep their roles consistent.
+{referLine}
 - Do not invent new named characters.
-- On page 1, introduce the main character by name in the first sentence.
+{introLine}
 - Keep each page to 1–3 sentences.
 
 {style.AudienceLine}
@@ -126,7 +202,6 @@ Structure the story with:
 Put a line containing only --- between paragraphs. Do not include any other dividers.
 """;
 
-
         _logger?.LogInformation("=== STORY PROMPT ===\n{Prompt}\n====================", prompt);
 
         // Token budget for exact count
@@ -134,12 +209,12 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         var requestBody = new
         {
-            model = "gpt-3.5-turbo",
+            model = "gpt-4.1-mini",
             messages = new[]
             {
-            new { role = "system", content = systemContent },
-            new { role = "user",   content = prompt }
-        },
+                new { role = "system", content = systemContent },
+                new { role = "user",   content = prompt }
+            },
             temperature = 0.6,
             max_tokens = maxTokens
         };
@@ -164,16 +239,21 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         // Normalize line endings
         storyText = storyText.Replace("\r\n", "\n").Replace("\r", "\n");
 
-        // ---- Extract (and strip) Lesson line, if present ----
+        // ---- Extract (and strip) Lesson line, if present AND required ----
         string? extractedLesson = null;
-        var lessonMatch = Regex.Match(storyText, @"(?mi)^\s*Lesson:\s*(.+)\s*$");
-        if (lessonMatch.Success)
+        if (mustLesson)
         {
-            extractedLesson = lessonMatch.Groups[1].Value.Trim();
-            storyText = Regex.Replace(storyText, @"(?mi)^\s*Lesson:.*$", "").Trim();
+            var lessonMatch = Regex.Match(storyText, @"(?mi)^\s*Lesson:\s*(.+)\s*$");
+            if (lessonMatch.Success)
+            {
+                extractedLesson = lessonMatch.Groups[1].Value.Trim();
+                storyText = Regex.Replace(storyText, @"(?mi)^\s*Lesson:.*$", "").Trim();
+            }
+
+            // If we required a moral but didn't get one explicitly, fall back to the requested lesson text
+            if (string.IsNullOrWhiteSpace(extractedLesson))
+                extractedLesson = request.LessonLearned?.Trim();
         }
-        if (mustLesson && string.IsNullOrWhiteSpace(extractedLesson))
-            extractedLesson = request.LessonLearned?.Trim();
 
         // --- Split into pages ---
         static string[] SplitIntoPages(string? text)
@@ -222,46 +302,36 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         var paragraphsForImages = paragraphs.ToArray();
 
         // Append the Lesson as an extra line to the last page text only (no image comes from it)
-        if (!string.IsNullOrWhiteSpace(extractedLesson) && paragraphs.Length > 0)
+        if (mustLesson && !string.IsNullOrWhiteSpace(extractedLesson) && paragraphs.Length > 0)
             paragraphs[^1] = paragraphs[^1].TrimEnd() + "\n\nLesson: " + extractedLesson;
 
         // Image prompts strictly from scene paragraphs (no "Lesson:" line)
         var imagePromptTasks = paragraphsForImages.Select(p =>
-            PromptBuilder.BuildImagePromptAsync(request.Characters, p, _httpClient, _apiKey, request.ArtStyle));
+            PromptBuilder.BuildImagePromptAsync(characters, p, _httpClient, _apiKey, request.ArtStyle));
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
 
-        // Assemble pages (images match scene paragraphs count)
-        var storyPages = new List<StoryPage>();
-        for (int i = 0; i < paragraphs.Length; i++)
-        {
-            storyPages.Add(new StoryPage
-            {
-                Text = paragraphs[i],
-                ImagePrompt = imagePrompts[i]
-            });
-        }
-
+        // Generate images for each page
         var externalImageUrls = await _imageService.GenerateImagesAsync(imagePrompts.ToList());
 
-        var title = await GenerateTitleAsync(request.Characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
-
+        // Title + cover prompt / cover image
+        var title = await GenerateTitleAsync(characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
-            request.Characters, request.Theme, request.ReadingLevel, request.ArtStyle);
-
+            characters, request.Theme, request.ReadingLevel, request.ArtStyle);
         var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
+
+        // Assemble DTO pages (NOT EF entities) with image prompts included
+        var dtoPages = paragraphs
+            .Select((text, i) => new StoryPageDto(text, imagePrompts[i], externalImageUrls.ElementAtOrDefault(i)))
+            .ToList();
 
         return new StoryResult
         {
             Title = title,
             CoverImagePrompt = coverPrompt,
             CoverImageUrl = coverExternalUrl,
-            Pages = storyPages.Select((p, i) =>
-            {
-                p.ImageUrl = externalImageUrls[i];
-                return p;
-            }).ToList()
+            Pages = dtoPages
         };
     }
 
@@ -284,7 +354,6 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         // 1) If too few, split the longest paragraphs by sentences until we reach target
         while (parts.Count < target)
         {
-            // pick the longest paragraph
             int idx = Enumerable.Range(0, parts.Count)
                                 .OrderByDescending(i => parts[i].Length)
                                 .First();
@@ -356,7 +425,7 @@ no extra words, no Markdown.
 
         var requestBody = new
         {
-            model = "gpt-3.5-turbo",
+            model = "gpt-4.1-mini",
             messages = new[] { new { role = "user", content = prompt } },
             temperature = 0.9,
             max_tokens = 20

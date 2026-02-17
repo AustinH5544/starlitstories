@@ -26,12 +26,15 @@ public class StoryTests
         // Assert
         Assert.AreEqual(0, id);
         Assert.AreEqual("", title);
-        Assert.AreEqual("", coverImageUrl);
+        Assert.IsNull(coverImageUrl);
+
         Assert.IsNotNull(pages);
         Assert.AreEqual(0, pages.Count);
+
         Assert.AreNotEqual(default(DateTime), createdAt);
+
         Assert.AreEqual(0, userId);
-        Assert.IsNotNull(user); // null-forgiving operator ensures non-null
+        Assert.IsNull(user);
     }
 
     [TestMethod]
@@ -39,12 +42,13 @@ public class StoryTests
     {
         // Arrange
         var user = new User { Id = 1, Email = "test@example.com" };
+
         var storyPages = new List<StoryPage>
         {
-            new StoryPage
+            new StoryPage(
+                text: "Once upon a time...",
+                imagePrompt: "A fox in the forest")
             {
-                Text = "Once upon a time...",
-                ImagePrompt = "A fox in the forest",
                 ImageUrl = "https://example.com/page1.png"
             }
         };
@@ -66,14 +70,15 @@ public class StoryTests
         var pages = story.Pages;
         var created = story.CreatedAt;
         var linkedUser = story.User;
+        var firstPage = pages.First();
 
         // Assert
         Assert.AreEqual("The Brave Fox", title);
         Assert.AreEqual("https://example.com/cover.jpg", cover);
         Assert.AreEqual(1, pages.Count);
-        Assert.AreEqual("Once upon a time...", pages[0].Text);
-        Assert.AreEqual("A fox in the forest", pages[0].ImagePrompt);
-        Assert.AreEqual("https://example.com/page1.png", pages[0].ImageUrl);
+        Assert.AreEqual("Once upon a time...", firstPage.Text);
+        Assert.AreEqual("A fox in the forest", firstPage.ImagePrompt);
+        Assert.AreEqual("https://example.com/page1.png", firstPage.ImageUrl);
         Assert.AreEqual(new DateTime(2024, 1, 1), created);
         Assert.AreEqual(user, linkedUser);
         Assert.AreEqual(1, story.UserId);

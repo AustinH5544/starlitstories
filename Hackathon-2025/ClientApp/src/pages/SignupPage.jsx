@@ -7,90 +7,125 @@ import { useNavigate } from "react-router-dom"
 import "./SignupPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
+import useWarmup from "../hooks/useWarmup";
+
+import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passwordRules"
+import PasswordChecklist from "../components/PasswordChecklist"
+import PasswordMatch from "../components/PasswordMatch"
+import {
+    checkUsername,
+    usernameRequirementLabels,
+    defaultUsernameRuleSet,
+} from "../utils/usernameRules"
 
 const SignupPage = () => {
+    useWarmup();
     const [username, setUsername] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [confirm, setConfirm] = useState("")
-    const [membership, setMembership] = useState("")
     const [showPwd, setShowPwd] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [isUsernameFocused, setIsUsernameFocused] = useState(false);
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
     const { login } = useAuth()
     const navigate = useNavigate()
+    const [isLoading, setIsLoading] = useState(false);
+    const [status, setStatus] = useState("");
+
+    // Password rules
+    const ruleSet = { ...defaultRuleSet };
+    const { requirements, allMet: allRequirementsMet } = checkPassword(password, ruleSet);
+    const labels = requirementLabels(ruleSet);
+    const passwordsMatch = confirm.length > 0 && password === confirm;
+
+    // Username rules
+    const usernameRuleSet = { ...defaultUsernameRuleSet };
+    const { requirements: usernameReqs, allMet: isUsernameValid } = checkUsername(username, usernameRuleSet);
+    const usernameLabels = usernameRequirementLabels(usernameRuleSet);
 
     const handleSubmit = async (e) => {
-        e.preventDefault()
+        e.preventDefault();
+        if (isLoading) return;
 
-        // Client-side validation (mirrors server rules)
-        const uname = username.trim()
-        const usernameRe = /^[a-z0-9._-]{3,24}$/ // a–z, 0–9, dot, underscore, hyphen
-        if (!usernameRe.test(uname)) {
-            alert("Username must be 3–24 chars: a–z, 0–9, dot, underscore or hyphen.")
-            return
+        setStatus("");
+
+        // Normalize to lowercase for storage/uniqueness, but allow mixed-case input
+        const uname = username.trim().toLowerCase();
+
+        // Validate BEFORE setting isLoading to avoid sticky disabled button
+        if (!isUsernameValid) {
+            setStatus("Please meet all username requirements before continuing.");
+            return;
+        }
+        if (!allRequirementsMet) {
+            setStatus("Please meet all password requirements before continuing.");
+            return;
+        }
+        if (!passwordsMatch) {
+            setStatus("Passwords don't match.");
+            return;
         }
 
-        if (password !== confirm) {
-            alert("Passwords don't match")
-            return
-        }
+        setIsLoading(true);
 
-        if (password.length < 6) {
-            alert("Password must be at least 6 characters.")
-            return
-        }
+        try {
+            // Always create as FREE by default
+            const { data } = await api.post("/auth/signup", {
+                email,
+                username: uname,
+                password,
+            });
 
-        const basic = /^(?=.*[A-Za-z])(?=.*\d).+$/
-        if (!basic.test(password)) {
-            alert("Password should include both letters and numbers.")
-            return
-        }
+            if (data?.requiresVerification) {
+                alert("Account created! Please verify your email to continue.");
+                navigate("/login");
+                return;
+            }
 
-        if (!membership) {
-            alert("Please select a membership plan.")
-            return
-        }
+            // Log in and send to profile (they can upgrade from there)
+            login(data);
+            navigate("/profile");
+             } catch (err) {
+            console.error(err);
 
-        if (membership === "free") {
-            // Free flow — create the account immediately
-            try {
-                const { data } = await api.post("/auth/signup", {
-                    email,
-                    username: uname,
-                    password,
-                    membership,
-                })
+            const resp = err.response;
 
-                // If your backend requires email verification before issuing a token
-                if (data?.requiresVerification) {
-                    alert("Account created! Please verify your email to continue.")
-                    navigate("/login")
-                    return
+            if (!resp) {
+                if (err.code === "ECONNABORTED") {
+                    setStatus("Our servers are waking up. Please try again in a few seconds.");
+                } else {
+                    setStatus("Server is starting up or unavailable. Please try again shortly.");
+                }
+            } else if ([502, 503, 504].includes(resp.status)) {
+                setStatus("Server is waking up. Please wait a moment and retry.");
+            } else {
+                const data = resp.data;
+                let msg = "Signup failed.";
+
+                if (typeof data === "string") {
+                    msg = data;
+                } else if (data && typeof data.message === "string") {
+                    msg = data.message;
+                } else if (data && typeof data.title === "string") {
+                    msg = data.title;
+                } else if (data && data.errors && typeof data.errors === "object") {
+                    // Flatten ASP.NET Core validation errors
+                    const all = Object.values(data.errors)
+                        .flat()
+                        .filter(Boolean);
+                    if (all.length) {
+                        msg = all.join(" ");
+                    }
                 }
 
-                // If backend returns a token directly, keep this for convenience
-                login(data)
-                navigate("/profile")
-            } catch (err) {
-                console.error(err)
-                const msg = err?.response?.data?.message || err?.response?.data || "Signup failed"
-                alert(msg)
+                setStatus(msg);
             }
-        } else {
-            // Paid flow — start Stripe Checkout; include username so backend can use it after success
-            try {
-                const { data } = await api.post("/payments/create-checkout-session", {
-                    email,
-                    username: uname,
-                    membership,
-                })
-                window.location.href = data.checkoutUrl
-            } catch (err) {
-                console.error(err)
-                alert("Error starting payment session")
-            }
+        } finally {
+        setIsLoading(false);
         }
-    }
+    };
 
     return (
         <div className="signup-page">
@@ -115,9 +150,21 @@ const SignupPage = () => {
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
-                            pattern="^[a-z0-9._-]{3,24}$"
-                            title="3–24 chars: a–z, 0–9, dot, underscore, hyphen"
+                            pattern="[A-Za-z0-9_.]{3,32}"
+                            title="3–32 characters: letters (A–Z, a–z), numbers (0–9), underscore (_), or dot (.)"
+                            aria-describedby={isUsernameFocused ? "username-reqs" : undefined}
+                            autoComplete="username"
+                            onFocus={() => setIsUsernameFocused(true)}
+                            onBlur={() => setIsUsernameFocused(false)}
                         />
+                        {/* Show username checklist only while focused, with smooth expansion */}
+                        <div className={`collapsible ${isUsernameFocused ? "open" : ""}`}>
+                            <PasswordChecklist
+                                requirements={usernameReqs}
+                                labels={usernameLabels}
+                                id="username-reqs"
+                            />
+                        </div>
                     </div>
 
                     {/* Email */}
@@ -130,6 +177,7 @@ const SignupPage = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            autoComplete="email"
                         />
                     </div>
 
@@ -145,6 +193,10 @@ const SignupPage = () => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
+                                aria-describedby={isPasswordFocused ? "password-reqs" : undefined}
+                                autoComplete="new-password"
+                                onFocus={() => setIsPasswordFocused(true)}
+                                onBlur={() => setIsPasswordFocused(false)}
                             />
                             <button
                                 type="button"
@@ -163,6 +215,26 @@ const SignupPage = () => {
                                 />
                             </button>
                         </div>
+
+                        {/* Show password checklist only while focused, with smooth expansion */}
+                        <div className={`collapsible ${isPasswordFocused ? "open" : ""}`}>
+                            <PasswordChecklist requirements={requirements} labels={labels} id="password-reqs" />
+                        </div>
+                        {/* If passwords match but missing requirements, show them under Password */}
+                        {passwordsMatch && !allRequirementsMet && (
+                            <div className="missing-reqs">
+                                <p className="missing-reqs-title">Missing requirements:</p>
+                                <ul>
+                                    {Object.entries(requirements)
+                                        .filter(([, met]) => !met)
+                                        .map(([key]) => (
+                                            <li key={key} className="missing-req">
+                                                {labels[key]}
+                                            </li>
+                                        ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
 
                     {/* Confirm Password */}
@@ -177,6 +249,7 @@ const SignupPage = () => {
                                 value={confirm}
                                 onChange={(e) => setConfirm(e.target.value)}
                                 required
+                                autoComplete="new-password"
                             />
                             <button
                                 type="button"
@@ -197,96 +270,43 @@ const SignupPage = () => {
                                 />
                             </button>
                         </div>
+
+                        {/* Match indicator always visible */}
+                        <PasswordMatch confirmValue={confirm} isMatch={passwordsMatch} />
                     </div>
 
-                    {/* Plan selection */}
-                    <div className="form-group">
-                        <label htmlFor="membership">Choose Your Plan</label>
-                        <div className="membership-options">
-                            <div
-                                className={`membership-card ${membership === "free" ? "selected" : ""}`}
-                                onClick={() => setMembership("free")}
-                            >
-                                <div className="plan-icon">📖</div>
-                                <h3>Free</h3>
-                                <p className="plan-price">$0/month</p>
-                                <p className="plan-description">Perfect for trying out our service</p>
-                                <ul className="plan-features">
-                                    <li>✓ 1 personalized story</li>
-                                    <li>✓ Basic customization</li>
-                                    <li>✓ Digital format only</li>
-                                </ul>
-                                <input
-                                    type="radio"
-                                    name="membership"
-                                    value="free"
-                                    checked={membership === "free"}
-                                    onChange={(e) => setMembership(e.target.value)}
-                                    style={{ display: "none" }}
-                                />
-                            </div>
+                    {status && <div className="signup-status" aria-live="polite">{status}</div>}
 
-                            <div
-                                className={`membership-card ${membership === "pro" ? "selected" : ""}`}
-                                onClick={() => setMembership("pro")}
-                            >
-                                <div className="plan-icon">✨</div>
-                                <h3>Pro</h3>
-                                <p className="plan-price">$4/month</p>
-                                <p className="plan-description">Great for regular storytelling</p>
-                                <ul className="plan-features">
-                                    <li>✓ 5 stories per month</li>
-                                    <li>✓ Advanced customization</li>
-                                    <li>✓ High-quality illustrations</li>
-                                    <li>✓ Download & share</li>
-                                </ul>
-                                <input
-                                    type="radio"
-                                    name="membership"
-                                    value="pro"
-                                    checked={membership === "pro"}
-                                    onChange={(e) => setMembership(e.target.value)}
-                                    style={{ display: "none" }}
-                                />
-                            </div>
-
-                            <div
-                                className={`membership-card premium ${membership === "premium" ? "selected" : ""}`}
-                                onClick={() => setMembership("premium")}
-                            >
-                                <div className="plan-badge">Most Popular</div>
-                                <div className="plan-icon">🌟</div>
-                                <h3>Premium</h3>
-                                <p className="plan-price">$8/month</p>
-                                <p className="plan-description">Perfect for families who love stories</p>
-                                <ul className="plan-features">
-                                    <li>✓ 11 stories per month</li>
-                                    <li>✓ Premium illustrations</li>
-                                    <li>✓ Multiple characters</li>
-                                    <li>✓ Print-ready format</li>
-                                    <li>✓ Priority support</li>
-                                </ul>
-                                <input
-                                    type="radio"
-                                    name="membership"
-                                    value="premium"
-                                    checked={membership === "premium"}
-                                    onChange={(e) => setMembership(e.target.value)}
-                                    style={{ display: "none" }}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <button type="submit" className="signup-button">
-                        <span className="button-icon">🚀</span>
-                        <span>Start My Journey</span>
+                    <button
+                        type="submit"
+                        className="signup-button"
+                        disabled={
+                            isLoading ||
+                            !isUsernameValid ||
+                            !allRequirementsMet ||
+                            !passwordsMatch
+                        }
+                        title={
+                            !isUsernameValid
+                                ? "Meet all username requirements to continue"
+                                : !allRequirementsMet
+                                    ? "Meet all password requirements to continue"
+                                    : !passwordsMatch
+                                        ? "Passwords must match to continue"
+                                        : undefined
+                        }
+                    >
+                        <span className="button-icon">{isLoading ? "⏳" : "🚀"}</span>
+                        <span>{isLoading ? "Warming Up..." : "Start My Journey"}</span>
                     </button>
                 </form>
 
                 <div className="signup-footer">
                     <p>
                         Already have an account? <a href="/login">Sign in here</a>
+                    </p>
+                    <p className="post-signup-upgrade-hint">
+                        After signup, visit your Profile to upgrade anytime.
                     </p>
                 </div>
             </div>

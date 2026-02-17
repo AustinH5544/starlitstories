@@ -7,27 +7,24 @@ public class StoryPage
 {
     public int Id { get; set; }
 
-    [Required]
-    public string Text { get; set; }
+    [Required, MaxLength(4000)]
+    public string Text { get; set; } = null!;
 
-    [Required]
-    public string ImagePrompt { get; set; }
+    [Required, MaxLength(2000)]
+    public string ImagePrompt { get; set; } = null!;
 
+    [MaxLength(500)]
     public string? ImageUrl { get; set; }
 
-    [ForeignKey("StoryId")]
-    public int StoryId { get; set; }          // <-- non-nullable (required)
+    public int StoryId { get; set; }
+    public Story Story { get; set; } = null!;
 
-    public Story Story { get; set; } = null!; // <-- required navigation
+    // Prefer EF to use this; keep it protected
+    protected StoryPage() { }
 
-    // Constructor to enforce required properties
     public StoryPage(string text, string imagePrompt)
     {
         Text = text ?? throw new ArgumentNullException(nameof(text));
         ImagePrompt = imagePrompt ?? throw new ArgumentNullException(nameof(imagePrompt));
     }
-
-    // Parameterless constructor for EF Core
-    public StoryPage()
-    { }
 }

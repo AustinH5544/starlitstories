@@ -1,12 +1,18 @@
-﻿namespace Hackathon_2025.Models;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class StoryRequest
+namespace Hackathon_2025.Models;
+
+public sealed record StoryRequest
 {
-    public string? ReadingLevel { get; set; } // "pre" | "early" | "independent" (optional)
-    public string? ArtStyle { get; set; }
-    public string Theme { get; set; } = "";
-    public List<CharacterSpec> Characters { get; set; } = new(); // Can include main, pet, etc.
-    public int? PageCount { get; set; }
-    public string? LessonLearned { get; set; }
-    public string? StoryLength { get; set; }
+    public string? ReadingLevel { get; init; } // keep flexible
+    public string? ArtStyle { get; init; }
+
+    public required string Theme { get; init; }
+
+    [MinLength(1)]
+    public List<CharacterSpec> Characters { get; init; } = new();
+
+    public int? PageCount { get; init; }
+    public string? LessonLearned { get; init; }
+    public string? StoryLength { get; init; }
 }

@@ -1,4 +1,9 @@
-﻿/* Base Styles */
+﻿:root {
+    --site-nav-h: 64px;
+    --site-nav-h-mobile: 72px;
+}
+
+/* Base Styles */
 .landing-page {
     width: 100%;
     overflow-x: hidden;
@@ -57,15 +62,17 @@
 /* Hero Section */
 .hero-section {
     position: relative;
-    height: 100vh;
-    width: 100%;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     text-align: center;
     padding: 0 20px;
+    padding-top: calc(var(--site-nav-h) + env(safe-area-inset-top, 0px)); /* new */
+    padding-bottom: clamp(12px, 2vmin, 24px); /* new */
     overflow: hidden;
+    box-sizing: border-box; /* new (safe) */
 }
 
 /* Animated background elements */
@@ -131,12 +138,14 @@
 }
 
 .hero-title {
-    font-size: 3.5rem;
+    font-size: clamp(1.6rem, 7.5vmin, 3.5rem);
     font-weight: 800;
     margin-bottom: 1.5rem;
-    line-height: 1.2;
+    line-height: 1.15;
     color: white;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    max-width: 24ch;
+    margin-inline: auto;
 }
 
 .magic-text {
@@ -146,7 +155,6 @@
     color: transparent;
     display: inline-block;
     position: relative;
-
     /* Outline */
     -webkit-text-stroke: 0.5px white; /* thickness + color */
 }
@@ -174,9 +182,9 @@
 }
 
 .hero-subtitle {
-    font-size: 1.3rem;
-    max-width: 700px;
-    margin: 0 auto 2.5rem;
+    font-size: clamp(1rem, 2.4vmin, 1.3rem);
+    max-width: 65ch;
+    margin: 0 auto 2rem;
     color: rgba(255, 255, 255, 0.9);
 }
 
@@ -777,6 +785,33 @@
 }
 
 /* Responsive Styles */
+
+@media (max-height: 600px) {
+    .hero-title {
+        font-size: clamp(1.4rem, 8vmin, 2.4rem);
+        margin-bottom: .8rem;
+    }
+
+    .hero-subtitle {
+        font-size: clamp(.95rem, 2.2vmin, 1.05rem);
+        margin-bottom: 1rem;
+    }
+
+    .hero-buttons {
+        gap: .6rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .hero-image img {
+        max-height: 180px;
+    }
+
+    .scroll-indicator {
+        display: none;
+    }
+}
+
 @media (max-width: 1024px) {
     .hero-title {
         font-size: 3rem;
@@ -822,6 +857,11 @@
     .footer-content {
         flex-direction: column;
         gap: 2rem;
+    }
+
+    .hero-section {
+        min-height: 100dvh;
+        padding-top: calc(var(--site-nav-h-mobile) + env(safe-area-inset-top, 0px)); /* new */
     }
 }
 
@@ -1023,7 +1063,7 @@
     .landing-page .sprinkle3::after {
         animation: none;
         opacity: .12;*/ /* very subtle static stars */
-        /*--b: 1;
+/*--b: 1;
     }
 }*/
 

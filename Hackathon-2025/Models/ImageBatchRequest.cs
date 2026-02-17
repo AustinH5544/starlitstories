@@ -1,6 +1,7 @@
 ﻿namespace Hackathon_2025.Models;
 
-public class ImageBatchRequest
+public sealed record ImageBatchRequest
 {
-    public required List<string> Prompts { get; set; }
+    [System.ComponentModel.DataAnnotations.MinLength(1)]
+    public required List<string> Prompts { get; init; }
 }

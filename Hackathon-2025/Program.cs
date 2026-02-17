@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using System.Xml;
 
 using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
@@ -11,31 +12,34 @@ using Hackathon_2025.Services;
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;         // for IPasswordHasher<User>
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.RateLimiting;     // for .DisableRateLimiting()
 
 using OpenAI;
 using Stripe;
 
-var builder = WebApplication.CreateBuilder(new WebApplicationOptions
-{
-    WebRootPath = "ClientApp/dist",
-    Args = args
-});
+var builder = WebApplication.CreateBuilder(args);
 
 // -----------------------------
 // Configuration (Key Vault first)
 // -----------------------------
-var vaultName =
-    builder.Configuration["KeyVault:VaultName"] ??
-    (builder.Environment.IsDevelopment()
-        ? "kv-starlitstories-dev"    // dev vault (you set App Setting KeyVault__VaultName too)
-        : "kv-starlitstories-prod"); // prod vault
+var env = builder.Environment.EnvironmentName; // Development | Staging | Production
+var vaultName = builder.Configuration["KeyVault:VaultName"] ?? env switch
+{
+    "Development" => "kv-starlitstories-dev",
+    "Staging" => "kv-starlitstories-dev",
+    _ => "kv-starlitstories-prod"
+};
 
-builder.Configuration.AddAzureKeyVault(
-    new Uri($"https://{vaultName}.vault.azure.net/"),
-    new DefaultAzureCredential());
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Configuration.AddAzureKeyVault(
+        new Uri($"https://{vaultName}.vault.azure.net/"),
+        new DefaultAzureCredential());
+}
 
 // -----------------------------
 // Options binding + validation
@@ -93,19 +97,28 @@ builder.Services.AddHttpClient();
 // -----------------------------
 // Database (EF Core)
 // -----------------------------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString))
-    throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
-
-builder.Services.AddDbContext<AppDbContext>(options =>
+if (builder.Environment.IsEnvironment("Testing"))
 {
-    options.UseSqlServer(
-        connectionString,
-        sql => sql.EnableRetryOnFailure(
-            maxRetryCount: 10,
-            maxRetryDelay: TimeSpan.FromSeconds(10),
-            errorNumbersToAdd: null));
-});
+    // For integration tests
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseInMemoryDatabase("tests-db"));
+}
+else
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (string.IsNullOrWhiteSpace(connectionString))
+        throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
+
+    builder.Services.AddDbContext<AppDbContext>(options =>
+    {
+        options.UseSqlServer(
+            connectionString,
+            sql => sql.EnableRetryOnFailure(
+                maxRetryCount: 10,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null));
+    });
+}
 
 // -----------------------------
 // Auth (JWT) — no ASP.NET Identity
@@ -141,36 +154,44 @@ builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>(
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
 builder.Services.AddSingleton<BlobUploadService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddScoped<IPeriodService, PeriodService>();
+builder.Services.AddHealthChecks();
 
 // Payments provider toggle (default: stripe)
 var billingProvider = builder.Configuration["Billing:Provider"] ?? "stripe";
 if (billingProvider.Equals("stripe", StringComparison.OrdinalIgnoreCase))
 {
     builder.Services.AddScoped<IPaymentGateway, StripeGateway>();
-    // (add other providers here in the future)
 }
 
 // -----------------------------
-// CORS (from App:AllowedCorsOrigins; semicolon-separated)
+// CORS (temporary explicit allowlist)
 // -----------------------------
 string[] ParseCors(string? raw) =>
     string.IsNullOrWhiteSpace(raw)
         ? Array.Empty<string>()
         : raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+// Keep reading from config, but if it's empty, fall back to these:
 var appOptions = builder.Configuration.GetSection("App").Get<AppOptions>() ?? new AppOptions();
-var corsOrigins = ParseCors(appOptions.AllowedCorsOrigins);
+var corsOriginsFromConfig = ParseCors(appOptions.AllowedCorsOrigins);
+
+var allowedOrigins = corsOriginsFromConfig.Length > 0
+    ? corsOriginsFromConfig
+    : new[] {
+        "https://staging.starlitstories.app",
+        "http://localhost:5173"
+      };
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AppCors", policy =>
-        policy.WithOrigins(corsOrigins.Length > 0 ? corsOrigins : new[] { "http://localhost:5173" })
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod());
-    // .AllowCredentials()  // add if needed AND using specific origins
 });
 
 // -----------------------------
@@ -198,27 +219,22 @@ builder.Services.AddRateLimiter(options =>
     });
 
     // Optional: a light global limiter
-    // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-    // {
-    //     var key = httpContext.User.Identity?.Name
-    //               ?? httpContext.Connection.RemoteIpAddress?.ToString()
-    //               ?? "anon";
-    //     return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
-    //     {
-    //         PermitLimit = 120,
-    //         Window = TimeSpan.FromMinutes(1),
-    //         QueueLimit = 0
-    //     });
-    // });
+    // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(...)
 });
 
 builder.Services.AddControllers();
 // builder.Services.AddEndpointsApiExplorer(); // only needed if you add Swagger later
+builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 
 // =========================
 // Build
 // =========================
 var app = builder.Build();
+
+app.UseResponseCompression();
+
+var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+logger.LogInformation("CORS origins: {origins}", string.Join(", ", allowedOrigins));
 
 // =========================
 // Security headers / HTTPS
@@ -232,8 +248,8 @@ app.UseHttpsRedirection();
 // =========================
 // Static files & routing
 // =========================
-app.UseDefaultFiles();
-app.UseStaticFiles();
+//app.UseDefaultFiles();
+//app.UseStaticFiles();
 app.UseRouting();
 app.UseCors("AppCors");
 
@@ -247,7 +263,13 @@ app.UseAuthorization();
 // =========================
 // Health endpoints
 // =========================
-app.MapGet("/healthz", () => Results.Ok("ok"));
+app.MapGet("/__ping", () => Results.Text("pong"));
+app.MapHealthChecks("/healthz");
+
+app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
+   .RequireCors("AppCors");
+
+//app.MapGet("/healthz", () => Results.Ok("ok"));
 app.MapGet("/readyz", async (AppDbContext db) =>
 {
     var canConnect = await db.Database.CanConnectAsync();
@@ -255,9 +277,273 @@ app.MapGet("/readyz", async (AppDbContext db) =>
 });
 
 // =========================
+// Warm-up Endpoints
+// =========================
+
+// Quick health check (pings app container)
+app.MapGet("/api/healthz", () => Results.Ok(new { ok = true }))
+   .AllowAnonymous();
+
+// DB + EF Core warm-up (pings SQL + builds model)
+app.MapPost("/api/warmup", async (AppDbContext db, ILoggerFactory loggerFactory) =>
+{
+    var logger = loggerFactory.CreateLogger("Warmup");
+
+    try
+    {
+        // Touch database connection (super-cheap)
+        await db.Database.ExecuteSqlRawAsync("SELECT 1");
+        logger.LogInformation("SQL warm-up successful");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "SQL warm-up failed");
+    }
+
+    try
+    {
+        // Force EF model load (cached for lifetime)
+        await db.Users.AsNoTracking().FirstOrDefaultAsync();
+        logger.LogInformation("EF warm-up successful");
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "EF warm-up failed");
+    }
+
+    return Results.NoContent();
+}).AllowAnonymous();
+
+// =========================
+// Dynamic Sitemap
+// =========================
+
+// spec limits: 50,000 URLs or 50MB per file; chunk at 10k for safety
+const int MaxUrlsPerFile = 10000;
+
+app.MapGet("/sitemap.xml", async (AppDbContext db, IConfiguration cfg) =>
+{
+    var baseUrl = (cfg["Site:BaseUrl"] ?? "https://starlitstories.app").TrimEnd('/');
+
+    // Static routes you want indexed:
+    var staticUrls = new[]
+    {
+        $"{baseUrl}/",
+        $"{baseUrl}/stories",
+        $"{baseUrl}/pricing",
+        $"{baseUrl}/about",
+        $"{baseUrl}/contact"
+    };
+
+    var allUrls = new List<(string loc, DateTime? lastmod)>();
+    allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
+
+    // Variant A: StoryShare table (Token + optional IsPublic/IsListed + ExpiresAt)
+    bool addedShares = false;
+    try
+    {
+        var shares = await db.Set<StoryShare>()
+            .AsNoTracking()
+            .Include(s => s.Story) // if you need UpdatedAt from Story
+            .Where(s =>
+                s.Token != null &&
+                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
+                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
+            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
+            .Select(s => new
+            {
+                Url = $"{baseUrl}/s/{s.Token}",
+                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
+            })
+            .ToListAsync();
+
+        if (shares.Count > 0)
+        {
+            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
+            addedShares = true;
+        }
+    }
+    catch
+    {
+        // if StoryShare doesn't exist, we fall back to Variant B
+    }
+
+    // Variant B: token on Story (ShareToken + IsPublic)
+    if (!addedShares)
+    {
+        try
+        {
+            var stories = await db.Set<Story>()
+                .AsNoTracking()
+                .Where(s =>
+                    EF.Property<string?>(s, "ShareToken") != null &&
+                    (EF.Property<bool?>(s, "IsPublic") ?? true))
+                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
+                .Select(s => new
+                {
+                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
+                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
+                })
+                .ToListAsync();
+
+            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
+        }
+        catch
+        {
+            // neither variant present; serve static routes only
+        }
+    }
+
+    // Return index if we exceed max per file
+    if (allUrls.Count > MaxUrlsPerFile)
+    {
+        var chunks = allUrls
+            .Select((u, i) => new { u, i })
+            .GroupBy(x => x.i / MaxUrlsPerFile, x => x.u)
+            .Select(g => g.ToList())
+            .ToList();
+
+        var indexXml = await BuildSitemapIndexXmlAsync(baseUrl, chunks.Count);
+        return Results.Content(indexXml, "application/xml", Encoding.UTF8);
+    }
+
+    var xml = await BuildSitemapXmlAsync(allUrls);
+    return Results.Content(xml, "application/xml", Encoding.UTF8);
+})
+.Produces(statusCode: 200, contentType: "application/xml")
+.WithMetadata(new ResponseCacheAttribute { Duration = 3600, Location = ResponseCacheLocation.Any })
+.AllowAnonymous()
+.DisableRateLimiting();
+
+app.MapGet("/sitemaps/sitemap-{index}.xml", async (int index, AppDbContext db, IConfiguration cfg) =>
+{
+    var baseUrl = (cfg["Site:BaseUrl"] ?? "https://starlitstories.app").TrimEnd('/');
+
+    var staticUrls = new[]
+    {
+        $"{baseUrl}/",
+        $"{baseUrl}/stories",
+        $"{baseUrl}/pricing",
+        $"{baseUrl}/about",
+        $"{baseUrl}/contact"
+    };
+
+    var allUrls = new List<(string loc, DateTime? lastmod)>();
+    allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
+
+    bool addedShares = false;
+    try
+    {
+        var shares = await db.Set<StoryShare>()
+            .AsNoTracking()
+            .Include(s => s.Story)
+            .Where(s =>
+                s.Token != null &&
+                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
+                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
+            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
+            .Select(s => new
+            {
+                Url = $"{baseUrl}/s/{s.Token}",
+                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
+            })
+            .ToListAsync();
+
+        if (shares.Count > 0)
+        {
+            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
+            addedShares = true;
+        }
+    }
+    catch { }
+
+    if (!addedShares)
+    {
+        try
+        {
+            var stories = await db.Set<Story>()
+                .AsNoTracking()
+                .Where(s =>
+                    EF.Property<string?>(s, "ShareToken") != null &&
+                    (EF.Property<bool?>(s, "IsPublic") ?? true))
+                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
+                .Select(s => new
+                {
+                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
+                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
+                })
+                .ToListAsync();
+
+            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
+        }
+        catch { }
+    }
+
+    var skip = index * MaxUrlsPerFile;
+    var page = allUrls.Skip(skip).Take(MaxUrlsPerFile).ToList();
+    if (page.Count == 0) return Results.NotFound();
+
+    var xml = await BuildSitemapXmlAsync(page);
+    return Results.Content(xml, "application/xml", Encoding.UTF8);
+})
+.Produces(statusCode: 200, contentType: "application/xml")
+.AllowAnonymous()
+.DisableRateLimiting();
+
+// ---------- helpers ----------
+static async Task<string> BuildSitemapXmlAsync(List<(string loc, DateTime? lastmod)> urls)
+{
+    var settings = new XmlWriterSettings { Async = true, Indent = true, Encoding = Encoding.UTF8 };
+    using var sw = new StringWriter();
+    using (var xw = XmlWriter.Create(sw, settings))
+    {
+        await xw.WriteStartDocumentAsync();
+        await xw.WriteStartElementAsync(null, "urlset", "https://www.sitemaps.org/schemas/sitemap/0.9");
+
+        foreach (var (loc, lastmod) in urls)
+        {
+            await xw.WriteStartElementAsync(null, "url", null);
+            await xw.WriteElementStringAsync(null, "loc", null, loc);
+            if (lastmod.HasValue)
+                await xw.WriteElementStringAsync(null, "lastmod", null, lastmod.Value.ToString("yyyy-MM-dd"));
+            await xw.WriteEndElementAsync(); // url
+        }
+
+        await xw.WriteEndElementAsync(); // urlset
+        await xw.WriteEndDocumentAsync();
+    }
+    return sw.ToString();
+}
+
+static async Task<string> BuildSitemapIndexXmlAsync(string baseUrl, int chunks)
+{
+    var settings = new XmlWriterSettings { Async = true, Indent = true, Encoding = Encoding.UTF8 };
+    using var sw = new StringWriter();
+    using (var xw = XmlWriter.Create(sw, settings))
+    {
+        await xw.WriteStartDocumentAsync();
+        await xw.WriteStartElementAsync(null, "sitemapindex", "https://www.sitemaps.org/schemas/sitemap/0.9");
+
+        for (int i = 0; i < chunks; i++)
+        {
+            await xw.WriteStartElementAsync(null, "sitemap", null);
+            await xw.WriteElementStringAsync(null, "loc", null, $"{baseUrl}/sitemaps/sitemap-{i}.xml");
+            await xw.WriteElementStringAsync(null, "lastmod", null, DateTime.UtcNow.ToString("yyyy-MM-dd"));
+            await xw.WriteEndElementAsync();
+        }
+
+        await xw.WriteEndElementAsync();
+        await xw.WriteEndDocumentAsync();
+    }
+    return sw.ToString();
+}
+
+// =========================
 // MVC + SPA fallback
 // =========================
 app.MapControllers();
-app.MapFallbackToFile("/index.html");
+//app.MapFallbackToFile("/index.html");
 
 app.Run();
+
+public partial class Program { }

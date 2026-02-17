@@ -1,13 +1,20 @@
 <!doctype html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon6.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!-- Light/Dark theme colors for the browser UI -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#0c1445">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c1445">
+    <meta name="robots" content="%VITE_ROBOTS%">
+
     <title>Starlit Stories</title>
-  </head>
-  <body>
+    <link rel="preconnect" href="%VITE_API_URL%" crossorigin>
+</head>
+<body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-  </body>
+</body>
 </html>

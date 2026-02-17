@@ -5,33 +5,49 @@ import { Link, useNavigate } from "react-router-dom"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import "./LoginPage.css"
+import EyeOpen from "../assets/eye-open.svg";
+import EyeClosed from "../assets/eye-closed.svg";
+import useWarmup from "../hooks/useWarmup";
 
 const SESSION_KEY = "needsVerification"
 
 const LoginPage = () => {
-    const [identifier, setIdentifier] = useState("")      // email OR username
-    const [email, setEmail] = useState("")                // used for resend verification
+    useWarmup();
+    const [identifier, setIdentifier] = useState("")
+    const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [status, setStatus] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [needsVerification, setNeedsVerification] = useState(false)
+    const [showPwd, setShowPwd] = useState(false);
+    const [dots, setDots] = useState("");
 
     const { login } = useAuth()
     const navigate = useNavigate()
 
-    // Restore "needs verification" on mount; clear it when leaving the page
+    useEffect(() => {
+        if (!isLoading) {
+            setDots("");
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setDots((prev) => (prev.length < 3 ? prev + "." : ""));
+        }, 500);
+
+        return () => clearInterval(interval);
+    }, [isLoading]);
+
     useEffect(() => {
         const persisted = sessionStorage.getItem(SESSION_KEY)
         if (persisted === "true") setNeedsVerification(true)
         return () => sessionStorage.removeItem(SESSION_KEY)
     }, [])
 
-    // Keep sessionStorage in sync while on this page
     useEffect(() => {
         sessionStorage.setItem(SESSION_KEY, needsVerification ? "true" : "false")
     }, [needsVerification])
 
-    // If the identifier looks like an email, auto-fill the email field for resend
     useEffect(() => {
         if (identifier.includes("@")) setEmail(identifier.trim())
     }, [identifier])
@@ -47,31 +63,27 @@ const LoginPage = () => {
                 { identifier, password },
                 { skipAuth401Handler: true }
             )
-
-            // successful login
-            login(response.data)                    // expects { token, email, username, membership }
+            login(response.data)
             sessionStorage.removeItem(SESSION_KEY)
             navigate("/profile")
         } catch (err) {
             console.error(err)
-
             if (!err.response) {
-                if (err.code === "ECONNABORTED") setStatus("Our servers are waking up. Please try again in a few seconds.")
-                else setStatus("We couldn’t reach the server. It may be starting up—please try again shortly.")
+                if (err.code === "ECONNABORTED")
+                    setStatus("Our servers are waking up. Please try again in a few seconds.")
+                else
+                    setStatus("We couldn’t reach the server. It may be starting up—please try again shortly.")
                 return
             }
 
             const { status: httpStatus, data } = err.response
-
             if ([502, 503, 504, 522, 523, 524].includes(httpStatus)) {
                 setStatus("Server is starting up or temporarily unavailable. Please try again in a moment.")
                 return
             }
 
-            // Email verification flow
             if (data?.requiresVerification) {
                 setNeedsVerification(true)
-                // server may include the verified email; if not, use identifier if it’s an email
                 if (data?.email) setEmail(data.email)
                 else if (identifier.includes("@")) setEmail(identifier)
                 setStatus("Please verify your email before logging in. Check your inbox for a verification link.")
@@ -154,15 +166,32 @@ const LoginPage = () => {
 
                     <div className="form-group">
                         <label htmlFor="password">Password</label>
-                        <input
-                            id="password"
-                            type="password"
-                            placeholder="Enter your password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
+                        <div className="input-with-toggle">
+                            <input
+                                id="password"
+                                type={showPwd ? "text" : "password"}
+                                placeholder="Enter your password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                disabled={isLoading}
+                            />
+                            <button
+                                type="button"
+                                className="toggle-visibility"
+                                aria-label={showPwd ? "Hide password" : "Show password"}
+                                aria-pressed={showPwd}
+                                onClick={() => setShowPwd((s) => !s)}
+                            >
+                                <img
+                                    src={showPwd ? EyeClosed : EyeOpen}
+                                    alt=""
+                                    className="icon-eye"
+                                    width="22"
+                                    height="22"
+                                />
+                            </button>
+                        </div>
                     </div>
 
                     {status && <div className={`login-status ${getStatusClass()}`}>{status}</div>}
@@ -182,7 +211,7 @@ const LoginPage = () => {
 
                     <button type="submit" className="login-button" disabled={isLoading}>
                         <span className="button-icon">{isLoading ? "⏳" : "🔮"}</span>
-                        <span>{isLoading ? "Signing In..." : "Sign In"}</span>
+                        <span>{isLoading ? `Signing in${dots}` : "Sign In"}</span>
                     </button>
                 </form>
 

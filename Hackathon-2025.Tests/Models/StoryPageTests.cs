@@ -8,11 +8,11 @@ namespace Hackathon_2025.Tests.Models;
 public class StoryPageTests
 {
     [TestMethod]
-    public void Constructor_CustomValues_ContainExpectedData()
+    public void Constructor_CustomValues_ContainExpectedCoreData()
     {
         // Arrange
-        string text = "A dragon flies over the mountains.";
-        string prompt = "dragon in the sky";
+        var text = "A dragon flies over the mountains.";
+        var prompt = "dragon in the sky";
 
         // Act
         var page = new StoryPage(text, prompt);
@@ -21,38 +21,39 @@ public class StoryPageTests
         Assert.AreEqual(text, page.Text);
         Assert.AreEqual(prompt, page.ImagePrompt);
         Assert.IsNull(page.ImageUrl);
-        Assert.IsNull(page.StoryId);
+        Assert.AreEqual(0, page.StoryId);
         Assert.IsNull(page.Story);
     }
 
     [TestMethod]
-    public void Constructor_Parameterless_AllPropertiesCanBeSet()
+    public void Properties_SetAfterConstruction_AreStoredCorrectly()
     {
         // Arrange
-        var page = new StoryPage
+        var page = new StoryPage(
+            text: "A knight enters the castle.",
+            imagePrompt: "knight at castle gate");
+
+        var expectedImageUrl = "https://example.com/image.png";
+        var expectedStoryId = 99;
+        var expectedStory = new Story
         {
-            Text = "A knight enters the castle.",
-            ImagePrompt = "knight at castle gate",
-            ImageUrl = "https://example.com/image.png",
-            StoryId = 99,
-            Story = new Story { Id = 99, Title = "Knight's Journey" }
+            Id = expectedStoryId,
+            Title = "Knight's Journey"
         };
 
         // Act
-        var text = page.Text;
-        var prompt = page.ImagePrompt;
-        var imageUrl = page.ImageUrl;
-        var storyId = page.StoryId;
-        var story = page.Story;
+        page.ImageUrl = expectedImageUrl;
+        page.StoryId = expectedStoryId;
+        page.Story = expectedStory;
 
         // Assert
-        Assert.AreEqual("A knight enters the castle.", text);
-        Assert.AreEqual("knight at castle gate", prompt);
-        Assert.AreEqual("https://example.com/image.png", imageUrl);
-        Assert.AreEqual(99, storyId);
-        Assert.IsNotNull(story);
-        Assert.AreEqual(99, story.Id);
-        Assert.AreEqual("Knight's Journey", story.Title);
+        Assert.AreEqual("A knight enters the castle.", page.Text);
+        Assert.AreEqual("knight at castle gate", page.ImagePrompt);
+        Assert.AreEqual(expectedImageUrl, page.ImageUrl);
+        Assert.AreEqual(expectedStoryId, page.StoryId);
+        Assert.IsNotNull(page.Story);
+        Assert.AreEqual(expectedStoryId, page.Story!.Id);
+        Assert.AreEqual("Knight's Journey", page.Story.Title);
     }
 
     [TestMethod]
@@ -60,20 +61,22 @@ public class StoryPageTests
     {
         // Arrange
         string? text = null;
-        string imagePrompt = "a desert oasis";
+        var imagePrompt = "a desert oasis";
 
         // Act & Assert
-        Assert.ThrowsException<ArgumentNullException>(() => new StoryPage(text!, imagePrompt));
+        Assert.ThrowsException<ArgumentNullException>(
+            () => new StoryPage(text!, imagePrompt));
     }
 
     [TestMethod]
     public void Constructor_NullImagePrompt_ThrowsArgumentNullException()
     {
         // Arrange
-        string text = "A wanderer walks alone";
+        var text = "A wanderer walks alone";
         string? imagePrompt = null;
 
         // Act & Assert
-        Assert.ThrowsException<ArgumentNullException>(() => new StoryPage(text, imagePrompt!));
+        Assert.ThrowsException<ArgumentNullException>(
+            () => new StoryPage(text, imagePrompt!));
     }
 }

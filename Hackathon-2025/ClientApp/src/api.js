@@ -1,5 +1,5 @@
 ﻿import axios from "axios";
-import { API_URL } from "./config"; // ← from your config.js
+import { API_URL } from "./config";
 
 const api = axios.create({
     baseURL: `${API_URL}/api`,   // <- always hit the real API origin

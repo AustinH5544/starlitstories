@@ -1,9 +1,9 @@
 ﻿namespace Hackathon_2025.Models;
 
-public class StoryResult
+public sealed record StoryResult
 {
-    public string Title { get; set; } = "";
-    public string CoverImagePrompt { get; set; } = "";
-    public string CoverImageUrl { get; set; } = "";
-    public List<StoryPage> Pages { get; set; } = new();
+    public required string Title { get; init; }
+    public required string CoverImagePrompt { get; init; } // or omit if sensitive
+    public string? CoverImageUrl { get; init; }
+    public List<StoryPageDto> Pages { get; init; } = new();
 }
