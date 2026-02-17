@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useLocation } from "react-router-dom";
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
@@ -40,7 +40,10 @@ const ProfilePage = () => {
     const [uStatus, setUStatus] = useState("");
     const [savingU, setSavingU] = useState(false);
     const [stories, setStories] = useState([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(true);      // initial load only
+    const [loadingMore, setLoadingMore] = useState(false);
+    const loadMoreRef = useRef(null);
+    const shouldStickToBottomRef = useRef(false);
     const navigate = useNavigate()
     const [avatarVersion, setAvatarVersion] = useState(0);
     const [working, setWorking] = useState(false);
@@ -160,27 +163,54 @@ const ProfilePage = () => {
     // fetch summaries (lightweight)
     useEffect(() => {
         let alive = true;
-        setLoading(true);
+
+        const isFirstPage = storiesPage === 1;
+
+        // Only show the big loader on the first page.
+        if (isFirstPage) setLoading(true);
+        else setLoadingMore(true);
+
         (async () => {
-            if (!user?.email) { if (alive) setLoading(false); return; }
+            if (!user?.email) {
+                if (alive) {
+                    setLoading(false);
+                    setLoadingMore(false);
+                }
+                return;
+            }
+
             try {
                 const { data } = await api.get(
                     `/profile/me/stories?page=${storiesPage}&pageSize=${pageSize}`
                 );
-                // data: { page, pageSize, total, items: [{id,title,coverImageUrl,createdAt,pageCount}] }
+
                 if (!alive) return;
-                setStories(prev =>
-                    storiesPage === 1 ? data.items : [...prev, ...data.items]
-                );
+
+                setStories(prev => (isFirstPage ? data.items : [...prev, ...data.items]));
                 setStoriesTotal(data.total ?? 0);
             } catch (e) {
                 if (alive) console.error("Error loading story summaries:", e);
             } finally {
-                if (alive) setLoading(false);
+                if (!alive) return;
+                setLoading(false);
+                setLoadingMore(false);
             }
         })();
+
         return () => { alive = false; };
     }, [user?.email, storiesPage]);
+
+    useEffect(() => {
+        if (!loadingMore && shouldStickToBottomRef.current) {
+            shouldStickToBottomRef.current = false;
+
+            // Keep the "Load more" area at the bottom of the viewport
+            loadMoreRef.current?.scrollIntoView({
+                block: "end",
+                behavior: "smooth",
+            });
+        }
+    }, [loadingMore, stories.length]);
 
     // close add-on dropdown on escape
     useEffect(() => {
@@ -700,9 +730,16 @@ const ProfilePage = () => {
                             </div>
 
                             {hasMore && !loading && (
-                                <div className="load-more">
-                                    <button onClick={() => setStoriesPage(p => p + 1)} className="btn">
-                                        Load more
+                                <div className="load-more" ref={loadMoreRef}>
+                                    <button
+                                        className="btn"
+                                        disabled={loadingMore}
+                                        onClick={() => {
+                                            shouldStickToBottomRef.current = true;
+                                            setStoriesPage(p => p + 1);
+                                        }}
+                                    >
+                                        {loadingMore ? "Loading..." : "Load more"}
                                     </button>
                                 </div>
                             )}
