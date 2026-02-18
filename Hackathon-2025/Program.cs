@@ -273,10 +273,21 @@ app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
    .RequireCors("AppCors");
 
 //app.MapGet("/healthz", () => Results.Ok("ok"));
-app.MapGet("/readyz", async (AppDbContext db) =>
+app.MapGet("/readyz", async (AppDbContext db, ILoggerFactory loggerFactory) =>
 {
-    var canConnect = await db.Database.CanConnectAsync();
-    return canConnect ? Results.Ok("ready") : Results.StatusCode(503);
+    var logger = loggerFactory.CreateLogger("ReadyZ");
+
+    try
+    {
+        // This will throw on the real failures (firewall/login/DNS/etc)
+        await db.Database.ExecuteSqlRawAsync("SELECT 1");
+        return Results.Ok("ready");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "READYZ DB check failed");
+        return Results.StatusCode(503);
+    }
 });
 
 // =========================
