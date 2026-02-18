@@ -1,25 +1,22 @@
-using System.Text;
-using System.Threading.RateLimiting;
-using System.Xml;
-
-using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
-
+using Azure.Identity;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;                 // for User (password hasher)
 using Hackathon_2025.Options;
 using Hackathon_2025.Services;
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;         // for IPasswordHasher<User>
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.RateLimiting;     // for .DisableRateLimiting()
-
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using OpenAI;
 using Stripe;
+using System.Text;
+using System.Threading.RateLimiting;
+using System.Xml;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -182,9 +179,10 @@ var corsOriginsFromConfig = ParseCors(appOptions.AllowedCorsOrigins);
 var allowedOrigins = corsOriginsFromConfig.Length > 0
     ? corsOriginsFromConfig
     : new[] {
+        "https://starlitstories.app",
         "https://staging.starlitstories.app",
         "http://localhost:5173"
-      };
+  };
 
 builder.Services.AddCors(options =>
 {
@@ -230,6 +228,11 @@ builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 // Build
 // =========================
 var app = builder.Build();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 app.UseResponseCompression();
 
