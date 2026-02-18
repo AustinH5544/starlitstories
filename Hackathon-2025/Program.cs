@@ -106,6 +106,11 @@ else
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
 
+    // TEMP DIAGNOSTIC — remove after fixed
+    var firstCharCode = connectionString.Length == 0 ? -1 : (int)connectionString[0];
+    var start = connectionString.Length <= 60 ? connectionString : connectionString.Substring(0, 60);
+    Console.WriteLine($"[DBCS] firstCharCode={firstCharCode} start='{start}'");
+
     builder.Services.AddDbContext<AppDbContext>(options =>
     {
         options.UseSqlServer(
