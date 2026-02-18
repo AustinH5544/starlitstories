@@ -109,7 +109,7 @@ else
     // TEMP DIAGNOSTIC — remove after fixed
     var firstCharCode = connectionString.Length == 0 ? -1 : (int)connectionString[0];
     var start = connectionString.Length <= 60 ? connectionString : connectionString.Substring(0, 60);
-    Console.WriteLine($"[DBCS] firstCharCode={firstCharCode} start='{start}'");
+    Console.WriteLine($"[DBCS] firstCharCode={(int)connectionString[0]} start='{connectionString.Substring(0, Math.Min(60, connectionString.Length))}'");
 
     builder.Services.AddDbContext<AppDbContext>(options =>
     {
