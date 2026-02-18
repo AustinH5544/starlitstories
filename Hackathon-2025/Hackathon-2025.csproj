@@ -14,22 +14,29 @@
   </ItemGroup>-->
 
   <ItemGroup>
-    <PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
-    <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.4.0" />
-    <PackageReference Include="Azure.Identity" Version="1.16.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.25.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.5" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.5">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.9" />
-    <PackageReference Include="OpenAI" Version="2.1.0" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.5" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.0" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.8" />
-    <PackageReference Include="Stripe.net" Version="48.1.0" />
-  </ItemGroup>
+      <PackageReference Include="Azure.Communication.Email" Version="1.1.0" />
+      <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.4.0" />
+      <PackageReference Include="Azure.Identity" Version="1.16.0" />
+      <PackageReference Include="Azure.Storage.Blobs" Version="12.25.0" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.5" />
+      <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
+      <PackageReference Include="OpenAI" Version="2.1.0" />
+      <PackageReference Include="Stripe.net" Version="48.1.0" />
+
+      <!-- EF Core -->
+      <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
+
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
+
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.11">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
+    </ItemGroup>
 
 </Project>
