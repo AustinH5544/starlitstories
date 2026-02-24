@@ -4,6 +4,12 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
 import "./StoryForm.css"
 
+import themeIcon from "../assets/ui-icons/theme.png"
+import lessonIcon from "../assets/ui-icons/lesson.png"
+import readingIcon from "../assets/ui-icons/reading.png"
+import personIcon from "../assets/ui-icons/person.png"
+//import animalIcon from "../assets/ui-icons/animal.png"
+
 const normalizeDescFields = (df = {}) => {
     const out = { ...df }
     for (const k of Object.keys(df)) {
@@ -297,7 +303,13 @@ const StoryForm = ({ onSubmit }) => {
             {/* Reading/Art section */}
             <div className="form-section">
                 <h3 className="section-title">
-                    <span className="section-icon">📚</span>
+                    <span className="section-icon">
+                        <img
+                            src={readingIcon}
+                            alt="Reading level and art style"
+                            className="section-icon-img"
+                        />
+                    </span>
                     Reading Level & Art Style
                 </h3>
 
@@ -410,7 +422,13 @@ const StoryForm = ({ onSubmit }) => {
             {/* Lesson Learned (two-step) */}
             <div className="form-section">
                 <h3 className="section-title">
-                    <span className="section-icon">🌟</span>
+                    <span className="section-icon">
+                        <img
+                            src={lessonIcon}
+                            alt="Lesson learned"
+                            className="section-icon-img"
+                        />
+                    </span>
                     Lesson Learned (Optional)
                 </h3>
 
@@ -495,7 +513,13 @@ const StoryForm = ({ onSubmit }) => {
 
             <div className="form-section">
                 <h3 className="section-title">
-                    <span className="section-icon">🎭</span>
+                    <span className="section-icon">
+                        <img
+                            src={themeIcon}
+                            alt="Story theme"
+                            className="section-icon-img"
+                        />
+                    </span>
                     Story Theme
                 </h3>
 
@@ -528,7 +552,13 @@ const StoryForm = ({ onSubmit }) => {
                 <div key={i} className="character-card">
                     <div className="character-header">
                         <h3 className="character-title">
-                            <span className="character-icon">{char.isAnimal ? "🐾" : "👤"}</span>
+                            <span className="character-icon">
+                                <img
+                                    src={char.isAnimal ? animalIcon : personIcon}
+                                    alt={char.isAnimal ? "Animal character" : "Human character"}
+                                    className="character-icon-img"
+                                />
+                            </span>
                             {char.role === "main" ? "Main Character" : `Character ${i + 1}`}
                         </h3>
                         {i > 0 && (
