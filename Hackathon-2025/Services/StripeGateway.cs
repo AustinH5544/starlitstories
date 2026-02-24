@@ -160,7 +160,11 @@ public class StripeGateway : IPaymentGateway
         Event stripeEvent;
         try
         {
-            stripeEvent = EventUtility.ConstructEvent(json, request.Headers["Stripe-Signature"], _cfg.WebhookSecret);
+            stripeEvent = EventUtility.ConstructEvent(
+                json,
+                request.Headers["Stripe-Signature"],
+                _cfg.WebhookSecret,
+                tolerance: 0);
         }
         catch (Exception ex)
         {
