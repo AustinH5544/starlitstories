@@ -48,11 +48,9 @@ const ProfilePage = () => {
     const [avatarVersion, setAvatarVersion] = useState(0);
     const [working, setWorking] = useState(false);
     const [actionMsg, setActionMsg] = useState("");
-    const [showCancelModal, setShowCancelModal] = useState(false);
     const { search } = useLocation();
     const [flash, setFlash] = useState("");
     const [billing, setBilling] = useState(null);
-    const isCancelScheduled = Boolean(billing?.cancelAt);
 
     const [storiesPage, setStoriesPage] = useState(1);
     const [storiesTotal, setStoriesTotal] = useState(0);
@@ -259,7 +257,10 @@ const ProfilePage = () => {
     const isPaid = membershipKey !== "free" || Boolean(billing?.cancelAt);
     const isPremium = membershipKey === "premium";
     const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
-    const renewalLabel = billing?.cancelAt ? "Ends on" : "Next renewal";
+    const renewalLabel = "Next renewal";
+    const renewalValue = billing?.cancelAt
+        ? `Canceled (${membershipKey.charAt(0).toUpperCase() + membershipKey.slice(1)} until ${formatDate(billing.cancelAt)})`
+        : renewalDate ? formatDate(renewalDate) : "—";
 
     useEffect(() => {
         const q = new URLSearchParams(search);
@@ -273,24 +274,6 @@ const ProfilePage = () => {
             window.history.replaceState({}, "", "/profile");
         }
     }, [search]);
-
-    const cancelMembership = async () => {
-        try {
-            setWorking(true);
-            setActionMsg("");
-            await api.post("payments/cancel");
-            const { data } = await api.get("payments/subscription");
-            setBilling(coerceBilling(data?.subscription ?? data));
-
-            setShowCancelModal(false);
-            setActionMsg("Cancellation scheduled. You’ll keep access until the current period ends.");
-        } catch (e) {
-            console.error(e);
-            setActionMsg("We couldn't cancel your membership. Please try again.");
-        } finally {
-            setWorking(false);
-        }
-    };
 
     // Buy credits (same API as UpgradePage)
     const buyCredits = async (pack /* "plus5" | "plus11" */) => {
@@ -560,7 +543,7 @@ const ProfilePage = () => {
                             <div className="detail-icon">🗓️</div>
                             <div className="detail-content">
                                 <span className="detail-label">{renewalLabel}</span>
-                                <span className="detail-value">{renewalDate ? formatDate(renewalDate) : "—"}</span>
+                                <span className="detail-value">{renewalValue}</span>
                             </div>
                         </div>
                     )}
@@ -601,15 +584,6 @@ const ProfilePage = () => {
                                 <span className="button-icon">🛠️</span>
                                 <span>{working ? "Opening..." : "Change Plan"}</span>
                             </button>
-                            {!isCancelScheduled && (
-                                <button
-                                    className="btn btn-danger"
-                                    onClick={() => setShowCancelModal(true)}
-                                    disabled={working}
-                                >
-                                    Cancel membership
-                                </button>
-                            )}
                         </div>
                     )}
                 </div>
@@ -769,27 +743,7 @@ const ProfilePage = () => {
                     </div>
                 )}
 
-                {showCancelModal && (
-                    <div className="image-modal-overlay" onClick={() => !working && setShowCancelModal(false)}>
-                        <div className="image-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>Cancel Membership?</h3>
-                                <button className="close-btn" onClick={() => !working && setShowCancelModal(false)}>✕</button>
-                            </div>
-                            <p className="cancel-blurb">
-                                This stops auto-renewal. You’ll keep access until the current period ends, then move to the Free plan.
-                            </p>
-                            <div className="cancel-actions">
-                                <button className="manage-plan-btn" disabled={working} onClick={() => setShowCancelModal(false)}>
-                                    Keep my plan
-                                </button>
-                                <button className="cancel-plan-btn" disabled={working} onClick={cancelMembership}>
-                                    {working ? "Cancelling..." : "Confirm Cancel"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
             </div>
         </div>
     )
