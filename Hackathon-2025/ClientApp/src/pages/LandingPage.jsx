@@ -5,6 +5,16 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import "./LandingPage.css"
 
+
+import writeIcon from "../assets/step-icons/write.png";
+import magicIcon from "../assets/step-icons/magic.png"
+import readIcon from "../assets/step-icons/read.png"
+
+import timeIcon from "../assets/parent-icons/time.png"
+import refreshIcon from "../assets/parent-icons/refresh.png"
+import ideaIcon from "../assets/parent-icons/idea.png"
+import heartIcon from "../assets/parent-icons/heart.png"
+
 const SHOW_COMPANY = false
 const SHOW_RESOURCES = false
 
@@ -138,7 +148,17 @@ const LandingPage = () => {
                         <div className="steps-container">
                             <div className="step">
                                 <div className="step-number">1</div>
-                                <div className="step-icon">📝</div>
+
+                                <div className="step-icon">
+                                    <img
+                                        className="step-icon-img"
+                                        src={writeIcon}
+                                        alt="Tell us about your hero"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
+
                                 <h3>Tell Us About Your Hero</h3>
                                 <p>
                                     Add a name (real or made-up), pick a reading level and art style, choose a theme and optional
@@ -148,7 +168,16 @@ const LandingPage = () => {
                             </div>
                             <div className="step">
                                 <div className="step-number">2</div>
-                                <div className="step-icon">🧙‍♂️</div>
+
+                                <div className="step-icon">
+                                    <img
+                                        className="step-icon-img"
+                                        src={magicIcon}
+                                        alt="Our magic happens"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <h3>Our Magic Happens</h3>
                                 <p>
                                     Our storytellers craft a unique tale personalized for the hero you choose, weaving in their
@@ -157,7 +186,17 @@ const LandingPage = () => {
                             </div>
                             <div className="step">
                                 <div className="step-number">3</div>
-                                <div className="step-icon">📖</div>
+
+                                <div className="step-icon">
+                                    <img
+                                        className="step-icon-img"
+                                        src={readIcon}
+                                        alt="Read together"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
+
                                 <h3>Read Together</h3>
                                 <p>
                                     Enjoy a special moment with a story that speaks to them—whether they’re starring as themselves
@@ -172,35 +211,73 @@ const LandingPage = () => {
                 <section className="section parents-section">
                     <div className={`section-content ${isVisible.parents ? "fade-in" : ""}`}>
                         <h2 className="section-title">Parents Love Starlit Stories</h2>
+
                         <div className="parents-grid">
                             <div className="parent-card">
-                                <div className="parent-icon">⏰</div>
+                                <div className="parent-icon">
+                                    <img
+                                        className="parent-icon-img"
+                                        src={timeIcon}
+                                        alt="Save precious time"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <h3>Save Precious Time</h3>
                                 <p>
                                     Create beautiful bedtime stories in minutes, not hours. Perfect for busy parents who still want
                                     quality bedtime moments.
                                 </p>
                             </div>
+
                             <div className="parent-card">
-                                <div className="parent-icon">🔄</div>
+                                <div className="parent-icon">
+                                    <img
+                                        className="parent-icon-img"
+                                        src={refreshIcon}
+                                        alt="Always fresh content"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <h3>Always Fresh Content</h3>
                                 <p>
                                     No more reading the same books over and over. Create new stories whenever you want, keeping
                                     bedtime exciting.
                                 </p>
                             </div>
+
                             <div className="parent-card">
-                                <div className="parent-icon">💡</div>
+                                <div className="parent-icon">
+                                    <img
+                                        className="parent-icon-img"
+                                        src={ideaIcon}
+                                        alt="Educational value"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <h3>Educational Value</h3>
                                 <p>
                                     Stories can include educational themes and valuable life lessons tailored to what you want your
                                     child to learn.
                                 </p>
                             </div>
+
                             <div className="parent-card">
-                                <div className="parent-icon">❤️</div>
+                                <div className="parent-icon">
+                                    <img
+                                        className="parent-icon-img"
+                                        src={heartIcon}
+                                        alt="Strengthen bonds"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <h3>Strengthen Bonds</h3>
-                                <p>Create special moments you’ll both remember with stories that star your child—or any hero they imagine.</p>
+                                <p>
+                                    Create special moments you’ll both remember with stories that star your child—or any hero they imagine.
+                                </p>
                             </div>
                         </div>
                     </div>

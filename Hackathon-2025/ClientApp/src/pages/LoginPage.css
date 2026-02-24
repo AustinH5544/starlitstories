@@ -25,6 +25,30 @@
     display: block;
 }
 
+.step-icon-img {
+    width: 70px;
+    height: 70px;
+    max-width: 70px;
+    max-height: 70px;
+    object-fit: contain;
+    display: block;
+    margin: 8px auto 12px;
+    /* optional polish */
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+.parent-icon-img {
+    width: 70px;
+    height: 70px;
+    max-width: 70px;
+    max-height: 70px;
+    object-fit: contain;
+    display: block;
+    margin: 8px auto 12px;
+    /* optional polish */
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
 .login-page .stars {
     background: #0c1445 url("/stars.jpg") no-repeat center center;
     background-size: cover;
