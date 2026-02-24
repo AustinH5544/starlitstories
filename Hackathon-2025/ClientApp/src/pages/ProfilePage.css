@@ -365,6 +365,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
+    min-width: 0;
 }
 
 .detail-label {
@@ -377,11 +378,7 @@
     font-size: 1.1rem;
     color: white;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 195px; /* adjust width to fit your layout */
-    display: block;
+    word-break: break-word;
 }
 
 /* Profile Actions */
