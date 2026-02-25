@@ -5,7 +5,7 @@ import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { createPortal } from "react-dom";
 import "./NavBar.css"
-import sparkleIcon from "../assets/ui-icons/sparkle2.png"
+import sparkleIcon from "../assets/ui-icons/icon4.png"
 
 const NavBar = () => {
     const { user, logout } = useAuth()
