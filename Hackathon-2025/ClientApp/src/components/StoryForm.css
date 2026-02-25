@@ -33,6 +33,13 @@
     object-fit: contain;
 }
 
+.button-icon-img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    display: block;
+}
+
 .section-title {
     display: flex;
     align-items: center;

@@ -8,6 +8,7 @@ import themeIcon from "../assets/ui-icons/theme.png"
 import lessonIcon from "../assets/ui-icons/lesson.png"
 import readingIcon from "../assets/ui-icons/reading.png"
 import personIcon from "../assets/ui-icons/person.png"
+import sparkleIcon from "../assets/ui-icons/sparkle.png"
 //import animalIcon from "../assets/ui-icons/animal.png"
 
 const normalizeDescFields = (df = {}) => {
@@ -696,7 +697,14 @@ const StoryForm = ({ onSubmit }) => {
                 )}
 
                 <button type="submit" className="generate-story-btn">
-                    <span className="button-icon">✨</span>
+                    <span className="button-icon">
+                        <img
+                            src={sparkleIcon}
+                            alt=""
+                            aria-hidden="true"
+                            className="button-icon-img"
+                        />
+                    </span>
                     <span>Generate My Story</span>
                 </button>
             </div>

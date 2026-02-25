@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { createPortal } from "react-dom";
 import "./NavBar.css"
+import sparkleIcon from "../assets/ui-icons/sparkle2.png"
 
 const NavBar = () => {
     const { user, logout } = useAuth()
@@ -87,7 +88,15 @@ const NavBar = () => {
                 <div className="nav-left">
                     <Link to="/" className="logo-link">
                         <span className="logo">Starlit Stories</span>
-                        <span className="logo-icon">✨</span>
+
+                        <span className="logo-icon">
+                            <img
+                                src={sparkleIcon}
+                                alt=""
+                                aria-hidden="true"
+                                className="logo-icon-img"
+                            />
+                        </span>
                     </Link>
                 </div>
 
