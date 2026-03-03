@@ -21,9 +21,9 @@ public class StoryController : ControllerBase
     private readonly IProgressBroker _progress;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOptionsSnapshot<StoryOptions> _storyOpts;
-
     private readonly IQuotaService _quota;
     private readonly IPeriodService _period;
+    private readonly ILogger<StoryController> _logger;
 
     public StoryController(
         IStoryGeneratorService storyService,
@@ -33,7 +33,8 @@ public class StoryController : ControllerBase
         IServiceScopeFactory scopeFactory,
         IOptionsSnapshot<StoryOptions> storyOpts,
         IQuotaService quota,
-        IPeriodService period)
+        IPeriodService period,
+        ILogger<StoryController> logger)
     {
         _storyService = storyService;
         _db = db;
@@ -43,6 +44,7 @@ public class StoryController : ControllerBase
         _storyOpts = storyOpts;
         _quota = quota;
         _period = period;
+        _logger = logger;
     }
 
     [Authorize]
@@ -256,7 +258,8 @@ public class StoryController : ControllerBase
             }
             catch (Exception ex)
             {
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "error", Percent = 100, Message = $"Failed: {ex.Message}", Done = true });
+                _logger.LogError(ex, "Story generation job {JobId} failed", jobId);
+                _progress.Publish(jobId, new ProgressUpdate { Stage = "error", Percent = 100, Message = "Something went wrong while creating your story. Please try again.", Done = true });
             }
             finally
             {

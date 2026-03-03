@@ -108,6 +108,9 @@ const CreatePage = () => {
                         await runSSE(jobId);
                         return;
                     } catch (sseErr) {
+                        // If the backend already reported a failure, don't poll — the error is already set.
+                        if (finalizedRef.current) return;
+
                         console.warn("SSE dropped after job started; polling result:", sseErr);
                         const result = await pollResult(jobId, 120000, 1000);
                         if (result) {
@@ -171,6 +174,17 @@ const CreatePage = () => {
                 try {
                     const data = JSON.parse(evt.data || "{}");
                     if (data.message) setProgressHint(data.message);
+
+                    // Backend sent an explicit error event — surface the real message.
+                    if (data.stage === "error") {
+                        if (finalizedRef.current) return;
+                        finalizedRef.current = true;
+                        safeClose(es);
+                        esRef.current = null;
+                        setError(data.message || "Story generation failed. Please try again.");
+                        reject(new Error(data.message || "backend error"));
+                        return;
+                    }
 
                     const markDoneOnce = async () => {
                         if (finalizedRef.current) return;
