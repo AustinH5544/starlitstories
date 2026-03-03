@@ -77,43 +77,52 @@ public class StoryController : ControllerBase
             throw;
         }
 
-        // Upload cover
-        var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
-        var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl!, coverFileName);
-        result = result with { CoverImageUrl = coverBlobUrl };
-
-        // Upload page images
-        var pages = result.Pages.ToList();
-        var uploadTasks = pages.Select(async (p, i) =>
+        // Upload images and persist — refund add-on if anything here fails
+        try
         {
-            if (!string.IsNullOrEmpty(p.ImageUrl))
+            // Upload cover
+            var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
+            var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl!, coverFileName);
+            result = result with { CoverImageUrl = coverBlobUrl };
+
+            // Upload page images
+            var pages = result.Pages.ToList();
+            var uploadTasks = pages.Select(async (p, i) =>
             {
-                var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
-                var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
-                pages[i] = p with { ImageUrl = blobUrl };
-            }
-        }).ToList();
-        await Task.WhenAll(uploadTasks);
+                if (!string.IsNullOrEmpty(p.ImageUrl))
+                {
+                    var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
+                    var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
+                    pages[i] = p with { ImageUrl = blobUrl };
+                }
+            }).ToList();
+            await Task.WhenAll(uploadTasks);
 
-        // Persist story (requires ImagePrompt)
-        var story = new Story
+            // Persist story (requires ImagePrompt)
+            var story = new Story
+            {
+                Title = result.Title,
+                CoverImageUrl = result.CoverImageUrl,
+                CreatedAt = now,
+                UserId = user.Id,
+                Pages = pages
+                    .Select(p => new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl })
+                    .ToList()
+            };
+
+            _db.Stories.Add(story);
+            user.BooksGenerated += 1;
+            await _db.SaveChangesAsync();
+
+            // Return final (with blob URLs)
+            var finalResult = result with { Pages = pages };
+            return Ok(finalResult);
+        }
+        catch
         {
-            Title = result.Title,
-            CoverImageUrl = result.CoverImageUrl,
-            CreatedAt = now,
-            UserId = user.Id,
-            Pages = pages
-                .Select(p => new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl })
-                .ToList()
-        };
-
-        _db.Stories.Add(story);
-        user.BooksGenerated += 1;
-        await _db.SaveChangesAsync();
-
-        // Return final (with blob URLs)
-        var finalResult = result with { Pages = pages };
-        return Ok(finalResult);
+            if (capacity.usedAddOn) await RefundReservedAddOnAsync(user);
+            throw;
+        }
     }
 
     [Authorize]
@@ -183,58 +192,67 @@ public class StoryController : ControllerBase
                     throw;
                 }
 
-                // Upload cover
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "image", Percent = 30, Message = "Preparing images…", Index = 0, Total = result.Pages.Count });
-
-                var coverFileName = $"{sUser.Email}-cover-{Guid.NewGuid()}.png";
-                var coverBlobUrl = await scopedBlob.UploadImageAsync(result.CoverImageUrl!, coverFileName);
-                result = result with { CoverImageUrl = coverBlobUrl };
-
-                // Upload page images with progress
-                var pages = result.Pages.ToList();
-                var total = Math.Max(1, pages.Count);
-                for (int i = 0; i < pages.Count; i++)
+                // Upload images and persist — refund add-on if anything here fails
+                try
                 {
-                    if (!string.IsNullOrEmpty(pages[i].ImageUrl))
+                    // Upload cover
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "image", Percent = 30, Message = "Preparing images…", Index = 0, Total = result.Pages.Count });
+
+                    var coverFileName = $"{sUser.Email}-cover-{Guid.NewGuid()}.png";
+                    var coverBlobUrl = await scopedBlob.UploadImageAsync(result.CoverImageUrl!, coverFileName);
+                    result = result with { CoverImageUrl = coverBlobUrl };
+
+                    // Upload page images with progress
+                    var pages = result.Pages.ToList();
+                    var total = Math.Max(1, pages.Count);
+                    for (int i = 0; i < pages.Count; i++)
                     {
-                        var pageFileName = $"{sUser.Email}-page-{i}-{Guid.NewGuid()}.png";
-                        var blobUrl = await scopedBlob.UploadImageAsync(pages[i].ImageUrl!, pageFileName);
-                        pages[i] = pages[i] with { ImageUrl = blobUrl };
+                        if (!string.IsNullOrEmpty(pages[i].ImageUrl))
+                        {
+                            var pageFileName = $"{sUser.Email}-page-{i}-{Guid.NewGuid()}.png";
+                            var blobUrl = await scopedBlob.UploadImageAsync(pages[i].ImageUrl!, pageFileName);
+                            pages[i] = pages[i] with { ImageUrl = blobUrl };
+                        }
+
+                        var pct = 30 + (int)Math.Round(((i + 1) / (double)total) * 65); // 30 → 95
+                        _progress.Publish(jobId, new ProgressUpdate
+                        {
+                            Stage = "image",
+                            Percent = Math.Min(95, pct),
+                            Message = $"Generating images {i + 1}/{total}…",
+                            Index = i + 1,
+                            Total = total
+                        });
                     }
 
-                    var pct = 30 + (int)Math.Round(((i + 1) / (double)total) * 65); // 30 → 95
-                    _progress.Publish(jobId, new ProgressUpdate
+                    // Save to DB
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "db", Percent = 97, Message = "Saving your story…" });
+
+                    var story = new Story
                     {
-                        Stage = "image",
-                        Percent = Math.Min(95, pct),
-                        Message = $"Generating images {i + 1}/{total}…",
-                        Index = i + 1,
-                        Total = total
-                    });
+                        Title = result.Title,
+                        CoverImageUrl = result.CoverImageUrl,
+                        CreatedAt = DateTime.UtcNow,
+                        UserId = sUser.Id,
+                        Pages = pages
+                            .Select(p => new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl })
+                            .ToList()
+                    };
+
+                    scopedDb.Stories.Add(story);
+                    sUser.BooksGenerated += 1;
+                    await scopedDb.SaveChangesAsync();
+
+                    var finalResult = result with { Pages = pages };
+
+                    _progress.SetResult(jobId, finalResult);
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "done", Percent = 100, Message = "Done!", Done = true });
                 }
-
-                // Save to DB
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "db", Percent = 97, Message = "Saving your story…" });
-
-                var story = new Story
+                catch
                 {
-                    Title = result.Title,
-                    CoverImageUrl = result.CoverImageUrl,
-                    CreatedAt = DateTime.UtcNow,
-                    UserId = sUser.Id,
-                    Pages = pages
-                        .Select(p => new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl })
-                        .ToList()
-                };
-
-                scopedDb.Stories.Add(story);
-                sUser.BooksGenerated += 1;
-                await scopedDb.SaveChangesAsync();
-
-                var finalResult = result with { Pages = pages };
-
-                _progress.SetResult(jobId, finalResult);
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "done", Percent = 100, Message = "Done!", Done = true });
+                    if (canProceed.usedAddOn) await RefundReservedAddOnAsyncScoped(scopedDb, sUser);
+                    throw;
+                }
             }
             catch (Exception ex)
             {
