@@ -5,6 +5,9 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import "./LandingPage.css"
 
+import instagramIcon from "../assets/social/instagram.png";
+import facebookIcon from "../assets/social/facebook.png";
+import twitterIcon from "../assets/social/twitter.png";
 
 import writeIcon from "../assets/step-icons/write.png";
 import magicIcon from "../assets/step-icons/magic.png"
@@ -417,10 +420,35 @@ const LandingPage = () => {
                         <div className="footer-column">
                             <h4>Connect</h4>
                             <div className="social-links">
-                                <a href="#" className="social-link">📱</a>
-                                <a href="#" className="social-link">📘</a>
-                                <a href="#" className="social-link">📸</a>
-                                <a href="#" className="social-link">🐦</a>
+                                <a
+                                    href="https://instagram.com/yourhandle"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="social-link"
+                                    aria-label="Instagram"
+                                >
+                                    <img src={instagramIcon} alt="Instagram" className="social-icon" />
+                                </a>
+
+                                <a
+                                    href="https://facebook.com/yourpage"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="social-link"
+                                    aria-label="Facebook"
+                                >
+                                    <img src={facebookIcon} alt="Facebook" className="social-icon" />
+                                </a>
+
+                                <a
+                                    href="https://twitter.com/yourhandle"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="social-link"
+                                    aria-label="Twitter"
+                                >
+                                    <img src={twitterIcon} alt="Twitter" className="social-icon" />
+                                </a>
                             </div>
                         </div>
                     </div>

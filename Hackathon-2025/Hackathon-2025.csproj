@@ -39,4 +39,8 @@
       </PackageReference>
     </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ClientApp\src\assets\social\" />
+  </ItemGroup>
+
 </Project>

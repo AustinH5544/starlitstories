@@ -696,6 +696,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
+    align-items: center;
     gap: 3rem;
 }
 
@@ -716,14 +717,19 @@
         max-width: 300px;
     }
 
+/* Links Wrapper */
 .footer-links {
     display: flex;
     flex-wrap: wrap;
     gap: 3rem;
 }
 
+/* Individual Columns */
 .footer-column {
-    min-width: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 }
 
     .footer-column h4 {
@@ -732,6 +738,7 @@
         position: relative;
     }
 
+        /* Centered purple underline */
         .footer-column h4:after {
             content: "";
             position: absolute;
@@ -739,41 +746,62 @@
             height: 2px;
             background: #a18cd1;
             bottom: -8px;
-            left: 0;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
-    .footer-column a {
+    .footer-column > a:not(.social-link) {
         display: block;
         color: rgba(255, 255, 255, 0.7);
         margin-bottom: 0.8rem;
         transition: color 0.2s ease;
     }
 
+        .footer-column > a:not(.social-link):hover {
+            color: white;
+        }
+
         .footer-column a:hover {
             color: white;
         }
 
+/* Social Icons */
 .social-links {
     display: flex;
-    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
 }
 
 .social-link {
-    width: 40px;
-    height: 40px;
-    background: rgba(255, 255, 255, 0.1);
+    width: 42px;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.08);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+    margin-bottom: 0;
+    text-decoration: none;
 }
 
-    .social-link:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: translateY(-3px);
-    }
+/* PNG sizing */
+.social-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
 
+/* Golden Glow Hover */
+.social-link:hover {
+    transform: translateY(-4px) scale(1.05);
+    background: rgba(255, 215, 120, 0.12);
+    box-shadow: 0 0 8px rgba(255, 215, 120, 0.6), 0 0 18px rgba(255, 215, 120, 0.4);
+}
+
+/* Footer Bottom */
 .footer-bottom {
     max-width: 1200px;
     margin: 3rem auto 0;

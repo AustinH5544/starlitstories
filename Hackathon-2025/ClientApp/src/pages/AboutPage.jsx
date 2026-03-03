@@ -4,6 +4,10 @@ import { useState, useEffect } from "react"
 import "./LandingPage.css";
 import "./AboutPage.css"
 
+import instagramIcon from "../assets/social/instagram.png";
+import facebookIcon from "../assets/social/facebook.png";
+import twitterIcon from "../assets/social/twitter.png";
+
 const teamMembers = [
     {
         name: "Tyler Woody",
@@ -296,28 +300,53 @@ const AboutPage = () => {
                     </div>
 
                     <div className="footer-links">
-                        <div className="footer-column">
-                            <h4>Company</h4>
-                            <a href="/about">About Us</a>
-                            <a href="/contact">Contact</a>
-                            <a href="/privacy">Privacy Policy</a>
-                            <a href="/terms">Terms of Service</a>
-                        </div>
+                        {/*<div className="footer-column">*/}
+                        {/*    <h4>Company</h4>*/}
+                        {/*    <a href="/about">About Us</a>*/}
+                        {/*    <a href="/contact">Contact</a>*/}
+                        {/*    <a href="/privacy">Privacy Policy</a>*/}
+                        {/*    <a href="/terms">Terms of Service</a>*/}
+                        {/*</div>*/}
 
-                        <div className="footer-column">
-                            <h4>Resources</h4>
-                            <a href="/blog">Blog</a>
-                            <a href="/faq">FAQ</a>
-                            <a href="/support">Support</a>
-                        </div>
+                        {/*<div className="footer-column">*/}
+                        {/*    <h4>Resources</h4>*/}
+                        {/*    <a href="/blog">Blog</a>*/}
+                        {/*    <a href="/faq">FAQ</a>*/}
+                        {/*    <a href="/support">Support</a>*/}
+                        {/*</div>*/}
 
                         <div className="footer-column">
                             <h4>Connect</h4>
                             <div className="social-links">
-                                <a href="#" className="social-link">📱</a>
-                                <a href="#" className="social-link">📘</a>
-                                <a href="#" className="social-link">📸</a>
-                                <a href="#" className="social-link">🐦</a>
+                                <a
+                                    href="https://instagram.com/yourhandle"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="social-link"
+                                    aria-label="Instagram"
+                                >
+                                    <img src={instagramIcon} alt="Instagram" className="social-icon" />
+                                </a>
+
+                                <a
+                                    href="https://facebook.com/yourpage"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="social-link"
+                                    aria-label="Facebook"
+                                >
+                                    <img src={facebookIcon} alt="Facebook" className="social-icon" />
+                                </a>
+
+                                <a
+                                    href="https://twitter.com/yourhandle"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="social-link"
+                                    aria-label="Twitter"
+                                >
+                                    <img src={twitterIcon} alt="Twitter" className="social-icon" />
+                                </a>
                             </div>
                         </div>
                     </div>
