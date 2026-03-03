@@ -171,6 +171,7 @@ namespace Hackathon_2025.Controllers
             }
         }
 
+
         [Authorize]
         [HttpGet("subscription")]
         public async Task<IActionResult> GetSubscription()
@@ -300,14 +301,26 @@ WHEN NOT MATCHED THEN
 
                     if (!string.IsNullOrEmpty(planKey))
                     {
+                        var isUpgradingFromFree = user.Membership == MembershipPlan.Free &&
+                                                  !string.Equals(planKey, "free", StringComparison.OrdinalIgnoreCase);
+
                         user.PlanKey = planKey;
                         if (TryMapPlanKeyToMembership(planKey, out var mapped))
-                        {
                             user.Membership = mapped;
-                        }
                         else
-                        {
                             _log.LogWarning("Webhook {EventId}: Unrecognized planKey '{PlanKey}'. Membership unchanged.", eventId, planKey);
+
+                        if (isUpgradingFromFree)
+                        {
+                            if (user.BooksGenerated == 0)
+                            {
+                                // Free story was never used — carry it over as an add-on credit
+                                user.AddOnBalance += 1;
+                                _log.LogInformation("Webhook {EventId}: carried over unused free credit for user {UserId}.", eventId, user.Id);
+                            }
+                            // Reset per-period counters so paid quota starts fresh
+                            user.BooksGenerated = 0;
+                            user.AddOnSpentThisPeriod = 0;
                         }
                     }
 
