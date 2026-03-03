@@ -10,6 +10,20 @@ import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 import { publicBase } from "../utils/urls";
 
+import emailIcon from "../assets/ui-icons/email.png";
+import membershipIcon from "../assets/ui-icons/membership-star.png";
+import calendarIcon from "../assets/ui-icons/calendar.png";
+import boxIcon from "../assets/ui-icons/box.png";
+
+import sparkleIcon from "../assets/ui-icons/sparkle3.png";
+import rocketIcon from "../assets/ui-icons/rocket.png";
+import toolsIcon from "../assets/ui-icons/tools.png";
+import cartIcon from "../assets/ui-icons/cart.png";
+
+import bookIcon from "../assets/ui-icons/book.png";
+import booksIcon from "../assets/ui-icons/books.png";
+import starIcon from "../assets/ui-icons/star.png";
+
 const normalizeMembership = (value) => {
     if (value === null || value === undefined) return "free";
     if (typeof value === "string") return value.toLowerCase();
@@ -523,7 +537,15 @@ const ProfilePage = () => {
 
                 <div className="profile-details">
                     <div className="detail-card">
-                        <div className="detail-icon">📧</div>
+                        <div className="detail-icon">
+                            <img
+                                className="detail-icon-img"
+                                src={emailIcon}
+                                alt="Email"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
                         <div className="detail-content">
                             <span className="detail-label">Email</span>
                             <span className="detail-value">{user.email}</span>
@@ -531,7 +553,15 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="detail-card">
-                        <div className="detail-icon">⭐</div>
+                        <div className="detail-icon">
+                            <img
+                                className="detail-icon-img"
+                                src={membershipIcon}
+                                alt="Membership"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
                         <div className="detail-content">
                             <span className="detail-label">Membership</span>
                             <span className="detail-value">{membershipLabel}</span>
@@ -540,7 +570,15 @@ const ProfilePage = () => {
 
                     {isPaid && (
                         <div className="detail-card">
-                            <div className="detail-icon">🗓️</div>
+                            <div className="detail-icon">
+                                <img
+                                    className="detail-icon-img"
+                                    src={calendarIcon}
+                                    alt="Renewal date"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
                             <div className="detail-content">
                                 <span className="detail-label">{renewalLabel}</span>
                                 <span className="detail-value">{renewalValue}</span>
@@ -548,16 +586,23 @@ const ProfilePage = () => {
                         </div>
                     )}
 
-                    {/* NEW: Stories Remaining (from /users/me/usage) */}
+                    {/* Stories Remaining (from /users/me/usage) */}
                     <div className="detail-card">
-                        <div className="detail-icon">📦</div>
+                        <div className="detail-icon">
+                            <img
+                                className="detail-icon-img"
+                                src={boxIcon}
+                                alt="Stories remaining"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
                         <div className="detail-content">
                             <span className="detail-label">Stories Remaining</span>
                             <span className="detail-value">
-                                {usageLoading ? "…" :
-                                    usageError ? "—" :
-                                        (usage?.remaining ?? "—")}
+                                {usageLoading ? "…" : usageError ? "—" : (usage?.remaining ?? "—")}
                             </span>
+
                             {!usageLoading && usage && (
                                 <div className="detail-subtext">
                                     Base: {usage.baseRemaining} • Extras: {usage.addOnBalance}
@@ -569,19 +614,46 @@ const ProfilePage = () => {
 
                 <div className="profile-actions">
                     <button onClick={() => navigate("/create")} className="create-story-btn">
-                        <span className="button-icon">✨</span>
+                        <span className="button-icon">
+                            <img
+                                className="button-icon-img"
+                                src={sparkleIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
                         <span>Create New Story</span>
                     </button>
 
                     {membershipKey === "free" ? (
                         <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
-                            <span className="button-icon">🚀</span>
+                            <span className="button-icon">
+                                <img
+                                    className="button-icon-img"
+                                    src={rocketIcon}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </span>
                             <span>Upgrade Plan</span>
                         </button>
                     ) : (
                         <div className="membership-actions">
                             <button className="manage-plan-btn" disabled={working} onClick={openBillingPortal}>
-                                <span className="button-icon">🛠️</span>
+                                <span className="button-icon">
+                                    <img
+                                        className="button-icon-img"
+                                        src={toolsIcon}
+                                        alt=""
+                                        aria-hidden="true"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </span>
                                 <span>{working ? "Opening..." : "Change Plan"}</span>
                             </button>
                         </div>
@@ -592,7 +664,16 @@ const ProfilePage = () => {
                 {isPremium && !usageLoading && usage?.remaining === 0 && (
                     <div className="addons-compact">
                         <h2 className="section-title">
-                            <span className="section-icon">🛒</span>
+                            <span className="section-icon">
+                                <img
+                                    className="section-icon-img"
+                                    src={cartIcon}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </span>
                             Buy Extra Stories
                         </h2>
 
@@ -666,7 +747,16 @@ const ProfilePage = () => {
 
                 <div className="stories-section">
                     <h2 className="section-title">
-                        <span className="section-icon">📖</span>
+                        <span className="section-icon">
+                            <img
+                                className="section-icon-img"
+                                src={bookIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
                         Your Story Collection
                     </h2>
 
@@ -676,15 +766,35 @@ const ProfilePage = () => {
                             <p className="loading-text">Loading your magical stories...</p>
                         </div>
                     ) : stories.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-icon">📚</div>
-                            <h3>No stories yet!</h3>
-                            <p>Start your storytelling journey by creating your first magical adventure.</p>
-                            <button onClick={() => navigate("/create")} className="create-first-story-btn">
-                                <span className="button-icon">🌟</span>
-                                <span>Create Your First Story</span>
-                            </button>
-                        </div>
+                            <div className="empty-state">
+                                <div className="empty-icon">
+                                    <img
+                                        className="empty-icon-img"
+                                        src={booksIcon}
+                                        alt=""
+                                        aria-hidden="true"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
+
+                                <h3>No stories yet!</h3>
+                                <p>Start your storytelling journey by creating your first magical adventure.</p>
+
+                                <button onClick={() => navigate("/create")} className="create-first-story-btn">
+                                    <span className="button-icon">
+                                        <img
+                                            className="button-icon-img"
+                                            src={starIcon}
+                                            alt=""
+                                            aria-hidden="true"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </span>
+                                    <span>Create Your First Story</span>
+                                </button>
+                            </div>
                     ) : (
                         <>
                             <div className="story-grid">

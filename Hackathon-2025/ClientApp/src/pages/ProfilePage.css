@@ -1040,3 +1040,25 @@
 .addon-row {
     overflow: visible;
 }
+
+.detail-icon-img,
+.button-icon-img,
+.section-icon-img,
+.empty-icon-img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+}
+
+/* Buttons usually look better slightly smaller */
+.button-icon-img {
+    width: 44px;
+    height: 44px;
+}
+
+/* Optional: tighten alignment for icon+text headers */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
