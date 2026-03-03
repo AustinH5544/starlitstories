@@ -296,7 +296,7 @@ const LandingPage = () => {
                                 <div className="testimonial-stars">★★★★★</div>
                                 <p className="testimonial-text">"Review Placeholder"</p>
                                 <div className="testimonial-author">
-                                    <img src="/parent.jpg" alt="Parent" className="testimonial-avatar" />
+                                    <img src="/parent1.jpg" alt="Parent" className="testimonial-avatar" />
                                     <div>
                                         <p className="testimonial-name">Sarah T.</p>
                                         <p className="testimonial-relation">Mom of Emma, 5</p>
@@ -308,7 +308,7 @@ const LandingPage = () => {
                                 <div className="testimonial-stars">★★★★★</div>
                                 <p className="testimonial-text">"Review Placeholder"</p>
                                 <div className="testimonial-author">
-                                    <img src="/parent1.png" alt="Parent" className="testimonial-avatar" />
+                                    <img src="/parent.png" alt="Parent" className="testimonial-avatar" />
                                     <div>
                                         <p className="testimonial-name">Michael R.</p>
                                         <p className="testimonial-relation">Dad of James, 6</p>
