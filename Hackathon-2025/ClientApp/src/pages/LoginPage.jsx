@@ -9,6 +9,12 @@ import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
 import useWarmup from "../hooks/useWarmup";
 
+import savedStoriesIcon from "../assets/ui-icons/books.png";
+import sparkleIcon from "../assets/ui-icons/sparkle4.png";
+import familyIcon from "../assets/ui-icons/family1.png";
+
+import crystalBallIcon from "../assets/ui-icons/crystal-ball.png";
+
 const SESSION_KEY = "needsVerification"
 
 const LoginPage = () => {
@@ -210,7 +216,20 @@ const LoginPage = () => {
                     )}
 
                     <button type="submit" className="login-button" disabled={isLoading}>
-                        <span className="button-icon">{isLoading ? "⏳" : "🔮"}</span>
+                        <span className="button-icon">
+                            {isLoading ? (
+                                <span className="btn-spinner" aria-hidden="true" />
+                            ) : (
+                                <img
+                                    className="button-icon-img"
+                                    src={crystalBallIcon}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            )}
+                        </span>
                         <span>{isLoading ? `Signing in${dots}` : "Sign In"}</span>
                     </button>
                 </form>
@@ -221,9 +240,47 @@ const LoginPage = () => {
                 </div>
 
                 <div className="login-features">
-                    <div className="feature-item"><span className="feature-icon">📚</span><span>Access your saved stories</span></div>
-                    <div className="feature-item"><span className="feature-icon">✨</span><span>Continue creating magic</span></div>
-                    <div className="feature-item"><span className="feature-icon">👨‍👩‍👧‍👦</span><span>Share with your family</span></div>
+                    <div className="feature-item">
+                        <span className="feature-icon">
+                            <img
+                                className="feature-icon-img"
+                                src={savedStoriesIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
+                        <span>Access your saved stories</span>
+                    </div>
+
+                    <div className="feature-item">
+                        <span className="feature-icon">
+                            <img
+                                className="feature-icon-img"
+                                src={sparkleIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
+                        <span>Continue creating magic</span>
+                    </div>
+
+                    <div className="feature-item">
+                        <span className="feature-icon">
+                            <img
+                                className="feature-icon-img"
+                                src={familyIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
+                        <span>Share with your family</span>
+                    </div>
                 </div>
             </div>
         </div>
