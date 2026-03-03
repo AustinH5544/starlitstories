@@ -387,37 +387,31 @@ const AboutPage = () => {
                         {/*    <a href="/support">Support</a>*/}
                         {/*</div>*/}
 
-                        <div className="footer-column">
-                            <h4>Connect</h4>
-                            <div className="social-links">
-                                <a
-                                    href="https://instagram.com/yourhandle"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="social-link"
-                                    aria-label="Instagram"
-                                >
-                                    <img src={instagramIcon} alt="Instagram" className="social-icon" />
-                                </a>
+                        <div className="footer-links">
+                            <div className="footer-column">
+                                <h4>Connect</h4>
+                                <div className="social-links">
+                                    <a href="https://instagram.com/yourhandle" target="_blank" rel="noopener noreferrer"
+                                        className="social-link" aria-label="Instagram">
+                                        <img src={instagramIcon} alt="Instagram" className="social-icon" />
+                                    </a>
 
-                                <a
-                                    href="https://facebook.com/yourpage"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="social-link"
-                                    aria-label="Facebook"
-                                >
-                                    <img src={facebookIcon} alt="Facebook" className="social-icon" />
-                                </a>
+                                    <a href="https://facebook.com/yourpage" target="_blank" rel="noopener noreferrer"
+                                        className="social-link" aria-label="Facebook">
+                                        <img src={facebookIcon} alt="Facebook" className="social-icon" />
+                                    </a>
 
-                                <a
-                                    href="https://twitter.com/yourhandle"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="social-link"
-                                    aria-label="Twitter"
-                                >
-                                    <img src={twitterIcon} alt="Twitter" className="social-icon" />
+                                    <a href="https://twitter.com/yourhandle" target="_blank" rel="noopener noreferrer"
+                                        className="social-link" aria-label="Twitter">
+                                        <img src={twitterIcon} alt="Twitter" className="social-icon" />
+                                    </a>
+                                </div>
+                            </div>
+
+                            <div className="footer-column contact-column">
+                                <h4>Need help?</h4>
+                                <a href="mailto:support@starlitstories.com" className="footer-email">
+                                    support@starlitstories.com
                                 </a>
                             </div>
                         </div>

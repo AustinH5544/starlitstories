@@ -722,7 +722,9 @@
     display: flex;
     flex-wrap: wrap;
     gap: 3rem;
+    align-items: flex-start;
 }
+
 
 /* Individual Columns */
 .footer-column {
@@ -1104,3 +1106,19 @@
 .gradient-block {
     background: linear-gradient( 135deg, #f4efff 0%, #faf8ff 50%, #ffffff 100% );
 }
+
+.contact-info {
+    margin-top: 12px;
+    font-size: 0.9rem;
+}
+
+.footer-email {
+    color: #d6c5ff; /* soft lavender */
+    text-decoration: none;
+    margin-top: 20px;
+    transition: opacity 0.2s ease;
+}
+
+    .footer-email:hover {
+        opacity: 0.7;
+    }
