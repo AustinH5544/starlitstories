@@ -588,8 +588,8 @@ const ProfilePage = () => {
                     )}
                 </div>
 
-                {/* Premium-only Buy Credits (compact, styled dropdown) */}
-                {isPremium && (
+                {/* Premium-only Buy Credits — only shown when the user is out of stories */}
+                {isPremium && !usageLoading && usage?.remaining === 0 && (
                     <div className="addons-compact">
                         <h2 className="section-title">
                             <span className="section-icon">🛒</span>
