@@ -438,3 +438,16 @@
     .form button:hover {
         background-color: #45a049;
     }
+
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.feature-icon-img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
