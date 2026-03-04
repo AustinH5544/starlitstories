@@ -1,16 +1,14 @@
 ﻿import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { publicBase } from "../utils/urls";
 import PropTypes from "prop-types";
 import "./StoryCard.css";
 
 export default function StoryCard({
     story,
-    canDownload,                // boolean (e.g., user?.membership === 'pro' || 'premium')
-    onShare,                     // (story) => void
-    onDownload,                  // (story, format) => Promise<void>
-    onDelete,                    // (storyId) => Promise<void>
-    onOpen,                      // optional: open viewer (story) => void
+    canDownload,
+    onShare,
+    onDownload,
+    onDelete,
+    onOpen,
     canCustomize,
     onCustomize,
 }) {
@@ -18,16 +16,29 @@ export default function StoryCard({
     const [downloading, setDownloading] = useState(false);
     const [format, setFormat] = useState("pdf");
     const [deleting, setDeleting] = useState(false);
-    // Unify page count from either summaries (pageCount) or full stories (pages.length)
+
     const pagesCount =
         story?.pageCount ??
         story?.PageCount ??
         (Array.isArray(story?.pages) ? story.pages.length : 0);
 
+    const isGenerating = Boolean(
+        story?.isGenerating ??
+        story?.IsGenerating ??
+        (pagesCount === 0 && String(story?.title || "").toLowerCase().includes("generating"))
+    );
+
+    const displayTitle = isGenerating
+        ? (story?.title || "Your story is being generated...")
+        : (story?.title || "Untitled");
+
+    const displaySub = isGenerating
+        ? "Generating now..."
+        : `${pagesCount} pages${story?.createdAt ? ` - ${new Date(story.createdAt).toLocaleDateString()}` : ""}`;
+
     const menuRef = useRef(null);
     const btnRef = useRef(null);
 
-    // Close on outside click or ESC
     useEffect(() => {
         if (!menuOpen) return;
 
@@ -54,6 +65,7 @@ export default function StoryCard({
             alert("Download is available for Pro and Premium users.");
             return;
         }
+
         try {
             setDownloading(true);
             await onDownload?.(story, format);
@@ -68,8 +80,9 @@ export default function StoryCard({
 
     const handleDelete = async () => {
         if (deleting) return;
-        const ok = confirm(`Delete "${story?.title || "this story"}"? This cannot be undone.`);
+        const ok = confirm(`Delete \"${story?.title || "this story"}\"? This cannot be undone.`);
         if (!ok) return;
+
         try {
             setDeleting(true);
             await onDelete?.(story.id);
@@ -82,50 +95,52 @@ export default function StoryCard({
         }
     };
 
-    // guard open during delete
     const openStory = () => {
-        if (deleting) return;
+        if (deleting || isGenerating) return;
         onOpen?.(story);
     };
 
     return (
         <div
-            className={`scard ${deleting ? "is-busy" : ""}`}
+            className={`scard ${deleting ? "is-busy" : ""} ${isGenerating ? "is-generating" : ""}`}
             role="article"
-            aria-label={story?.title}
-            aria-busy={deleting ? "true" : "false"}
+            aria-label={displayTitle}
+            aria-busy={deleting || isGenerating ? "true" : "false"}
         >
-            <button className="scard-thumb" onClick={openStory} aria-label={`Open ${story?.title}`}>
+            <button
+                className="scard-thumb"
+                onClick={openStory}
+                aria-label={isGenerating ? displayTitle : `Open ${displayTitle}`}
+                disabled={isGenerating}
+            >
                 <img
                     src={story?.coverImageUrl || "/placeholder.svg"}
-                    alt={story?.title || "Story cover"}
+                    alt={displayTitle || "Story cover"}
                     loading="lazy"
                 />
+                {isGenerating && <span className="scard-generatingBadge">Generating</span>}
             </button>
 
             <div className="scard-meta" onClick={openStory}>
-                <div className="scard-title" title={story?.title}>
-                    {story?.title || "Untitled"}
+                <div className="scard-title" title={displayTitle}>
+                    {displayTitle}
                 </div>
-                <div className="scard-sub">
-                    {pagesCount} pages • {story?.createdAt ? new Date(story.createdAt).toLocaleDateString() : ""}
-                </div>
+                <div className="scard-sub">{displaySub}</div>
             </div>
 
-            {/* Kebab menu */}
             <button
                 ref={btnRef}
                 className="scard-menuBtn"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                aria-label={`Actions for ${story?.title || "story"}`}
-                disabled={deleting || downloading}
+                aria-label={`Actions for ${displayTitle || "story"}`}
+                disabled={deleting || downloading || isGenerating}
                 onClick={(e) => {
                     e.stopPropagation();
                     setMenuOpen((v) => !v);
                 }}
             >
-                ⋮
+                ...
             </button>
 
             {menuOpen && (
@@ -136,7 +151,7 @@ export default function StoryCard({
                             className="scard-menuItem"
                             onClick={() => { onCustomize?.(story); setMenuOpen(false); }}
                         >
-                            ✏️ Customize
+                            Customize
                         </button>
                     )}
                     <button
@@ -147,7 +162,7 @@ export default function StoryCard({
                             setMenuOpen(false);
                         }}
                     >
-                        📤 Share
+                        Share
                     </button>
 
                     <div
@@ -162,7 +177,7 @@ export default function StoryCard({
                                 disabled={!canDownload || downloading}
                                 onClick={handleDownload}
                             >
-                                {downloading ? "Downloading…" : "📥 Download"}
+                                {downloading ? "Downloading..." : "Download"}
                             </button>
                             <select
                                 className="scard-select"
@@ -186,7 +201,7 @@ export default function StoryCard({
                         onClick={handleDelete}
                         disabled={deleting}
                     >
-                        {deleting ? "Deleting…" : "🗑️ Delete"}
+                        {deleting ? "Deleting..." : "Delete"}
                     </button>
                 </div>
             )}
@@ -207,6 +222,8 @@ StoryCard.propTypes = {
             })
         ),
         createdAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number, PropTypes.instanceOf(Date)]),
+        isGenerating: PropTypes.bool,
+        IsGenerating: PropTypes.bool,
     }).isRequired,
     canDownload: PropTypes.bool,
     onShare: PropTypes.func,

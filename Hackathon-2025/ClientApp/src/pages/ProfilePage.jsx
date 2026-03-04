@@ -415,6 +415,40 @@ const ProfilePage = () => {
         }
     };
 
+    const hasGeneratingStory = stories.some((s) => Boolean(s?.isGenerating ?? s?.IsGenerating));
+
+    // Keep the profile list fresh while a placeholder story is still generating.
+    useEffect(() => {
+        if (!user?.email || !hasGeneratingStory) return;
+
+        let alive = true;
+        const intervalMs = 4000;
+
+        const refreshStories = async () => {
+            if (loading || loadingMore) return;
+
+            try {
+                const visibleCount = Math.max(pageSize, storiesPage * pageSize, stories.length);
+                const refreshPageSize = Math.min(50, visibleCount);
+                const { data } = await api.get(`/profile/me/stories?page=1&pageSize=${refreshPageSize}`);
+                if (!alive) return;
+
+                setStories(data.items ?? []);
+                setStoriesTotal(data.total ?? 0);
+            } catch (e) {
+                console.debug("Auto-refresh stories retry after error:", e);
+            }
+        };
+
+        refreshStories();
+        const timer = window.setInterval(refreshStories, intervalMs);
+
+        return () => {
+            alive = false;
+            window.clearInterval(timer);
+        };
+    }, [user?.email, hasGeneratingStory, stories.length, storiesPage, loading, loadingMore]);
+
     const loadImageAsBase64 = (url) => new Promise((resolve, reject) => {
         const img = new Image()
         img.crossOrigin = "anonymous"

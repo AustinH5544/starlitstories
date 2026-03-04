@@ -105,7 +105,8 @@ public class ProfileController : ControllerBase
                 s.CoverImageUrl,
                 s.CreatedAt,
                 // lightweight info about pages (counts only)
-                PageCount = s.Pages.Count
+                PageCount = s.Pages.Count,
+                IsGenerating = !s.Pages.Any()
             })
             .ToListAsync();
 
@@ -137,6 +138,7 @@ public class ProfileController : ControllerBase
                 s.Title,
                 s.CoverImageUrl,
                 s.CreatedAt,
+                IsGenerating = !s.Pages.Any(),
                 Pages = s.Pages
                     .OrderBy(p => p.Id)
                     .Select(p => new { p.Text, p.ImageUrl })
