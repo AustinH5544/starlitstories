@@ -16,19 +16,75 @@ export default function DoodlePad({
     const drawingRef = useRef(false)
     const lastPointRef = useRef(null)
     const [isReady, setIsReady] = useState(false)
-    const [currentColor, setCurrentColor] = useState("#000000")
+    const [currentColor, setCurrentColor] = useState(strokeStyle)
+    const [brushSize, setBrushSize] = useState(lineWidth)
+    const [brushType, setBrushType] = useState("pen")
+    const [canUndo, setCanUndo] = useState(false)
     const imageDataRef = useRef(null)
+    const historyRef = useRef([])
+
+    const MAX_HISTORY = 50
 
     const colors = [
         { name: "Black", value: "#000000" },
+        { name: "Gray", value: "#6B7280" },
+        { name: "Slate", value: "#334155" },
+        { name: "White", value: "#FFFFFF" },
         { name: "Blue", value: "#3B82F6" },
+        { name: "Navy", value: "#1D4ED8" },
+        { name: "Sky", value: "#0EA5E9" },
         { name: "Purple", value: "#A855F7" },
+        { name: "Violet", value: "#8B5CF6" },
         { name: "Pink", value: "#EC4899" },
+        { name: "Rose", value: "#F43F5E" },
         { name: "Red", value: "#EF4444" },
         { name: "Orange", value: "#F97316" },
+        { name: "Amber", value: "#F59E0B" },
+        { name: "Yellow", value: "#EAB308" },
         { name: "Green", value: "#10B981" },
+        { name: "Emerald", value: "#059669" },
+        { name: "Lime", value: "#84CC16" },
         { name: "Teal", value: "#14B8A6" },
+        { name: "Cyan", value: "#06B6D4" },
     ]
+
+    const brushTypes = [
+        { name: "Pen", value: "pen" },
+        { name: "Marker", value: "marker" },
+        { name: "Eraser", value: "eraser" },
+    ]
+
+    const applyBrushSettings = (ctx) => {
+        if (!ctx) return
+
+        const isEraser = brushType === "eraser"
+        const isMarker = brushType === "marker"
+        ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over"
+        ctx.globalAlpha = isMarker ? 0.45 : 1
+        ctx.lineCap = "round"
+        ctx.lineJoin = "round"
+        ctx.lineWidth = brushSize
+        ctx.strokeStyle = currentColor
+    }
+
+    const pushSnapshot = () => {
+        const ctx = ctxRef.current
+        const canvas = canvasRef.current
+        if (!ctx || !canvas) return
+        const snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        historyRef.current.push(snapshot)
+        if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift()
+        setCanUndo(historyRef.current.length > 0)
+    }
+
+    const undo = () => {
+        const ctx = ctxRef.current
+        const canvas = canvasRef.current
+        if (!ctx || !canvas || historyRef.current.length === 0) return
+        const previous = historyRef.current.pop()
+        ctx.putImageData(previous, 0, 0)
+        setCanUndo(historyRef.current.length > 0)
+    }
 
     const setupSize = () => {
         const canvas = canvasRef.current
@@ -51,10 +107,6 @@ export default function DoodlePad({
 
         const ctx = canvas.getContext("2d")
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        ctx.lineCap = "round"
-        ctx.lineJoin = "round"
-        ctx.lineWidth = lineWidth
-        ctx.strokeStyle = currentColor
 
         if (background !== "transparent") {
             ctx.fillStyle = background
@@ -66,6 +118,7 @@ export default function DoodlePad({
             ctx.putImageData(imageDataRef.current, 0, 0)
         }
 
+        applyBrushSettings(ctx)
         ctxRef.current = ctx
     }
 
@@ -84,7 +137,31 @@ export default function DoodlePad({
             ro.disconnect()
             media?.removeEventListener?.("change", onChangeDPR)
         }
-    }, [lineWidth, strokeStyle, background])
+    }, [lineWidth, strokeStyle, background, brushSize, brushType, currentColor])
+
+    useEffect(() => {
+        setCurrentColor(strokeStyle)
+    }, [strokeStyle])
+
+    useEffect(() => {
+        setBrushSize(lineWidth)
+    }, [lineWidth])
+
+    useEffect(() => {
+        if (!ctxRef.current) return
+        applyBrushSettings(ctxRef.current)
+    }, [brushSize, brushType, currentColor])
+
+    useEffect(() => {
+        const onUndoShortcut = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+                e.preventDefault()
+                undo()
+            }
+        }
+        window.addEventListener("keydown", onUndoShortcut)
+        return () => window.removeEventListener("keydown", onUndoShortcut)
+    }, [])
 
     const getPos = (nativeEvent) => {
         const canvas = canvasRef.current
@@ -96,8 +173,18 @@ export default function DoodlePad({
         e.preventDefault()
         const canvas = canvasRef.current
         canvas.setPointerCapture?.(e.pointerId)
+        pushSnapshot()
         drawingRef.current = true
-        lastPointRef.current = getPos(e.nativeEvent)
+        const startPoint = getPos(e.nativeEvent)
+        lastPointRef.current = startPoint
+
+        const ctx = ctxRef.current
+        if (ctx) {
+            ctx.beginPath()
+            ctx.arc(startPoint.x, startPoint.y, Math.max(1, brushSize / 2), 0, Math.PI * 2)
+            ctx.fillStyle = brushType === "eraser" ? "#000000" : currentColor
+            ctx.fill()
+        }
     }
 
     const move = (e) => {
@@ -126,6 +213,7 @@ export default function DoodlePad({
 
     const clear = () => {
         if (!ctxRef.current || !canvasRef.current) return
+        pushSnapshot()
         const ctx = ctxRef.current
         const rect = canvasRef.current.getBoundingClientRect()
         if (background === "transparent") {
@@ -139,9 +227,14 @@ export default function DoodlePad({
 
     const changeColor = (newColor) => {
         setCurrentColor(newColor)
-        if (ctxRef.current) {
-            ctxRef.current.strokeStyle = newColor
-        }
+    }
+
+    const changeBrushSize = (newSize) => {
+        setBrushSize(Number(newSize))
+    }
+
+    const changeBrushType = (newBrushType) => {
+        setBrushType(newBrushType)
     }
 
     const containerStyle = {
@@ -189,6 +282,30 @@ export default function DoodlePad({
         outline: "none",
     }
 
+    const colorGridStyle = {
+        display: "grid",
+        gridTemplateColumns: "repeat(10, minmax(0, 1fr))",
+        gap: "6px",
+        flex: 1,
+        minWidth: "260px",
+        maxWidth: "420px",
+    }
+
+    const colorSwatchBaseStyle = {
+        width: "100%",
+        aspectRatio: "1 / 1",
+        borderRadius: "8px",
+        border: "2px solid rgba(0,0,0,0.15)",
+        cursor: "pointer",
+        padding: 0,
+    }
+
+    const actionBtnStyle = {
+        ...clearBtnStyle,
+        background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
+        boxShadow: "0 2px 4px rgba(14, 165, 233, 0.2)",
+    }
+
     return (
         <div className={className} aria-label={ariaLabel}>
             <div style={{ fontSize: 14, opacity: 0.7, fontWeight: 500, marginBottom: "12px" }}>
@@ -196,26 +313,64 @@ export default function DoodlePad({
             </div>
 
             <div style={headerStyle}>
+                <div style={colorGridStyle} aria-label="Select pen color">
+                    {colors.map((color) => {
+                        const isActive = color.value === currentColor
+                        return (
+                            <button
+                                key={color.value}
+                                type="button"
+                                onClick={() => changeColor(color.value)}
+                                title={color.name}
+                                aria-label={color.name}
+                                aria-pressed={isActive}
+                                style={{
+                                    ...colorSwatchBaseStyle,
+                                    background: color.value,
+                                    borderColor: isActive ? "#111827" : "rgba(0,0,0,0.15)",
+                                    boxShadow: isActive ? "0 0 0 2px rgba(17,24,39,0.25)" : "none",
+                                }}
+                            />
+                        )
+                    })}
+                </div>
                 <select
-                    value={currentColor}
-                    onChange={(e) => changeColor(e.target.value)}
+                    value={brushSize}
+                    onChange={(e) => changeBrushSize(e.target.value)}
                     style={dropdownStyle}
-                    aria-label="Select pen color"
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(0,0,0,0.2)"
-                        e.currentTarget.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)"
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = "rgba(0,0,0,0.1)"
-                        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)"
-                    }}
+                    aria-label="Select brush size"
                 >
-                    {colors.map((color) => (
-                        <option key={color.value} value={color.value}>
-                            {color.name}
+                    <option value={2}>Thin</option>
+                    <option value={4}>Small</option>
+                    <option value={6}>Medium</option>
+                    <option value={10}>Large</option>
+                    <option value={14}>XL</option>
+                </select>
+                <select
+                    value={brushType}
+                    onChange={(e) => changeBrushType(e.target.value)}
+                    style={dropdownStyle}
+                    aria-label="Select brush type"
+                >
+                    {brushTypes.map((brush) => (
+                        <option key={brush.value} value={brush.value}>
+                            {brush.name}
                         </option>
                     ))}
                 </select>
+                <button
+                    type="button"
+                    style={{
+                        ...actionBtnStyle,
+                        opacity: canUndo ? 1 : 0.55,
+                        cursor: canUndo ? "pointer" : "not-allowed",
+                    }}
+                    onClick={undo}
+                    disabled={!canUndo}
+                    aria-label="Undo last stroke"
+                >
+                    Undo
+                </button>
                 <button
                     type="button"
                     style={clearBtnStyle}
