@@ -20,7 +20,7 @@ import audioNarrationIcon from "../assets/vision/audio-narration.png";
 const teamMembers = [
     {
         name: "Tyler Woody",
-        image: "/tyler1.jpg",
+        image: "/tyler-small.jpg",
         role: "Co-Founder & Developer",
         bio: "Passionate about combining technology with storytelling to create magical experiences for children.",
     },
