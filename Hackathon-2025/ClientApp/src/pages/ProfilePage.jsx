@@ -10,10 +10,12 @@ import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 import { publicBase } from "../utils/urls";
 
-import emailIcon from "../assets/ui-icons/email.png";
-import membershipIcon from "../assets/ui-icons/membership-star.png";
-import calendarIcon from "../assets/ui-icons/calendar.png";
-import boxIcon from "../assets/ui-icons/box.png";
+import emailIcon from "../assets/ui-icons/email1.png";
+import membershipFreeIcon from "../assets/ui-icons/membership-free.png";
+import membershipProIcon from "../assets/ui-icons/membership-pro.png";
+import membershipPremiumIcon from "../assets/ui-icons/membership-premium.png";
+import calendarIcon from "../assets/ui-icons/calendar2.png";
+import boxIcon from "../assets/ui-icons/box1.png";
 
 import sparkleIcon from "../assets/ui-icons/sparkle3.png";
 import rocketIcon from "../assets/ui-icons/rocket.png";
@@ -171,6 +173,12 @@ const ProfilePage = () => {
     // membership helpers (handle enum/number or string)
     const membershipKey = normalizeMembership(user?.membership);
     const membershipLabel = prettyMembershipLabel(membershipKey);
+    const membershipIconByTier = {
+        free: membershipFreeIcon,
+        pro: membershipProIcon,
+        premium: membershipPremiumIcon,
+    };
+    const membershipIcon = membershipIconByTier[membershipKey] ?? membershipFreeIcon;
 
     // fetch summaries (lightweight)
     useEffect(() => {
