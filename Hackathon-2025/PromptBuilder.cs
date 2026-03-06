@@ -12,13 +12,24 @@ public static class PromptBuilder
 
     private static readonly Dictionary<string, string> SkinToneMap = new(StringComparer.OrdinalIgnoreCase)
     {
+        ["almond"]   = "almond-toned skin",
+        ["amber"]    = "amber-toned skin",
+        ["ashen"]    = "soft ashen skin",
+        ["blush"]    = "soft blush-toned skin",
+        ["bronze"]   = "bronze-toned skin",
         ["pale"]     = "very pale ivory skin",
         ["light"]    = "fair light skin",
         ["freckled"] = "light freckled skin",
         ["olive"]    = "olive-toned skin",
         ["tan"]      = "warm tan skin",
+        ["caramel"]  = "caramel-toned skin",
         ["brown"]    = "medium brown skin",
         ["dark"]     = "deep dark brown skin",
+        ["ebony"]    = "rich ebony-toned skin",
+        ["porcelain"] = "porcelain skin",
+        ["rose"]     = "rose-toned skin",
+        ["sun-kissed"] = "sun-kissed skin",
+        ["warm beige"] = "warm beige-toned skin",
     };
 
     private static readonly Dictionary<string, string> HairColorMap = new(StringComparer.OrdinalIgnoreCase)
@@ -65,6 +76,17 @@ public static class PromptBuilder
         ["gray"]   = "gray",
         ["khaki"]  = "khaki",
         ["gold"]   = "gold",
+        ["cream"]  = "cream",
+        ["cyan"]   = "cyan",
+        ["charcoal"] = "charcoal",
+        ["lavender"] = "lavender",
+        ["maroon"] = "maroon",
+        ["navy"]   = "navy",
+        ["olive"]  = "olive",
+        ["peach"]  = "peach",
+        ["teal"]   = "teal",
+        ["blush"]  = "blush",
+        ["tan"]    = "tan",
         ["silver"] = "silver",
     };
 
@@ -87,6 +109,13 @@ public static class PromptBuilder
 
     private static string Map(Dictionary<string, string> map, string? value)
         => (!string.IsNullOrWhiteSpace(value) && map.TryGetValue(value, out var v)) ? v : (value ?? "");
+
+    private static bool OnePieceAllowsTopLayer(string? onePieceWear)
+    {
+        if (string.IsNullOrWhiteSpace(onePieceWear)) return false;
+        var normalized = onePieceWear.Trim().ToLowerInvariant();
+        return normalized == "overalls" || normalized.Contains("overall");
+    }
 
 
     // Base watercolor style with strong "cover-safe" guardrails.
@@ -204,6 +233,11 @@ public static class PromptBuilder
         if (!string.IsNullOrWhiteSpace(age) || !string.IsNullOrWhiteSpace(gender))
             parts.Add($"{age}-year-old {gender}".Trim(' ', '-'));
 
+        if (fields.TryGetValue("ethnicity", out var ethnicity) && !string.IsNullOrWhiteSpace(ethnicity))
+            parts.Add(ethnicity);
+        else if (fields.TryGetValue("race", out var race) && !string.IsNullOrWhiteSpace(race))
+            parts.Add(race);
+
         if (fields.TryGetValue("skinTone", out var skin) && !string.IsNullOrWhiteSpace(skin))
             parts.Add($"{Map(SkinToneMap, skin)} skin");
 
@@ -218,14 +252,68 @@ public static class PromptBuilder
         if (fields.TryGetValue("eyeColor", out var eyes) && !string.IsNullOrWhiteSpace(eyes))
             parts.Add($"{Map(EyeColorMap, eyes)} eyes");
 
-        if (fields.TryGetValue("shirtColor", out var shirt) && !string.IsNullOrWhiteSpace(shirt))
-            parts.Add($"{Map(ClothingColorMap, shirt)} shirt");
+        var hasOnePiece = fields.TryGetValue("onePieceWear", out var onePieceWear) && !string.IsNullOrWhiteSpace(onePieceWear);
+        if (hasOnePiece)
+        {
+            if (fields.TryGetValue("onePieceColor", out var onePieceColor) && !string.IsNullOrWhiteSpace(onePieceColor))
+                parts.Add($"{Map(ClothingColorMap, onePieceColor)} {onePieceWear}");
+            else
+                parts.Add(onePieceWear!);
 
-        if (fields.TryGetValue("pantsColor", out var pants) && !string.IsNullOrWhiteSpace(pants))
-            parts.Add($"{Map(ClothingColorMap, pants)} pants");
+            if (OnePieceAllowsTopLayer(onePieceWear))
+            {
+                var hasTopWear = fields.TryGetValue("topWear", out var layeredTopWear) && !string.IsNullOrWhiteSpace(layeredTopWear);
+                if (hasTopWear)
+                {
+                    if (fields.TryGetValue("topWearColor", out var layeredTopColor) && !string.IsNullOrWhiteSpace(layeredTopColor))
+                        parts.Add($"{Map(ClothingColorMap, layeredTopColor)} {layeredTopWear}");
+                    else
+                        parts.Add(layeredTopWear!);
+                }
+                else if (fields.TryGetValue("shirtColor", out var shirt) && !string.IsNullOrWhiteSpace(shirt))
+                {
+                    parts.Add($"{Map(ClothingColorMap, shirt)} shirt");
+                }
+            }
+        }
+        else
+        {
+            var hasTopWear = fields.TryGetValue("topWear", out var topWear) && !string.IsNullOrWhiteSpace(topWear);
+            var hasBottomWear = fields.TryGetValue("bottomWear", out var bottomWear) && !string.IsNullOrWhiteSpace(bottomWear);
 
-        if (fields.TryGetValue("shoeColor", out var shoes) && !string.IsNullOrWhiteSpace(shoes))
-            parts.Add($"{Map(ClothingColorMap, shoes)} shoes");
+            if (hasTopWear)
+            {
+                if (fields.TryGetValue("topWearColor", out var topWearColor) && !string.IsNullOrWhiteSpace(topWearColor))
+                    parts.Add($"{Map(ClothingColorMap, topWearColor)} {topWear}");
+                else
+                    parts.Add(topWear!);
+            }
+            else if (fields.TryGetValue("shirtColor", out var shirt) && !string.IsNullOrWhiteSpace(shirt))
+            {
+                parts.Add($"{Map(ClothingColorMap, shirt)} shirt");
+            }
+
+            if (hasBottomWear)
+            {
+                if (fields.TryGetValue("bottomWearColor", out var bottomWearColor) && !string.IsNullOrWhiteSpace(bottomWearColor))
+                    parts.Add($"{Map(ClothingColorMap, bottomWearColor)} {bottomWear}");
+                else
+                    parts.Add(bottomWear!);
+            }
+            else if (fields.TryGetValue("pantsColor", out var pants) && !string.IsNullOrWhiteSpace(pants))
+            {
+                parts.Add($"{Map(ClothingColorMap, pants)} pants");
+            }
+        }
+
+        var hasShoeStyle = fields.TryGetValue("shoeStyle", out var shoeStyle) && !string.IsNullOrWhiteSpace(shoeStyle);
+        var hasShoeColor = fields.TryGetValue("shoeColor", out var shoeColor) && !string.IsNullOrWhiteSpace(shoeColor);
+        if (hasShoeStyle && hasShoeColor)
+            parts.Add($"{Map(ClothingColorMap, shoeColor)} {shoeStyle}");
+        else if (hasShoeStyle)
+            parts.Add(shoeStyle!);
+        else if (hasShoeColor)
+            parts.Add($"{Map(ClothingColorMap, shoeColor)} shoes");
 
         if (fields.TryGetValue("accessory", out var accessory) && !string.IsNullOrWhiteSpace(accessory))
             parts.Add(accessory);

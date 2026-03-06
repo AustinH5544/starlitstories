@@ -11,6 +11,15 @@ import personIcon from "../assets/ui-icons/person.png"
 import sparkleIcon from "../assets/ui-icons/sparkle.png"
 //import animalIcon from "../assets/ui-icons/animal.png"
 
+const sortedUnique = (values = []) =>
+    [...new Set(values.map((v) => String(v).trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b))
+
+const onePieceAllowsTopLayer = (onePieceValue = "") => {
+    const normalized = onePieceValue.trim().toLowerCase()
+    return normalized === "overalls" || normalized.includes("overall")
+}
+
 const normalizeDescFields = (df = {}) => {
     const out = { ...df }
     for (const k of Object.keys(df)) {
@@ -41,6 +50,7 @@ const StoryForm = ({ onSubmit }) => {
     const [lesson, setLesson] = useState("")
     const [selectedCategory, setSelectedCategory] = useState("")
     const [includeLesson, setIncludeLesson] = useState(false)
+    const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
 
     const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
     const API_BASE = import.meta.env.VITE_API_BASE ?? ""
@@ -124,8 +134,13 @@ const StoryForm = ({ onSubmit }) => {
             "Wear a helmet when riding a bike or scooter",
         ],
     }
+    const lessonsByCategorySorted = Object.fromEntries(
+        Object.keys(lessonsByCategory)
+            .sort((a, b) => a.localeCompare(b))
+            .map((category) => [category, sortedUnique(lessonsByCategory[category])])
+    )
 
-    const allPresetLessons = Object.values(lessonsByCategory).flat()
+    const allPresetLessons = Object.values(lessonsByCategorySorted).flat()
     const isPresetLesson = (val) => allPresetLessons.includes(val)
 
     const [characters, setCharacters] = useState([
@@ -140,42 +155,81 @@ const StoryForm = ({ onSubmit }) => {
 
     const defaultOptions = {
         age: Array.from({ length: 17 }, (_, i) => (i + 2).toString()),
-        gender: ["boy", "girl"], // keep just boy/girl
+        gender: sortedUnique(["boy", "girl"]), // keep just boy/girl
 
         // Alphabetically sorted style options
-        skinTone: ["brown", "dark", "freckled", "light", "olive", "pale", "tan"].sort(),
-        hairColor: [
+        ethnicity: sortedUnique([
+            "Asian",
+            "Black",
+            "Hispanic",
+            "Middle Eastern",
+            "Multiracial",
+            "Native American",
+            "Pacific Islander",
+            "White",
+        ]),
+        skinTonesByEthnicity: {
+            default: sortedUnique(["deep", "fair", "light", "medium", "olive", "tan", "warm"]),
+            asian: sortedUnique(["fair", "golden", "light", "medium", "olive", "tan", "warm"]),
+            black: sortedUnique(["deep", "ebony", "espresso", "medium", "rich brown", "warm brown"]),
+            hispanic: sortedUnique(["golden", "light", "medium", "olive", "tan", "warm", "warm brown"]),
+            "middle eastern": sortedUnique(["golden", "light", "medium", "olive", "tan", "warm", "warm brown"]),
+            multiracial: sortedUnique(["deep", "fair", "golden", "light", "medium", "olive", "tan", "warm"]),
+            "native american": sortedUnique(["golden", "medium", "olive", "sun-kissed", "tan", "warm brown"]),
+            "pacific islander": sortedUnique(["golden", "medium", "olive", "sun-kissed", "tan", "warm brown"]),
+            white: sortedUnique(["fair", "freckled", "light", "medium", "olive", "pink", "tan"]),
+        },
+        hairColor: sortedUnique([
+            "auburn", "black", "blonde", "blue", "brown", "burgundy", "copper",
+            "dark brown", "dirty blonde", "gray", "green", "lavender", "light brown", "pink",
+            "platinum", "purple", "red", "silver", "teal", "white",
+        ]),
+        eyeColor: sortedUnique(["amber", "blue", "brown", "gray", "green", "hazel", "silver", "violet"]),
+
+        topWear: sortedUnique(["blouse", "hoodie", "long-sleeve shirt", "sweater", "tank top", "t-shirt", "tunic", "vest"]),
+        bottomWear: sortedUnique(["capris", "jeans", "joggers", "leggings", "pants", "shorts", "skirt", "slacks"]),
+        onePieceWear: sortedUnique(["dress", "jumpsuit", "overalls", "robe", "romper"]),
+        topWearColor: sortedUnique(["black", "blue", "brown", "cream", "cyan", "gold", "gray", "green", "lavender", "maroon", "navy", "orange", "pink", "purple", "red", "silver", "teal", "white", "yellow"]),
+        bottomWearColor: sortedUnique(["black", "blue", "brown", "charcoal", "cream", "gray", "green", "khaki", "navy", "olive", "orange", "pink", "purple", "red", "tan", "teal", "white", "yellow"]),
+        onePieceColor: sortedUnique(["black", "blue", "blush", "brown", "cream", "gold", "gray", "green", "lavender", "navy", "orange", "peach", "pink", "purple", "red", "silver", "teal", "white", "yellow"]),
+        shoeStyle: sortedUnique(["boots", "dress shoes", "flats", "high-tops", "loafers", "sandals", "slippers", "sneakers"]),
+        shoeColor: sortedUnique(["black", "blue", "brown", "cream", "gold", "gray", "green", "navy", "orange", "pink", "purple", "red", "silver", "tan", "teal", "white", "yellow"]),
+
+        hairstylesByGender: {
+            boy: sortedUnique(["buzz cut", "crew cut", "messy", "mohawk", "short side part", "slicked back", "spiky"]),
+            girl: sortedUnique(["bob cut", "braided", "bun", "crown braid", "double buns", "pigtails", "pixie cut", "ponytail"]),
+            default: sortedUnique(["afro", "dreadlocks", "mohawk", "straight", "tied with ribbon", "wind-swept"]),
+        },
+
+        species: sortedUnique(["bear", "bird", "cat", "dinosaur", "dog", "dragon", "fox", "horse", "koala", "rabbit", "turtle"]),
+        bodyCovering: sortedUnique(["feathers", "fur", "scales", "shell", "skin"]),
+        bodyColor: sortedUnique([
+            "black", "blue", "brown", "glowing", "golden", "gray",
+            "green", "orange", "pink", "red", "spotted", "striped", "white",
+        ]),
+
+        humanAccessories: sortedUnique([
+            "backpack", "boots", "bowtie", "bracelet", "cape", "crown",
+            "glasses", "hat", "necklace", "scarf", "sneakers", "wand", "watch",
+        ]),
+
+        animalAccessories: sortedUnique([
+            "armor", "bandana", "bell", "bow", "collar", "feather accessory",
+            "ribbon", "tiny hat", "wing clips",
+        ]),
+    }
+
+    const basicOptions = {
+        eyeColor: sortedUnique(["amber", "blue", "brown", "gray", "green", "hazel", "violet"]),
+        hairColor: sortedUnique([
             "auburn", "black", "blonde", "blue", "brown", "dark brown",
             "dirty blonde", "gray", "green", "light brown", "pink",
             "purple", "red", "white",
-        ].sort(),
-        eyeColor: ["amber", "blue", "brown", "gray", "green", "hazel", "violet"].sort(),
-        shirtColor: ["black", "blue", "green", "orange", "pink", "purple", "red", "white", "yellow"].sort(),
-        pantsColor: ["black", "blue", "brown", "gray", "green", "khaki", "white"].sort(),
-        shoeColor: ["black", "blue", "brown", "gold", "green", "pink", "red", "silver", "white", "yellow"].sort(),
-
-        hairstylesByGender: {
-            boy: ["buzz cut", "crew cut", "messy", "mohawk", "short side part", "slicked back", "spiky"].sort(),
-            girl: ["bob cut", "braided", "bun", "crown braid", "double buns", "pigtails", "pixie cut", "ponytail"].sort(),
-            default: ["afro", "dreadlocks", "mohawk", "straight", "tied with ribbon", "wind-swept"].sort(),
-        },
-
-        species: ["bear", "bird", "cat", "dinosaur", "dog", "dragon", "fox", "horse", "koala", "rabbit", "turtle"].sort(),
-        bodyCovering: ["feathers", "fur", "scales", "shell", "skin"].sort(),
-        bodyColor: [
-            "black", "blue", "brown", "glowing", "golden", "gray",
-            "green", "orange", "pink", "red", "spotted", "striped", "white",
-        ].sort(),
-
-        humanAccessories: [
-            "backpack", "boots", "bowtie", "bracelet", "cape", "crown",
-            "glasses", "hat", "necklace", "scarf", "sneakers", "wand", "watch",
-        ].sort(),
-
-        animalAccessories: [
-            "armor", "bandana", "bell", "bow", "collar", "feather accessory",
-            "ribbon", "tiny hat", "wing clips",
-        ].sort(),
+        ]),
+        pantsColor: sortedUnique(["black", "blue", "brown", "gray", "green", "khaki", "white"]),
+        shirtColor: sortedUnique(["black", "blue", "green", "orange", "pink", "purple", "red", "white", "yellow"]),
+        shoeColor: sortedUnique(["black", "blue", "brown", "gold", "green", "pink", "red", "silver", "white", "yellow"]),
+        skinTone: sortedUnique(["brown", "dark", "freckled", "light", "olive", "pale", "tan"]),
     }
 
     const defaultThemes = [
@@ -202,9 +256,24 @@ const StoryForm = ({ onSubmit }) => {
         setCharacters(updated)
     }
 
+    const getSkinToneOptionsForEthnicity = (ethnicityValue) => {
+        const ethnicityKey = (ethnicityValue || "").trim().toLowerCase()
+        return defaultOptions.skinTonesByEthnicity[ethnicityKey] || defaultOptions.skinTonesByEthnicity.default
+    }
+
     const handleFieldChange = (index, field, value) => {
         const updated = [...characters]
         updated[index].descriptionFields[field] = value
+
+        if (field === "ethnicity") {
+            const nextSkinTones = getSkinToneOptionsForEthnicity(value)
+            const selectedSkinTone = (updated[index].descriptionFields.skinTone || "").trim()
+            const hasCustomSkinTone = ((updated[index].descriptionFields.skinToneCustom || "").trim()).length > 0
+            if (selectedSkinTone && !hasCustomSkinTone && !nextSkinTones.includes(selectedSkinTone)) {
+                updated[index].descriptionFields.skinTone = ""
+            }
+        }
+
         setCharacters(updated)
     }
 
@@ -233,7 +302,30 @@ const StoryForm = ({ onSubmit }) => {
         const processedCharacters = characters.map((c) => ({
             ...c,
             role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
-            descriptionFields: normalizeDescFields(c.descriptionFields),
+            descriptionFields: (() => {
+                const normalized = normalizeDescFields(c.descriptionFields)
+                const onePieceSelected = (normalized.onePieceWear || "").trim().length > 0
+                const keepTopWithOnePiece = onePieceAllowsTopLayer(normalized.onePieceWear || "")
+
+                if (onePieceSelected) {
+                    delete normalized.bottomWear
+                    delete normalized.bottomWearColor
+
+                    if (!keepTopWithOnePiece) {
+                        delete normalized.topWear
+                        delete normalized.topWearColor
+                    }
+                }
+
+                if (!normalized.shirtColor && normalized.topWearColor) {
+                    normalized.shirtColor = normalized.topWearColor
+                }
+                if (!normalized.pantsColor && normalized.bottomWearColor) {
+                    normalized.pantsColor = normalized.bottomWearColor
+                }
+
+                return normalized
+            })(),
         }))
 
         const finalArtStyle = isFree ? "watercolor" : artStyle
@@ -263,9 +355,11 @@ const StoryForm = ({ onSubmit }) => {
         index,
         field,
         label,
-        options = []
+        options = [],
+        disabled = false
     ) => {
         const customValue = characters[index].descriptionFields[field + "Custom"] || ""
+        const isFieldDisabled = disabled || !!customValue
 
         return (
             <div className="field-group">
@@ -275,7 +369,7 @@ const StoryForm = ({ onSubmit }) => {
                         value={characters[index].descriptionFields[field] || ""}
                         onChange={(e) => handleFieldChange(index, field, e.target.value)}
                         className="form-select"
-                        disabled={!!customValue}
+                        disabled={isFieldDisabled}
                     >
                         <option value="">Select {label}</option>
                         {options.map((opt) => (
@@ -289,6 +383,7 @@ const StoryForm = ({ onSubmit }) => {
                         value={customValue}
                         onChange={(e) => handleFieldChange(index, field + "Custom", e.target.value)}
                         className="form-input"
+                        disabled={disabled}
                     />
                 </div>
             </div>
@@ -475,7 +570,7 @@ const StoryForm = ({ onSubmit }) => {
                             <option value="" disabled>
                                 Select Category
                             </option>
-                            {Object.keys(lessonsByCategory).map((cat) => (
+                            {Object.keys(lessonsByCategorySorted).map((cat) => (
                                 <option key={cat} value={cat}>{cat}</option>
                             ))}
                         </select>
@@ -503,7 +598,7 @@ const StoryForm = ({ onSubmit }) => {
                                 <option value="" disabled>
                                     Select Category
                                 </option>
-                                {lessonsByCategory[selectedCategory].map((l) => (
+                                {lessonsByCategorySorted[selectedCategory].map((l) => (
                                     <option key={l} value={l}>{l}</option>
                                 ))}
                             </select>
@@ -591,9 +686,9 @@ const StoryForm = ({ onSubmit }) => {
                                     className="form-select"
                                 >
                                     <option value="">Select Role</option>
+                                    <option value="dad">Dad</option>
                                     <option value="friend">Friend</option>
                                     <option value="mom">Mom</option>
-                                    <option value="dad">Dad</option>
                                     <option value="pet">Pet</option>
                                     <option value="sibling">Sibling</option>
                                     <option value="teacher">Teacher</option>
@@ -621,6 +716,23 @@ const StoryForm = ({ onSubmit }) => {
                                 <span className="toggle-slider"></span>
                                 <span className="toggle-text">
                                     {char.isAnimal ? "🐾 Animal Character" : "👤 Human Character"}
+                                </span>
+                            </label>
+                        </div>
+                    )}
+
+                    {i === 0 && (
+                        <div className="field-group" style={{ marginTop: "1rem" }}>
+                            <label className="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    className="toggle-checkbox"
+                                    checked={showAdvancedOptions}
+                                    onChange={(e) => setShowAdvancedOptions(e.target.checked)}
+                                />
+                                <span className="toggle-slider" />
+                                <span className="toggle-text">
+                                    Show advanced character options
                                 </span>
                             </label>
                         </div>
@@ -658,12 +770,59 @@ const StoryForm = ({ onSubmit }) => {
                                         : null
                                 })()}
 
-                                {renderDropdownWithCustom(i, "skinTone", "Skin Tone", defaultOptions.skinTone)}
-                                {renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)}
-                                {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
-                                {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", defaultOptions.shirtColor)}
-                                {renderDropdownWithCustom(i, "pantsColor", "Pants Color", defaultOptions.pantsColor)}
-                                {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", defaultOptions.shoeColor)}
+                                {(() => {
+                                    const hasGenderSelection =
+                                        ((char.descriptionFields.gender || "").trim()).length > 0 ||
+                                        ((char.descriptionFields.genderCustom || "").trim()).length > 0
+                                    const hasOnePieceOutfit =
+                                        ((char.descriptionFields.onePieceWear || "").trim()).length > 0 ||
+                                        ((char.descriptionFields.onePieceWearCustom || "").trim()).length > 0
+                                    const onePieceValue =
+                                        (char.descriptionFields.onePieceWearCustom || "").trim() ||
+                                        (char.descriptionFields.onePieceWear || "").trim()
+                                    const allowsTopLayer = onePieceAllowsTopLayer(onePieceValue)
+                                    const disableTopFields = hasOnePieceOutfit && !allowsTopLayer
+                                    const disableBottomFields = hasOnePieceOutfit
+
+                                    return (
+                                        <>
+                                            {showAdvancedOptions ? (
+                                                <>
+                                                    {renderDropdownWithCustom(i, "ethnicity", "Ethnicity (optional)", defaultOptions.ethnicity)}
+                                                    {hasGenderSelection
+                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)
+                                                        : null}
+                                                    {renderDropdownWithCustom(
+                                                        i,
+                                                        "skinTone",
+                                                        "Skin Tone",
+                                                        getSkinToneOptionsForEthnicity(char.descriptionFields.ethnicity)
+                                                    )}
+                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
+                                                    {renderDropdownWithCustom(i, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
+                                                    {renderDropdownWithCustom(i, "onePieceColor", "One-Piece Color", defaultOptions.onePieceColor)}
+                                                    {renderDropdownWithCustom(i, "topWear", "Top", defaultOptions.topWear, disableTopFields)}
+                                                    {renderDropdownWithCustom(i, "topWearColor", "Top Color", defaultOptions.topWearColor, disableTopFields)}
+                                                    {renderDropdownWithCustom(i, "bottomWear", "Bottom", defaultOptions.bottomWear, disableBottomFields)}
+                                                    {renderDropdownWithCustom(i, "bottomWearColor", "Bottom Color", defaultOptions.bottomWearColor, disableBottomFields)}
+                                                    {renderDropdownWithCustom(i, "shoeStyle", "Shoe Style", defaultOptions.shoeStyle)}
+                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", defaultOptions.shoeColor)}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {hasGenderSelection
+                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", basicOptions.hairColor)
+                                                        : null}
+                                                    {renderDropdownWithCustom(i, "skinTone", "Skin Tone", basicOptions.skinTone)}
+                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", basicOptions.eyeColor)}
+                                                    {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", basicOptions.shirtColor)}
+                                                    {renderDropdownWithCustom(i, "pantsColor", "Pants Color", basicOptions.pantsColor)}
+                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", basicOptions.shoeColor)}
+                                                </>
+                                            )}
+                                        </>
+                                    )
+                                })()}
                                 {renderDropdownWithCustom(i, "accessory", "Accessory (optional)", defaultOptions.humanAccessories)}
                             </>
                         )}
