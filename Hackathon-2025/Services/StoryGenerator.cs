@@ -312,14 +312,22 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
 
-        // Generate images for each page
-        var externalImageUrls = await _imageService.GenerateImagesAsync(imagePrompts.ToList());
-
-        // Title + cover prompt / cover image
-        var title = await GenerateTitleAsync(characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
+        // Build cover prompt now so it can join the single image generation call.
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
             characters, request.Theme, request.ReadingLevel, request.ArtStyle);
-        var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
+
+        // Generate all images in one call: cover first, then pages.
+        // Cover (index 0) uses DALL-E 3 and becomes the character reference for all page edits.
+        // This gives the cover a distinct centered composition while keeping character appearance
+        // consistent across all pages via gpt-image-1 edits.
+        var allPrompts = new[] { coverPrompt }.Concat(imagePrompts).ToList();
+        var allImageUrls = await _imageService.GenerateImagesAsync(allPrompts);
+
+        var coverExternalUrl = allImageUrls[0];
+        var externalImageUrls = allImageUrls.Skip(1).ToList();
+
+        // Title is independent — generate it in parallel would be ideal but keeping it simple here.
+        var title = await GenerateTitleAsync(characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
 
         // Assemble DTO pages (NOT EF entities) with image prompts included
         var dtoPages = paragraphs
