@@ -8,6 +8,7 @@ import "./LandingPage.css"
 import instagramIcon from "../assets/social/instagram.png";
 import facebookIcon from "../assets/social/facebook.png";
 import twitterIcon from "../assets/social/twitter.png";
+import xIcon from "../assets/social/x.png";
 
 import writeIcon from "../assets/step-icons/write.png";
 import magicIcon from "../assets/step-icons/magic.png"
@@ -421,19 +422,19 @@ const LandingPage = () => {
                             <div className="footer-column">
                                 <h4>Connect</h4>
                                 <div className="social-links">
-                                    <a href="https://instagram.com/yourhandle" target="_blank" rel="noopener noreferrer"
+                                    <a href="https://instagram.com/starlitstoriesapp" target="_blank" rel="noopener noreferrer"
                                         className="social-link" aria-label="Instagram">
                                         <img src={instagramIcon} alt="Instagram" className="social-icon" />
                                     </a>
 
-                                    <a href="https://facebook.com/yourpage" target="_blank" rel="noopener noreferrer"
+                                    <a href="https://facebook.com/profile.php?id=61587218416327" target="_blank" rel="noopener noreferrer"
                                         className="social-link" aria-label="Facebook">
                                         <img src={facebookIcon} alt="Facebook" className="social-icon" />
                                     </a>
 
-                                    <a href="https://twitter.com/yourhandle" target="_blank" rel="noopener noreferrer"
-                                        className="social-link" aria-label="Twitter">
-                                        <img src={twitterIcon} alt="Twitter" className="social-icon" />
+                                    <a href="https://x.com/starlitapp" target="_blank" rel="noopener noreferrer"
+                                        className="social-link" aria-label="X">
+                                        <img src={xIcon} alt="X" className="social-icon" />
                                     </a>
                                 </div>
                             </div>
