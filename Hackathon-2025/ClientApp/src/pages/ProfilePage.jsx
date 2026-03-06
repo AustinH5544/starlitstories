@@ -78,7 +78,7 @@ const ProfilePage = () => {
     const [usageError, setUsageError] = useState("")
     const [buyWorking, setBuyWorking] = useState(false)
     // Compact add-on selector
-    const [selectedPack, setSelectedPack] = useState("plus5");
+    const [selectedPack, setSelectedPack] = useState("Plus5");
 
     const BASE = import.meta.env.BASE_URL
     const [showImageModal, setShowImageModal] = useState(false)
@@ -87,8 +87,8 @@ const ProfilePage = () => {
     const [addonOpen, setAddonOpen] = useState(false);
 
     const packs = [
-        { key: "plus5", label: "+5 credits", price: "$4" },
-        { key: "plus11", label: "+11 credits", price: "$8" },
+        { key: "Plus5", label: "+5 credits", price: "$4" },
+        { key: "Plus11", label: "+11 credits", price: "$8" },
     ];
 
     const selected = packs.find(p => p.key === selectedPack) ?? packs[0];
@@ -770,7 +770,7 @@ const ProfilePage = () => {
                                     className="addon-buy-btn"
                                     disabled={buyWorking}
                                     onClick={() => buyCredits(selectedPack)}
-                                    aria-label={`Buy ${selectedPack === "plus5" ? "+5" : "+11"} credits`}
+                                    aria-label={`Buy ${selectedPack === "Plus5" ? "+5" : "+11"} credits`}
                                 >
                                     {buyWorking ? "Redirecting…" : "Buy"}
                                 </button>
