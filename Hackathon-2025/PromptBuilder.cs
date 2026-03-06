@@ -8,9 +8,90 @@ namespace Hackathon_2025.Services;
 
 public static class PromptBuilder
 {
+    // --- Descriptor lookup tables -------------------------------------------
+
+    private static readonly Dictionary<string, string> SkinToneMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["pale"]     = "very pale ivory skin",
+        ["light"]    = "fair light skin",
+        ["freckled"] = "light freckled skin",
+        ["olive"]    = "olive-toned skin",
+        ["tan"]      = "warm tan skin",
+        ["brown"]    = "medium brown skin",
+        ["dark"]     = "deep dark brown skin",
+    };
+
+    private static readonly Dictionary<string, string> HairColorMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["blonde"]       = "golden blonde",
+        ["dirty blonde"] = "dirty golden blonde",
+        ["auburn"]       = "auburn red-brown",
+        ["red"]          = "bright natural red",
+        ["brown"]        = "chestnut brown",
+        ["light brown"]  = "warm light brown",
+        ["dark brown"]   = "deep dark brown",
+        ["black"]        = "jet black",
+        ["gray"]         = "silver gray",
+        ["white"]        = "snow white",
+        ["blue"]         = "vivid cobalt blue",
+        ["green"]        = "vivid emerald green",
+        ["pink"]         = "vivid hot pink",
+        ["purple"]       = "vivid violet purple",
+    };
+
+    private static readonly Dictionary<string, string> EyeColorMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["blue"]   = "bright blue",
+        ["brown"]  = "warm brown",
+        ["green"]  = "vivid green",
+        ["hazel"]  = "hazel (green-brown)",
+        ["gray"]   = "cool gray",
+        ["amber"]  = "golden amber",
+        ["violet"] = "deep violet",
+    };
+
+    private static readonly Dictionary<string, string> ClothingColorMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["red"]    = "red",
+        ["blue"]   = "blue",
+        ["green"]  = "green",
+        ["yellow"] = "yellow",
+        ["orange"] = "orange",
+        ["pink"]   = "pink",
+        ["purple"] = "purple",
+        ["white"]  = "white",
+        ["black"]  = "black",
+        ["brown"]  = "brown",
+        ["gray"]   = "gray",
+        ["khaki"]  = "khaki",
+        ["gold"]   = "gold",
+        ["silver"] = "silver",
+    };
+
+    private static readonly Dictionary<string, string> AnimalColorMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["black"]   = "jet black",
+        ["white"]   = "snow white",
+        ["brown"]   = "warm brown",
+        ["gray"]    = "silver gray",
+        ["orange"]  = "vivid orange",
+        ["red"]     = "bright red",
+        ["blue"]    = "vivid blue",
+        ["green"]   = "vivid green",
+        ["pink"]    = "bubblegum pink",
+        ["golden"]  = "shiny golden",
+        ["glowing"] = "glowing luminescent",
+        ["spotted"] = "spotted with mixed patches",
+        ["striped"] = "striped with alternating bands",
+    };
+
+    private static string Map(Dictionary<string, string> map, string? value)
+        => (!string.IsNullOrWhiteSpace(value) && map.TryGetValue(value, out var v)) ? v : (value ?? "");
+
+
     // Base watercolor style with strong "cover-safe" guardrails.
     private static string GetDefaultArtStyle() =>
-        "Children's watercolor art style. ";
+        "Children's watercolor illustration. Soft muted pastel palette, warm harmonious tones, gentle hand-painted look. ";
 
     //+
     //"Portrait orientation, single full-bleed image. " +
@@ -19,10 +100,10 @@ public static class PromptBuilder
 
     public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph, string? artStyleKey)
     {
-        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
+        string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
         var style = GetArtStyle(artStyleKey);
-        return $"{style} {anchors} in {scene}.";
+        return $"{style} Character: {anchors}. Setting: {scene}.";
     }
 
     /// <summary>
@@ -34,12 +115,12 @@ public static class PromptBuilder
         string? readingLevel,
         string? artStyleKey)
     {
-        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
+        string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
         string scene = SummarizeScene(paragraph);
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
-        return $"{style} Use {visualMood}. Keep the tone {tone}. {anchors} in {scene}. ";
+        return $"{style} Use {visualMood}. Keep the tone {tone}. Character: {anchors}. Setting: {scene}.";
     }
 
     private static string GetArtStyle(string? key)
@@ -56,12 +137,12 @@ public static class PromptBuilder
 
         return k switch
         {
-            "comic" => "Children's comic style. Bold clean outlines. Flat bright colors." + guardrails,
-            "crayon" => "Crayon drawing style. Waxy texture. Child-like strokes. Soft colors." + guardrails,
-            "papercut" => "Paper cutout collage style. Flat layered shapes. Soft shadows. No outlines." + guardrails,
-            "toy3d" => "3D toy render style. Soft lighting. Plush/plastic look. Gentle colors." + guardrails,
-            "pixel" => "Pixel art style. Low resolution mosaic look. Clear silhouettes." + guardrails,
-            "inkwash" => "Ink and wash style. Minimal lines. Soft washes. Calming mood." + guardrails,
+            "comic" => "Children's comic book illustration. Bold clean outlines, flat consistent color palette, bright but not neon hues." + guardrails,
+            "crayon" => "Children's crayon drawing. Waxy textured strokes, child-like proportions, soft earthy color palette." + guardrails,
+            "papercut" => "Children's paper cutout collage. Flat layered shapes, soft drop shadows, limited warm pastel palette, no outlines." + guardrails,
+            "toy3d" => "Children's 3D toy render. Soft warm overhead lighting, smooth plastic and plush textures, clean soft pastel color palette." + guardrails,
+            "pixel" => "Children's pixel art. 16-bit retro style, limited consistent 16-color palette, clear readable silhouettes." + guardrails,
+            "inkwash" => "Children's ink and wash illustration. Minimal flowing brushstrokes, soft translucent washes, calm desaturated palette." + guardrails,
             _ => GetDefaultArtStyle()
         };
     }
@@ -92,13 +173,12 @@ public static class PromptBuilder
         }
 
         // 3) Fallback: keyword heuristic if API keeps failing
-        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
         var style = GetArtStyle(artStyleKey);
         var scene = string.IsNullOrWhiteSpace(paragraph)
             ? "posing for a simple portrait in a calm setting"
             : SummarizeScene(paragraph);
 
-        return $"{style} {anchors} in {scene}.";
+        return $"{style} {scene}.";
     }
 
     private static string CleanForModel(string s, int maxLen = 800)
@@ -110,51 +190,47 @@ public static class PromptBuilder
 
     private static string GetCharacterAnchor(CharacterSpec character)
     {
-        var description = character.IsAnimal
+        return character.IsAnimal
             ? BuildAnimalDescription(character.DescriptionFields)
             : BuildHumanDescription(character.DescriptionFields);
-
-        // Avoid labels/parentheses (e.g., "Role:") that trigger sidebars or callouts.
-        return $"a consistent character named {character.Name} who is {description}";
     }
 
     private static string BuildHumanDescription(Dictionary<string, string> fields)
     {
         var parts = new List<string>();
 
-        if (fields.TryGetValue("age", out var age))
-            parts.Add($"a {age}-year-old");
+        fields.TryGetValue("age", out var age);
+        fields.TryGetValue("gender", out var gender);
+        if (!string.IsNullOrWhiteSpace(age) || !string.IsNullOrWhiteSpace(gender))
+            parts.Add($"{age}-year-old {gender}".Trim(' ', '-'));
 
-        if (fields.TryGetValue("gender", out var gender))
-            parts.Add(gender);
+        if (fields.TryGetValue("skinTone", out var skin) && !string.IsNullOrWhiteSpace(skin))
+            parts.Add($"{Map(SkinToneMap, skin)} skin");
 
-        if (fields.TryGetValue("skinTone", out var skin))
-            parts.Add($"with {skin} skin");
-
-        if (fields.TryGetValue("hairColor", out var hair))
+        if (fields.TryGetValue("hairColor", out var hair) && !string.IsNullOrWhiteSpace(hair))
         {
-            if (fields.TryGetValue("hairStyle", out var style))
-                parts.Add($"{style} {hair} hair");
-            else
-                parts.Add($"{hair} hair");
+            var mappedHair = Map(HairColorMap, hair);
+            parts.Add(fields.TryGetValue("hairStyle", out var hairStyle) && !string.IsNullOrWhiteSpace(hairStyle)
+                ? $"{mappedHair} {hairStyle}"
+                : mappedHair);
         }
 
-        if (fields.TryGetValue("eyeColor", out var eyes))
-            parts.Add($"{eyes} eyes");
+        if (fields.TryGetValue("eyeColor", out var eyes) && !string.IsNullOrWhiteSpace(eyes))
+            parts.Add($"{Map(EyeColorMap, eyes)} eyes");
 
-        if (fields.TryGetValue("shirtColor", out var shirt))
-            parts.Add($"wearing a {shirt} shirt");
+        if (fields.TryGetValue("shirtColor", out var shirt) && !string.IsNullOrWhiteSpace(shirt))
+            parts.Add($"{Map(ClothingColorMap, shirt)} shirt");
 
-        if (fields.TryGetValue("pantsColor", out var pants))
-            parts.Add($"and {pants} pants");
+        if (fields.TryGetValue("pantsColor", out var pants) && !string.IsNullOrWhiteSpace(pants))
+            parts.Add($"{Map(ClothingColorMap, pants)} pants");
 
-        if (fields.TryGetValue("shoeColor", out var shoes))
-            parts.Add($"with {shoes} shoes");
+        if (fields.TryGetValue("shoeColor", out var shoes) && !string.IsNullOrWhiteSpace(shoes))
+            parts.Add($"{Map(ClothingColorMap, shoes)} shoes");
 
         if (fields.TryGetValue("accessory", out var accessory) && !string.IsNullOrWhiteSpace(accessory))
-            parts.Add($"with a {accessory}");
+            parts.Add(accessory);
 
-        return string.Join(" ", parts);
+        return string.Join(", ", parts);
     }
 
     /// <summary>
@@ -192,14 +268,23 @@ public static class PromptBuilder
 
     private static string BuildAnimalDescription(Dictionary<string, string> fields)
     {
-        var species = fields.TryGetValue("species", out var s) ? s : "animal";
-        string color = "";
-        if (fields.TryGetValue("bodyColor", out var bodyColor) && fields.TryGetValue("bodyCovering", out var covering))
+        var parts = new List<string>();
+
+        parts.Add(fields.TryGetValue("species", out var species) && !string.IsNullOrWhiteSpace(species)
+            ? species : "animal");
+
+        if (fields.TryGetValue("bodyColor", out var bodyColor) && !string.IsNullOrWhiteSpace(bodyColor))
         {
-            color = $"with {bodyColor} {covering}";
+            var mappedColor = Map(AnimalColorMap, bodyColor);
+            parts.Add(fields.TryGetValue("bodyCovering", out var covering) && !string.IsNullOrWhiteSpace(covering)
+                ? $"{mappedColor} {covering}"
+                : mappedColor);
         }
-        var accessory = fields.TryGetValue("accessory", out var a) ? $"wearing {a}" : "";
-        return $"a {species} {color} {accessory}".Trim();
+
+        if (fields.TryGetValue("accessory", out var accessory) && !string.IsNullOrWhiteSpace(accessory))
+            parts.Add(accessory);
+
+        return string.Join(", ", parts);
     }
 
     private static string SummarizeScene(string paragraph)
@@ -229,7 +314,7 @@ public static class PromptBuilder
 
         paragraph = ParaClean(paragraph);
 
-        string anchors = string.Join(" ", characters.Select(GetCharacterAnchor));
+        string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
         var style = GetArtStyle(artStyleKey);
 
         var userPrompt = $"""
@@ -316,8 +401,8 @@ Paragraph: "{paragraph}"
             scene = "stepping into a simple, calm setting where the adventure continues";
         }
 
-        // Final prompt: we control the subject; the scene is just an action/environment clause.
-        return $"{style} Show {anchors} {scene}. ";
+        // Final prompt: character appearance comes from the reference image, not the text.
+        return $"{style} {scene}.";
     }
 
     // --- Cover prompts -------------------------------------------------------
@@ -332,7 +417,7 @@ Paragraph: "{paragraph}"
     string? readingLevel,
     string? artStyleKey)
     {
-        string anchors = string.Join(", ", characters.Select(GetCharacterAnchor));
+        string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
         var (visualMood, tone) = GetReadingProfile(readingLevel);
         var style = GetArtStyle(artStyleKey);
 
@@ -347,10 +432,7 @@ Paragraph: "{paragraph}"
         //    " ";
         //" Depict the group once as a single scene. Do not repeat or mirror any character. ";
 
-        return $"""
-Depict {anchors} in a setting inspired by {theme} in a {style}
-""";
-        // Show only a single scene with cohesive lighting and background.
+        return $"{style} Character: {anchors}. Standing confidently in a centered portrait pose, facing the viewer with a warm expression. The background is a rich, atmospheric setting inspired by {theme}, with soft depth and magical detail. Book cover composition — no text, no panels.";
     }
 
     /// <summary>

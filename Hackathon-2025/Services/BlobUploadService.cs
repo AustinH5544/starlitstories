@@ -14,6 +14,10 @@ public class BlobUploadService
 
     public async Task<string> UploadImageAsync(string imageUrl, string fileName)
     {
+        // gpt-image-1 edits returns base64 data URIs — route those to the base64 path.
+        if (imageUrl.StartsWith("data:image", StringComparison.Ordinal))
+            return await UploadBase64ImageAsync(imageUrl, fileName);
+
         using var httpClient = new HttpClient();
         var imageBytes = await httpClient.GetByteArrayAsync(imageUrl);
 

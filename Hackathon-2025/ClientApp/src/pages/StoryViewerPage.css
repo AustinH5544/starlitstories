@@ -162,9 +162,17 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
 }
 
 .cover-container {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
     text-align: center;
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
@@ -172,6 +180,7 @@
     padding: 2rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
+    overflow: hidden;
 }
 
 .story-title {
@@ -190,12 +199,14 @@
     overflow: hidden;
     margin-bottom: 1.2rem;
     box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    flex: 1;
+    min-height: 0;
 }
 
 .cover-image {
     width: 100%;
-    height: 400px;
-    object-fit: cover;
+    height: 100%;
+    object-fit: contain;
     transition: transform .25s ease;
     cursor: pointer;
 }
@@ -761,9 +772,7 @@
     }
 
     .cover-image {
-        height: 300px; /* was 400px */
         border-radius: 15px;
-        object-fit: cover;
     }
 
     .page-image-container {
@@ -822,9 +831,7 @@
     }
 
     .cover-image {
-        height: 240px; /* reduce image height */
         border-radius: 15px;
-        object-fit: cover;
     }
 }
 
@@ -857,9 +864,7 @@
     }
 
     .cover-image {
-        height: 200px; /* smaller image height */
         border-radius: 12px;
-        object-fit: cover;
     }
 
     .story-info {
@@ -1012,10 +1017,6 @@
 @media (max-width: 480px) {
     .story-title {
         font-size: 1.6rem;
-    }
-
-    .cover-image {
-        height: 300px;
     }
 
     .page-image {
