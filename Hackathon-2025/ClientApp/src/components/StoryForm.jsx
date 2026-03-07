@@ -615,6 +615,7 @@ const StoryForm = ({ onSubmit }) => {
     const selectedSavedCharacter =
         savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId)) || null
     const canSaveCharacter = !!characters[0]?.name?.trim()
+    const isCreatingNewCharacter = !isUsingSavedCharacter && !editingSavedCharacterId
 
     return (
         <form onSubmit={handleSubmit} className="story-form">
@@ -919,7 +920,7 @@ const StoryForm = ({ onSubmit }) => {
                                     Edit Character
                                 </button>
                             )}
-                            {!isUsingSavedCharacter && (
+                            {!isCreatingNewCharacter && (
                                 <button
                                     type="button"
                                     className="load-character-btn"
