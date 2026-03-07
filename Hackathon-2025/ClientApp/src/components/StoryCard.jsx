@@ -16,6 +16,7 @@ export default function StoryCard({
     const [downloading, setDownloading] = useState(false);
     const [format, setFormat] = useState("pdf");
     const [deleting, setDeleting] = useState(false);
+    const [customizing, setCustomizing] = useState(false);
 
     const pagesCount =
         story?.pageCount ??
@@ -95,8 +96,24 @@ export default function StoryCard({
         }
     };
 
+    const handleCustomize = async () => {
+        if (customizing || deleting || downloading) return;
+
+        try {
+            setCustomizing(true);
+            await onCustomize?.(story);
+        } catch (e) {
+            console.error(e);
+            alert(`Could not open customize: ${e?.message || e}`);
+        } finally {
+            setCustomizing(false);
+        }
+    };
+
+    const isBusy = deleting || downloading || customizing;
+
     const openStory = () => {
-        if (deleting || isGenerating) return;
+        if (isBusy || isGenerating) return;
         onOpen?.(story);
     };
 
@@ -105,7 +122,7 @@ export default function StoryCard({
             className={`scard ${deleting ? "is-busy" : ""} ${isGenerating ? "is-generating" : ""}`}
             role="article"
             aria-label={displayTitle}
-            aria-busy={deleting || isGenerating ? "true" : "false"}
+            aria-busy={isBusy || isGenerating ? "true" : "false"}
         >
             <button
                 className="scard-thumb"
@@ -134,7 +151,7 @@ export default function StoryCard({
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 aria-label={`Actions for ${displayTitle || "story"}`}
-                disabled={deleting || downloading || isGenerating}
+                disabled={isBusy || isGenerating}
                 onClick={(e) => {
                     e.stopPropagation();
                     setMenuOpen((v) => !v);
@@ -149,14 +166,16 @@ export default function StoryCard({
                         <button
                             role="menuitem"
                             className="scard-menuItem"
-                            onClick={() => { onCustomize?.(story); setMenuOpen(false); }}
+                            disabled={isBusy}
+                            onClick={handleCustomize}
                         >
-                            Customize
+                            {customizing ? "Loading..." : "Customize"}
                         </button>
                     )}
                     <button
                         role="menuitem"
                         className="scard-menuItem"
+                        disabled={isBusy}
                         onClick={() => {
                             onShare?.(story);
                             setMenuOpen(false);
@@ -174,7 +193,7 @@ export default function StoryCard({
                             <button
                                 role="menuitem"
                                 className="scard-menuItem"
-                                disabled={!canDownload || downloading}
+                                disabled={!canDownload || isBusy}
                                 onClick={handleDownload}
                             >
                                 {downloading ? "Downloading..." : "Download"}
@@ -183,7 +202,7 @@ export default function StoryCard({
                                 className="scard-select"
                                 value={format}
                                 onChange={(e) => setFormat(e.target.value)}
-                                disabled={!canDownload || downloading}
+                                disabled={!canDownload || isBusy}
                                 aria-label="Download format"
                             >
                                 <option value="pdf">PDF</option>
@@ -199,7 +218,7 @@ export default function StoryCard({
                         role="menuitem"
                         className="scard-menuItem is-danger"
                         onClick={handleDelete}
-                        disabled={deleting}
+                        disabled={isBusy}
                     >
                         {deleting ? "Deleting..." : "Delete"}
                     </button>

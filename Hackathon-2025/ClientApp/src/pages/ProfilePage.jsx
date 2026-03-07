@@ -412,6 +412,16 @@ const ProfilePage = () => {
         }
     };
 
+    const onCustomize = async (storySummary) => {
+        try {
+            const story = await fetchFullStory(storySummary.id);
+            navigate("/customize", { state: { story } });
+        } catch (e) {
+            console.error("Customize failed:", e);
+            alert("Could not load the story for customization.");
+        }
+    };
+
     const onDelete = async (storyId) => {
         const prev = stories;
         setStories(prev.filter(s => s.id !== storyId));
@@ -850,7 +860,7 @@ const ProfilePage = () => {
                                         onDownload={onDownload}
                                         onDelete={onDelete}
                                         onOpen={onOpen}
-                                        onCustomize={(s) => navigate("/customize", { state: { story: s } })}
+                                        onCustomize={onCustomize}
                                     />
                                 ))}
                             </div>
