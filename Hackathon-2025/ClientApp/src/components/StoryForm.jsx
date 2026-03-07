@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "../context/AuthContext"
+import api from "../api"
 import "./StoryForm.css"
 
 import themeIcon from "../assets/ui-icons/theme.png"
@@ -10,6 +11,16 @@ import readingIcon from "../assets/ui-icons/reading.png"
 import personIcon from "../assets/ui-icons/person.png"
 import sparkleIcon from "../assets/ui-icons/sparkle.png"
 //import animalIcon from "../assets/ui-icons/animal.png"
+
+const createEmptyCharacter = (role = "main") => ({
+    role,
+    roleCustom: "",
+    name: "",
+    isAnimal: false,
+    descriptionFields: {},
+})
+
+const cloneCharacter = (character) => JSON.parse(JSON.stringify(character))
 
 const sortedUnique = (values = []) =>
     [...new Set(values.map((v) => String(v).trim()).filter(Boolean))]
@@ -51,6 +62,14 @@ const StoryForm = ({ onSubmit }) => {
     const [selectedCategory, setSelectedCategory] = useState("")
     const [includeLesson, setIncludeLesson] = useState(false)
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
+    const [savedCharacters, setSavedCharacters] = useState([])
+    const [selectedSavedCharacterId, setSelectedSavedCharacterId] = useState("")
+    const [editingSavedCharacterId, setEditingSavedCharacterId] = useState(null)
+    const [savedCharacterLimit, setSavedCharacterLimit] = useState(5)
+    const [savedCharacterNotice, setSavedCharacterNotice] = useState("")
+    const [isUsingSavedCharacter, setIsUsingSavedCharacter] = useState(false)
+    const [isSavingCharacter, setIsSavingCharacter] = useState(false)
+    const [isDeletingCharacter, setIsDeletingCharacter] = useState(false)
 
     const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
     const API_BASE = import.meta.env.VITE_API_BASE ?? ""
@@ -143,15 +162,63 @@ const StoryForm = ({ onSubmit }) => {
     const allPresetLessons = Object.values(lessonsByCategorySorted).flat()
     const isPresetLesson = (val) => allPresetLessons.includes(val)
 
-    const [characters, setCharacters] = useState([
-        {
-            role: "main",
-            roleCustom: "",
-            name: "",
-            isAnimal: false,
-            descriptionFields: {},
-        },
-    ])
+    const [characters, setCharacters] = useState([createEmptyCharacter("main")])
+
+    useEffect(() => {
+        let isMounted = true
+
+        const loadSavedCharacters = async () => {
+            try {
+                const { data } = await api.get("/saved-character/me")
+                const nextItems = Array.isArray(data?.items) ? data.items : []
+                const normalizedItems = nextItems
+                    .map((item) => {
+                        const parsed = item?.character
+                        if (!parsed || typeof parsed !== "object") return null
+                        return {
+                            id: item.id,
+                            name: item.name || parsed.name || "Unnamed Character",
+                            character: {
+                                ...parsed,
+                                role: "main",
+                                roleCustom: "",
+                                descriptionFields: parsed.descriptionFields || {},
+                            },
+                            updatedAtUtc: item.updatedAtUtc || null,
+                        }
+                    })
+                    .filter(Boolean)
+
+                if (!isMounted) return
+                setSavedCharacters(normalizedItems)
+                setSavedCharacterLimit(Number(data?.maxSavedCharacters) || 5)
+                setSelectedSavedCharacterId((prev) => {
+                    if (normalizedItems.length === 0) return ""
+                    const prevId = Number(prev)
+                    return normalizedItems.some((x) => x.id === prevId)
+                        ? String(prevId)
+                        : String(normalizedItems[0].id)
+                })
+                setIsUsingSavedCharacter(false)
+                setEditingSavedCharacterId(null)
+                setSavedCharacterNotice("")
+            } catch (err) {
+                if (err?.response?.status !== 404) {
+                    console.error("Failed to load saved character:", err)
+                }
+                if (!isMounted) return
+                setSavedCharacters([])
+                setSelectedSavedCharacterId("")
+                setIsUsingSavedCharacter(false)
+                setEditingSavedCharacterId(null)
+            }
+        }
+
+        loadSavedCharacters()
+        return () => {
+            isMounted = false
+        }
+    }, [])
 
     const defaultOptions = {
         age: Array.from({ length: 17 }, (_, i) => (i + 2).toString()),
@@ -296,6 +363,132 @@ const StoryForm = ({ onSubmit }) => {
         setCharacters(updated)
     }
 
+    const handleSaveCharacter = async () => {
+        const mainCharacter = characters[0]
+        if (!mainCharacter?.name?.trim()) {
+            alert("Please enter a character name before saving.")
+            return
+        }
+
+        const toSave = cloneCharacter({
+            ...mainCharacter,
+            role: "main",
+            roleCustom: "",
+            descriptionFields: mainCharacter.descriptionFields || {},
+        })
+
+        const isCreatingNew = !editingSavedCharacterId
+        if (isCreatingNew && savedCharacters.length >= savedCharacterLimit) {
+            setSavedCharacterNotice(`You can only save up to ${savedCharacterLimit} characters. Delete one to save a new character.`)
+            return
+        }
+
+        try {
+            setIsSavingCharacter(true)
+            setSavedCharacterNotice("")
+
+            const response = editingSavedCharacterId
+                ? await api.put(`/saved-character/me/${editingSavedCharacterId}`, { character: toSave })
+                : await api.post("/saved-character/me", { character: toSave })
+
+            const savedItem = response?.data
+                ? {
+                    id: response.data.id,
+                    name: response.data.name || toSave.name || "Unnamed Character",
+                    character: cloneCharacter({
+                        ...(response.data.character || toSave),
+                        role: "main",
+                        roleCustom: "",
+                        descriptionFields: (response.data.character || toSave).descriptionFields || {},
+                    }),
+                    updatedAtUtc: response.data.updatedAtUtc || null,
+                }
+                : null
+
+            if (savedItem) {
+                setSavedCharacters((prev) => {
+                    const existingIndex = prev.findIndex((x) => x.id === savedItem.id)
+                    if (existingIndex < 0) {
+                        return [savedItem, ...prev]
+                    }
+
+                    const next = [...prev]
+                    next[existingIndex] = savedItem
+                    return next
+                })
+                setSelectedSavedCharacterId(String(savedItem.id))
+                setEditingSavedCharacterId(savedItem.id)
+            }
+
+            setCharacters([cloneCharacter(toSave)])
+            setIsUsingSavedCharacter(true)
+        } catch (err) {
+            console.error("Failed to save character:", err)
+            const apiMessage = err?.response?.data?.message
+            if (apiMessage) {
+                setSavedCharacterNotice(apiMessage)
+            } else {
+                alert("We couldn't save this character right now. Please try again.")
+            }
+        } finally {
+            setIsSavingCharacter(false)
+        }
+    }
+
+    const handleLoadSavedCharacter = () => {
+        const selected = savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId))
+        if (!selected) return
+        setCharacters([cloneCharacter(selected.character)])
+        setEditingSavedCharacterId(selected.id)
+        setSavedCharacterNotice("")
+        setIsUsingSavedCharacter(true)
+    }
+
+    const handleDeleteSavedCharacter = async () => {
+        const selected = savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId))
+        if (!selected) return
+
+        try {
+            setIsDeletingCharacter(true)
+            setSavedCharacterNotice("")
+            await api.delete(`/saved-character/me/${selected.id}`)
+        } catch (err) {
+            console.error("Failed to delete saved character:", err)
+            const apiMessage = err?.response?.data?.message
+            if (apiMessage) setSavedCharacterNotice(apiMessage)
+        } finally {
+            setIsDeletingCharacter(false)
+        }
+
+        const nextCharacters = savedCharacters.filter((x) => x.id !== selected.id)
+        setSavedCharacters(nextCharacters)
+        setSelectedSavedCharacterId(nextCharacters.length ? String(nextCharacters[0].id) : "")
+
+        if (isUsingSavedCharacter && editingSavedCharacterId === selected.id) {
+            setIsUsingSavedCharacter(false)
+            setCharacters([createEmptyCharacter("main")])
+        }
+        if (editingSavedCharacterId === selected.id) {
+            setEditingSavedCharacterId(null)
+        }
+    }
+
+    const handleEditSavedCharacter = () => {
+        const selected = savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId))
+        if (!selected) return
+        setCharacters([cloneCharacter(selected.character)])
+        setEditingSavedCharacterId(selected.id)
+        setSavedCharacterNotice("")
+        setIsUsingSavedCharacter(false)
+    }
+
+    const handleStartNewCharacter = () => {
+        setEditingSavedCharacterId(null)
+        setCharacters([createEmptyCharacter("main")])
+        setSavedCharacterNotice("")
+        setIsUsingSavedCharacter(false)
+    }
+
     const handleSubmit = (e) => {
         e.preventDefault()
 
@@ -393,6 +586,10 @@ const StoryForm = ({ onSubmit }) => {
     // Check if user can add more characters
     const canAddMoreCharacters = membership !== "free" || characters.length < 1
     const isAtCharacterLimit = membership === "free" && characters.length >= 1
+    const hasSavedCharacter = savedCharacters.length > 0
+    const selectedSavedCharacter =
+        savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId)) || null
+    const canSaveCharacter = !!characters[0]?.name?.trim()
 
     return (
         <form onSubmit={handleSubmit} className="story-form">
@@ -644,7 +841,87 @@ const StoryForm = ({ onSubmit }) => {
                 </div>
             </div>
 
-            {characters.map((char, i) => (
+            <div className="form-section saved-character-section">
+                <h3 className="section-title">
+                    <span className="section-icon">
+                        <img
+                            src={personIcon}
+                            alt="Saved character controls"
+                            className="section-icon-img"
+                        />
+                    </span>
+                    Saved Character
+                </h3>
+                {!hasSavedCharacter ? (
+                    <p className="field-hint">Save characters here. You can keep up to {savedCharacterLimit} per account.</p>
+                ) : (
+                    <>
+                        <div className="field-group">
+                            <label className="field-label">Select saved character</label>
+                            <select
+                                className="form-select"
+                                value={selectedSavedCharacterId}
+                                onChange={(e) => setSelectedSavedCharacterId(e.target.value)}
+                                disabled={isSavingCharacter || isDeletingCharacter}
+                            >
+                                {savedCharacters.map((item) => (
+                                    <option key={item.id} value={String(item.id)}>
+                                        {item.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <p className="saved-character-current-name">
+                            Saved {savedCharacters.length} / {savedCharacterLimit}
+                        </p>
+                        <div className="saved-character-controls">
+                            {!isUsingSavedCharacter ? (
+                                <button
+                                    type="button"
+                                    className="load-character-btn"
+                                    onClick={handleLoadSavedCharacter}
+                                    disabled={isSavingCharacter || isDeletingCharacter}
+                                >
+                                    Load Saved Character
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="edit-character-btn"
+                                    onClick={handleEditSavedCharacter}
+                                    disabled={isSavingCharacter || isDeletingCharacter}
+                                >
+                                    Edit Character
+                                </button>
+                            )}
+                            {!isUsingSavedCharacter && (
+                                <button
+                                    type="button"
+                                    className="load-character-btn"
+                                    onClick={handleStartNewCharacter}
+                                    disabled={isSavingCharacter || isDeletingCharacter}
+                                >
+                                    New Character
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                className="delete-character-btn"
+                                onClick={handleDeleteSavedCharacter}
+                                disabled={isSavingCharacter || isDeletingCharacter}
+                            >
+                                {isDeletingCharacter ? "Deleting..." : "Delete Saved Character"}
+                            </button>
+                        </div>
+                    </>
+                )}
+                {!!savedCharacterNotice && (
+                    <p className="saved-character-notice">{savedCharacterNotice}</p>
+                )}
+            </div>
+
+            <div className={`character-editor-panel ${isUsingSavedCharacter ? "collapsed" : ""}`}>
+                {characters.map((char, i) => (
                 <div key={i} className="character-card">
                     <div className="character-header">
                         <h3 className="character-title">
@@ -828,10 +1105,38 @@ const StoryForm = ({ onSubmit }) => {
                         )}
                     </div>
                 </div>
-            ))}
+                ))}
+            </div>
+
+            <div className={`character-card loaded-character-card ${isUsingSavedCharacter ? "visible" : ""}`}>
+                <div className="field-group">
+                    <label className="field-label">Loaded Character</label>
+                    <p className="loaded-character-name">{characters[0]?.name || selectedSavedCharacter?.name || "Saved character"}</p>
+                    <p className="field-hint">
+                        Character creation is hidden while using this saved character. Click Edit Character to update and save again.
+                    </p>
+                </div>
+            </div>
 
             <div className="form-actions">
-                {showCharacterTypeAndExtraButton && (
+                {!isUsingSavedCharacter && (
+                    <button
+                        type="button"
+                        onClick={handleSaveCharacter}
+                        className="save-character-btn"
+                        disabled={!canSaveCharacter || isSavingCharacter || isDeletingCharacter}
+                    >
+                        <span>
+                            {isSavingCharacter
+                                ? "Saving..."
+                                : editingSavedCharacterId
+                                    ? "Save Changes"
+                                    : "Save Character"}
+                        </span>
+                    </button>
+                )}
+
+                {!isUsingSavedCharacter && showCharacterTypeAndExtraButton && (
                     canAddMoreCharacters ? (
                         <button type="button" onClick={addCharacter} className="add-character-btn">
                             <span className="button-icon">➕</span>
