@@ -411,8 +411,8 @@ const AboutPage = () => {
 
                             <div className="footer-column contact-column">
                                 <h4>Need help?</h4>
-                                <a href="mailto:support@starlitstories.com" className="footer-email">
-                                    support@starlitstories.com
+                                <a href="mailto:support@starlitstories.app" className="footer-email">
+                                    support@starlitstories.app
                                 </a>
                             </div>
                         </div>
