@@ -20,6 +20,7 @@ export default function DoodlePad({
     const [brushSize, setBrushSize] = useState(lineWidth)
     const [brushType, setBrushType] = useState("pen")
     const [canUndo, setCanUndo] = useState(false)
+    const [isMobileLayout, setIsMobileLayout] = useState(false)
     const imageDataRef = useRef(null)
     const historyRef = useRef([])
 
@@ -163,6 +164,14 @@ export default function DoodlePad({
         return () => window.removeEventListener("keydown", onUndoShortcut)
     }, [])
 
+    useEffect(() => {
+        const media = window.matchMedia("(max-width: 640px)")
+        const syncLayout = () => setIsMobileLayout(media.matches)
+        syncLayout()
+        media.addEventListener?.("change", syncLayout)
+        return () => media.removeEventListener?.("change", syncLayout)
+    }, [])
+
     const getPos = (nativeEvent) => {
         const canvas = canvasRef.current
         const rect = canvas.getBoundingClientRect()
@@ -252,6 +261,7 @@ export default function DoodlePad({
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        flexWrap: "wrap",
         marginBottom: "12px",
         gap: "12px",
     }
@@ -280,14 +290,17 @@ export default function DoodlePad({
         transition: "all 0.2s ease",
         boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
         outline: "none",
+        maxWidth: "100%",
+        minWidth: isMobileLayout ? "0" : "96px",
+        flex: isMobileLayout ? "1 1 140px" : "0 1 auto",
     }
 
     const colorGridStyle = {
         display: "grid",
-        gridTemplateColumns: "repeat(10, minmax(0, 1fr))",
+        gridTemplateColumns: isMobileLayout ? "repeat(8, minmax(0, 1fr))" : "repeat(10, minmax(0, 1fr))",
         gap: "6px",
-        flex: 1,
-        minWidth: "260px",
+        flex: isMobileLayout ? "1 1 100%" : 1,
+        minWidth: isMobileLayout ? "0" : "260px",
         maxWidth: "420px",
     }
 
@@ -304,6 +317,8 @@ export default function DoodlePad({
         ...clearBtnStyle,
         background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)",
         boxShadow: "0 2px 4px rgba(14, 165, 233, 0.2)",
+        maxWidth: "100%",
+        flex: isMobileLayout ? "1 1 140px" : "0 1 auto",
     }
 
     return (
