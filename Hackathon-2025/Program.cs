@@ -118,7 +118,7 @@ else
 }
 
 // -----------------------------
-// Auth (JWT) — no ASP.NET Identity
+// Auth (JWT) ï¿½ no ASP.NET Identity
 // -----------------------------
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
@@ -220,7 +220,10 @@ builder.Services.AddRateLimiter(options =>
     // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(...)
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 // builder.Services.AddEndpointsApiExplorer(); // only needed if you add Swagger later
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 
