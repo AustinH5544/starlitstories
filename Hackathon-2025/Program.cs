@@ -252,6 +252,21 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // =========================
+// Security headers
+// =========================
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.Headers.Append("Content-Security-Policy",
+        "default-src 'self'; " +
+        "script-src 'self' https://js.stripe.com https://*.js.stripe.com https://checkout.stripe.com; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: blob: https: https://*.stripe.com; " +
+        "connect-src 'self' https://api.starlitstories.app https://api.stripe.com https://checkout.stripe.com; " +
+        "frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://checkout.stripe.com;");
+    await next();
+});
+
+// =========================
 // Static files & routing
 // =========================
 //app.UseDefaultFiles();
