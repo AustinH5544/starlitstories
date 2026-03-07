@@ -240,7 +240,7 @@ const UpgradePage = () => {
 
                 <div className="upgrade-footer">
                     <p>
-                        Questions about upgrading? <a href="mailto:support@StarlitStories.com">Contact our support team</a>
+                        Questions about upgrading? <a href="mailto:support@StarlitStories.app">Contact our support team</a>
                     </p>
                 </div>
             </div>

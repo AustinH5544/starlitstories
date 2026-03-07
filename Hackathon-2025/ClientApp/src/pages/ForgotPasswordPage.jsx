@@ -68,7 +68,7 @@ const ForgotPasswordPage = () => {
                                 <li>Wait a few minutes for the email to arrive</li>
                             </ul>
                             <p className="contact-support">
-                                Still having trouble? <a href="mailto:support@StarlitStories.com">Contact our support team</a>
+                                Still having trouble? <a href="mailto:support@StarlitStories.app">Contact our support team</a>
                             </p>
                         </div>
                     </div>

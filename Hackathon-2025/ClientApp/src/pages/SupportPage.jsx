@@ -190,11 +190,11 @@ const SupportPage = () => {
                         </h2>
 
                         <div className="contact-methods">
-                            <a href="mailto:support@StarlitStories.com" className="contact-method">
+                            <a href="mailto:support@StarlitStories.app" className="contact-method">
                                 <div className="contact-icon">📧</div>
                                 <div className="contact-info">
                                     <h4>Email Support</h4>
-                                    <p>support@StarlitStories.com</p>
+                                    <p>support@StarlitStories.app</p>
                                 </div>
                             </a>
 
