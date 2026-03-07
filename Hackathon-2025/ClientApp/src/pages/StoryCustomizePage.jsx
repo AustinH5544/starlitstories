@@ -43,6 +43,7 @@ export default function StoryCustomizePage() {
                 fontSize: 20, fontWeight: 400, lineHeight: 1.35,
                 color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.8,
                 align: "left", padding: 16, radius: 12, shadow: true,
+                textEdge: false, textEdgeColor: "#ffffff", textEdgeWidth: 1,
             },
         };
     }
@@ -435,7 +436,8 @@ export default function StoryCustomizePage() {
                 fontFamily: "Georgia, 'Times New Roman', serif",
                 fontSize: 36, fontWeight: 700, lineHeight: 1.2,
                 color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.0,
-                align: "center", padding: 8, radius: 12, shadow: false
+                align: "center", padding: 8, radius: 12, shadow: false,
+                textEdge: false, textEdgeColor: "#ffffff", textEdgeWidth: 1
             },
         };
     }
@@ -446,6 +448,7 @@ export default function StoryCustomizePage() {
             const next = { ...prev };
             Object.keys(next).forEach((k) => {
                 const i = Number(k);
+                if (i === -1) return; // Skip cover page
                 next[i] = (next[i] || []).map((b) => ({
                     ...b,
                     style: { ...b.style, ...selectedBox.style },
@@ -592,13 +595,15 @@ export default function StoryCustomizePage() {
                                     <option key={i} value={i}>Page {i + 1}</option>
                                 ))}
                             </select>
-                            <button
-                                className="btn ghost"
-                                disabled={!selectedBox}
-                                onClick={applySelectedStyleToAllPages}
-                            >
-                            Apply selected style → all pages
-                            </button>
+                            {pageIndex !== -1 && (
+                                <button
+                                    className="btn ghost"
+                                    disabled={!selectedBox}
+                                    onClick={applySelectedStyleToAllPages}
+                                >
+                                Apply selected style → all pages
+                                </button>
+                            )}
                         </div>
                     </div>
                 </aside>
@@ -759,6 +764,42 @@ export default function StoryCustomizePage() {
                                 </div>
                             </div>
 
+                            <label className="row gap sm">
+                                <input
+                                    type="checkbox"
+                                    checked={!!selectedBox.style.textEdge}
+                                    onChange={(e) => updateStyle({ textEdge: e.target.checked })}
+                                />
+                                Text edge (outline)
+                            </label>
+
+                            {selectedBox.style.textEdge && (
+                                <div className="grid2">
+                                    <div>
+                                        <label>Edge color</label>
+                                        <input
+                                            type="color"
+                                            className="input"
+                                            value={selectedBox.style.textEdgeColor || "#ffffff"}
+                                            onChange={(e) => updateStyle({ textEdgeColor: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label>Edge width</label>
+                                        <input
+                                            type="number"
+                                            className="input"
+                                            min={1}
+                                            max={6}
+                                            value={selectedBox.style.textEdgeWidth ?? 1}
+                                            onChange={(e) =>
+                                                updateStyle({ textEdgeWidth: clampN(e.target.value, 1, 6) })
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="grid2">
                                 <div>
                                     <label>Background opacity</label>
@@ -863,6 +904,20 @@ function colorToRgba(hexOrRgb, alpha = 0.8) {
     const base = hexOrRgb.slice(0, 7);
     const { r, g, b } = hexToRgb(base);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function edgeShadow(color = "#ffffff", width = 1) {
+    const w = Math.max(1, Math.min(6, Number(width) || 1));
+    return [
+        `${w}px 0 ${color}`,
+        `-${w}px 0 ${color}`,
+        `0 ${w}px ${color}`,
+        `0 -${w}px ${color}`,
+        `${w}px ${w}px ${color}`,
+        `-${w}px -${w}px ${color}`,
+        `${w}px -${w}px ${color}`,
+        `-${w}px ${w}px ${color}`,
+    ].join(", ");
 }
 
 /** Draggable, resizable text box */
@@ -1010,6 +1065,12 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         userSelect: "none",
     };
 
+    const contentStyle = {
+        textShadow: box?.style?.textEdge
+            ? edgeShadow(box?.style?.textEdgeColor || "#ffffff", box?.style?.textEdgeWidth ?? 1)
+            : "none",
+    };
+
     return (
         <div
             className={`tbox ${selected ? "selected" : ""}`}
@@ -1029,7 +1090,7 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
             <div className="corner-handle handle-sw" onPointerDown={(e) => startResize(e, "sw")} />
             <div className="corner-handle handle-se" onPointerDown={(e) => startResize(e, "se")} />
 
-            <div className="content">{box.text}</div>
+            <div className="content" style={contentStyle}>{box.text}</div>
         </div>
     );
 }
