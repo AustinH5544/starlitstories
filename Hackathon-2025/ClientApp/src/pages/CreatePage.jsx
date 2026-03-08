@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import StoryForm from "../components/StoryForm";
 import api from "../api";
@@ -6,11 +6,15 @@ import "./CreatePage.css";
 import { useNavigate } from "react-router-dom";
 import useUserProfile from "../hooks/useUserProfile";
 import useWarmup from "../hooks/useWarmup";
-import DoodlePad from "../Components/DoodlePad";
+import DoodlePad from "../components/DoodlePad";
+import PaintingFlightGame from "../components/PaintingFlightGame";
 
 const CreatePage = () => {
     useWarmup();
     const { user } = useAuth();
+    const isWaitDebug =
+        import.meta.env.DEV &&
+        new URLSearchParams(window.location.search).get("waitDebug") === "1";
     const [story, setStory] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [storyReady, setStoryReady] = useState(false);
@@ -19,6 +23,8 @@ const CreatePage = () => {
     const [progressPhase, setProgressPhase] = useState("idle"); // "idle" | "upload" | "generating" | "download" | "done"
     const [progressHint, setProgressHint] = useState("");
     const [lastFormData, setLastFormData] = useState(null);
+    const [waitActivity, setWaitActivity] = useState("game");
+    const [isRedirectingToStory, setIsRedirectingToStory] = useState(false);
 
     const { profile: userProfile, loading: profileLoading, error: profileError } = useUserProfile();
     const navigate = useNavigate();
@@ -89,6 +95,7 @@ const CreatePage = () => {
         setLastFormData(request);
         setIsLoading(true);
         setStoryReady(false);
+        setIsRedirectingToStory(false);
         setError(null);
         setStory(null);
         resetProgress();
@@ -334,6 +341,15 @@ const CreatePage = () => {
         story.pages[0].text?.toLowerCase().startsWith("oops") === false &&
         !error;
 
+    useEffect(() => {
+        if (!storyReady || !isValidStory) return;
+        setIsRedirectingToStory(true);
+        const redirectTimer = setTimeout(() => {
+            navigate("/view", { state: { story } });
+        }, 1400);
+        return () => clearTimeout(redirectTimer);
+    }, [navigate, story, storyReady, isValidStory]);
+
     const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1;
 
     // Not logged in
@@ -439,9 +455,30 @@ const CreatePage = () => {
                             </button>
                         </div>
                     </div>
-                ) : isLoading ? (
+                ) : (isLoading || isWaitDebug) ? (
                     <div className="loading-container">
-                        {/* Progress bar */}
+                        <h2 className="wait-title">Your story is being created...</h2>
+                        <p className="wait-subtitle">
+                            Pick an activity while we finish your magical book.
+                        </p>
+
+                        <div className="wait-activity-switch">
+                            <button
+                                type="button"
+                                className={`wait-activity-btn ${waitActivity === "game" ? "active" : ""}`}
+                                onClick={() => setWaitActivity("game")}
+                            >
+                                Play Painting Flight
+                            </button>
+                            <button
+                                type="button"
+                                className={`wait-activity-btn ${waitActivity === "doodle" ? "active" : ""}`}
+                                onClick={() => setWaitActivity("doodle")}
+                            >
+                                Open Doodle Pad
+                            </button>
+                        </div>
+
                         <div className="progress-wrap" aria-live="polite">
                             <div
                                 className={`progress-bar ${progressPhase}`}
@@ -459,8 +496,12 @@ const CreatePage = () => {
                         <p className="loading-subtext">
                             This may take a few moments while our storytellers work their magic
                         </p>
-                        <div className="wait-activity" style={{ marginTop: "1rem" }}>
-                            <DoodlePad height={280} lineWidth={5} strokeStyle="#1f2937" background="transparent" />
+                        <div className="wait-activity-panel">
+                            {waitActivity === "game" ? (
+                                <PaintingFlightGame />
+                            ) : (
+                                <DoodlePad height={280} lineWidth={5} strokeStyle="#1f2937" background="transparent" />
+                            )}
                         </div>
                     </div>
                 ) : !storyReady || !isValidStory ? (
@@ -486,7 +527,9 @@ const CreatePage = () => {
                 ) : (
                     <div className="success-container">
                         <div className="success-icon">🎉</div>
-                        <p className="success-text">Your story is ready!</p>
+                        <p className="success-text">
+                            {isRedirectingToStory ? "Your story is ready! Opening now..." : "Your story is ready!"}
+                        </p>
                         <button className="view-story-button" onClick={() => navigate("/view", { state: { story } })}>
                             <span className="button-icon">📖</span>
                             <span>View Your Story</span>

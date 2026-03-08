@@ -52,6 +52,7 @@ export default function DoodlePad({
     const brushTypes = [
         { name: "Pen", value: "pen" },
         { name: "Marker", value: "marker" },
+        { name: "Sparkle", value: "sparkle" },
         { name: "Eraser", value: "eraser" },
     ]
 
@@ -60,11 +61,12 @@ export default function DoodlePad({
 
         const isEraser = brushType === "eraser"
         const isMarker = brushType === "marker"
+        const isSparkle = brushType === "sparkle"
         ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over"
-        ctx.globalAlpha = isMarker ? 0.45 : 1
+        ctx.globalAlpha = isMarker ? 0.45 : isSparkle ? 0.9 : 1
         ctx.lineCap = "round"
         ctx.lineJoin = "round"
-        ctx.lineWidth = brushSize
+        ctx.lineWidth = isSparkle ? Math.max(1, brushSize * 0.75) : brushSize
         ctx.strokeStyle = currentColor
     }
 
@@ -207,6 +209,21 @@ export default function DoodlePad({
         ctx.moveTo(last.x, last.y)
         ctx.lineTo(p.x, p.y)
         ctx.stroke()
+
+        if (brushType === "sparkle") {
+            for (let i = 0; i < 5; i++) {
+                const t = Math.random()
+                const sx = last.x + (p.x - last.x) * t + (Math.random() - 0.5) * brushSize * 2.4
+                const sy = last.y + (p.y - last.y) * t + (Math.random() - 0.5) * brushSize * 2.4
+                const radius = Math.max(0.8, Math.random() * (brushSize * 0.45))
+                ctx.beginPath()
+                ctx.fillStyle = Math.random() < 0.35 ? "#ffffff" : currentColor
+                ctx.globalAlpha = 0.65 + Math.random() * 0.35
+                ctx.arc(sx, sy, radius, 0, Math.PI * 2)
+                ctx.fill()
+            }
+            applyBrushSettings(ctx)
+        }
 
         lastPointRef.current = p
     }
