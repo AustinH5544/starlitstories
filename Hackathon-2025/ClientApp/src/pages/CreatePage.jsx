@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import StoryForm from "../components/StoryForm";
 import DoodlePad from "../Components/DoodlePad";
+import PaintingFlightGame from "../Components/PaintingFlightGame";
 import api from "../api";
 import "./CreatePage.css";
 import { useNavigate } from "react-router-dom";
 import useUserProfile from "../hooks/useUserProfile";
 import useWarmup from "../hooks/useWarmup";
-import PaintingFlightGame from "../components/PaintingFlightGame";
 
 const CreatePage = () => {
     useWarmup();
