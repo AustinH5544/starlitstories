@@ -160,8 +160,8 @@ export default function PaintingFlightGame() {
         const hitboxX = brush.x + brush.hitboxOffsetX
         const hitboxY = brush.y
         const hitboxRadius = brush.hitboxRadius
-        const gapTop = obstacle.gapY - obstacle.gapSize * 0.5
-        const gapBottom = obstacle.gapY + obstacle.gapSize * 0.5
+        const gapTop = clamp(obstacle.gapY - obstacle.gapSize * 0.5, 0, height)
+        const gapBottom = clamp(obstacle.gapY + obstacle.gapSize * 0.5, 0, height)
         return (
             circleIntersectsRect(hitboxX, hitboxY, hitboxRadius, obstacle.x, 0, obstacle.width, gapTop) ||
             circleIntersectsRect(hitboxX, hitboxY, hitboxRadius, obstacle.x, gapBottom, obstacle.width, height - gapBottom)
@@ -246,6 +246,7 @@ export default function PaintingFlightGame() {
     }
 
     const drawRectWithCornerRadii = (ctx, x, y, width, height, radii) => {
+        if (width <= 0 || height <= 0) return
         const tl = Math.min(Math.max(0, radii.tl || 0), width / 2, height / 2)
         const tr = Math.min(Math.max(0, radii.tr || 0), width / 2, height / 2)
         const br = Math.min(Math.max(0, radii.br || 0), width / 2, height / 2)
@@ -268,8 +269,8 @@ export default function PaintingFlightGame() {
     }
 
     const drawObstacle = (ctx, obstacle, h) => {
-        const gapTop = obstacle.gapY - obstacle.gapSize * 0.5
-        const gapBottom = obstacle.gapY + obstacle.gapSize * 0.5
+        const gapTop = clamp(obstacle.gapY - obstacle.gapSize * 0.5, 0, h)
+        const gapBottom = clamp(obstacle.gapY + obstacle.gapSize * 0.5, 0, h)
         const x = obstacle.x
         const w = obstacle.width
 
