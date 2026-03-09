@@ -312,16 +312,17 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
 
-        // Build cover prompt now so it can join the single image generation call.
+        // Build cover prompt — used alongside page prompts in the parallel edit batch.
         var coverPrompt = PromptBuilder.BuildCoverPrompt(
             characters, request.Theme, request.ReadingLevel, request.ArtStyle);
 
-        // Generate all images in one call: cover first, then pages.
-        // Cover (index 0) uses DALL-E 3 and becomes the character reference for all page edits.
-        // This gives the cover a distinct centered composition while keeping character appearance
-        // consistent across all pages via gpt-image-1 edits.
+        // Build the base character prompt used as the shared reference image.
+        var charBasePrompt = PromptBuilder.BuildBaseCharacterPrompt(characters, request.ArtStyle);
+
+        // Generate: base character first (1 DALL-E 3 call), then all story images
+        // (cover + pages) in parallel as gpt-image-1 edits referencing the base.
         var allPrompts = new[] { coverPrompt }.Concat(imagePrompts).ToList();
-        var allImageUrls = await _imageService.GenerateImagesAsync(allPrompts);
+        var allImageUrls = await _imageService.GenerateImagesWithCharacterBaseAsync(allPrompts, charBasePrompt);
 
         var coverExternalUrl = allImageUrls[0];
         var externalImageUrls = allImageUrls.Skip(1).ToList();

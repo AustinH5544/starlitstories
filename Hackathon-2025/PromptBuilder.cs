@@ -497,6 +497,20 @@ Paragraph: "{paragraph}"
         return $"{style} {scene}.";
     }
 
+    // --- Base character prompt -----------------------------------------------
+
+    /// <summary>
+    /// Generates a neutral full-body character portrait used as the shared reference
+    /// image for all parallel story/cover image edits.
+    /// </summary>
+    public static string BuildBaseCharacterPrompt(List<CharacterSpec> characters, string? artStyle)
+    {
+        string anchor = string.Join(" and ", characters.Select(GetCharacterAnchor));
+        var style = GetArtStyle(artStyle);
+        return $"{style} Full-body character portrait, plain white background, " +
+               $"centered composition, no scene, no props, no text. Character: {anchor}.";
+    }
+
     // --- Cover prompts -------------------------------------------------------
 
     /// <summary>

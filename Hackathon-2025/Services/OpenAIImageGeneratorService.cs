@@ -38,7 +38,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
             else
             {
                 // Pages 2+: use gpt-image-1 edits with page 1 as the character reference.
-                var dataUri = await GenerateSingleImageWithReferenceAsync(prompts[i], referenceImageUrl);
+                var dataUri = await GenerateSingleImageWithReferenceAsync(prompts[i], referenceImageUrl, null);
                 results.Add(dataUri);
             }
         }
@@ -163,10 +163,34 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
     });
 
-    private async Task<string> GenerateSingleImageWithReferenceAsync(string prompt, string referenceImageUrl)
+    public async Task<List<string>> GenerateImagesWithCharacterBaseAsync(
+        List<string> prompts, string characterBasePrompt)
     {
-        // Download the reference image once before the retry loop.
-        byte[] imageBytes = await _editsClient.GetByteArrayAsync(referenceImageUrl);
+        // Step 1: Generate the base character image using DALL-E 3.
+        string characterUrl = await GenerateSingleImageAsync(characterBasePrompt);
+
+        // Step 2: Download the character bytes once; all parallel edits share this.
+        byte[] characterBytes = await _editsClient.GetByteArrayAsync(characterUrl);
+
+        // Step 3: Fire all story images in parallel as gpt-image-1 edits.
+        // SemaphoreSlim caps concurrency to avoid hitting OpenAI rate limits.
+        var sem = new SemaphoreSlim(4);
+        var tasks = prompts.Select(async p =>
+        {
+            await sem.WaitAsync();
+            try { return await GenerateSingleImageWithReferenceAsync(p, characterUrl, characterBytes); }
+            finally { sem.Release(); }
+        });
+
+        var results = await Task.WhenAll(tasks);
+        return results.ToList();
+    }
+
+    private async Task<string> GenerateSingleImageWithReferenceAsync(
+        string prompt, string referenceImageUrl, byte[]? preloadedBytes = null)
+    {
+        // Use pre-downloaded bytes when available; otherwise download now.
+        byte[] imageBytes = preloadedBytes ?? await _editsClient.GetByteArrayAsync(referenceImageUrl);
 
         const int maxAttempts = 5;
         for (int attempt = 1; attempt <= maxAttempts; attempt++)

@@ -12,6 +12,10 @@ public class LocalImageGeneratorService : IImageGeneratorService
         _httpClient = httpClient;
     }
 
+    public Task<List<string>> GenerateImagesWithCharacterBaseAsync(
+        List<string> prompts, string characterBasePrompt)
+        => GenerateImagesAsync(prompts); // Local server has no edit/reference support; fall back to sequential.
+
     public async Task<List<string>> GenerateImagesAsync(List<string> prompts)
     {
         var results = new List<string>();
