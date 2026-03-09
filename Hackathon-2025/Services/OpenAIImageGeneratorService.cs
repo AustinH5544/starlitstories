@@ -204,6 +204,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
             content.Add(new StringContent(prompt), "prompt");
             content.Add(new StringContent("medium"), "quality");
             content.Add(new StringContent("low"), "input_fidelity");
+            content.Add(new StringContent("1024x1024"), "size");
 
             var imageContent = new ByteArrayContent(imageBytes);
             imageContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
