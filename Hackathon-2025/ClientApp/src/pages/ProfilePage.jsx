@@ -343,6 +343,7 @@ const ProfilePage = () => {
     }, [user?.profileImage, BASE, avatarVersion]);
 
     const canDownload = ["pro", "premium"].includes(membershipKey);
+    const canCustomize = canDownload;
 
     // ---- ADDED: lazy loader for full story (used by open/download/share) ----
     const fetchFullStory = async (id) => {
@@ -854,7 +855,7 @@ const ProfilePage = () => {
                                     <StoryCard
                                         key={story.id}
                                         story={story}
-                                        canCustomize={true}
+                                        canCustomize={canCustomize}
                                         canDownload={canDownload}
                                         onShare={onShare}
                                         onDownload={onDownload}

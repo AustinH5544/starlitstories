@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./StoryCustomizePage.css";
 
 /**
@@ -17,6 +18,7 @@ import "./StoryCustomizePage.css";
 export default function StoryCustomizePage() {
     const { state } = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const [story, setStory] = useState(null);
     const [pageIndex, setPageIndex] = useState(-1);
@@ -156,6 +158,14 @@ export default function StoryCustomizePage() {
             return next;
         });
     }
+
+    useEffect(() => {
+        const membership = String(user?.membership ?? "free").toLowerCase();
+        if (membership === "free") {
+            alert("Story customization is available for Pro and Premium users.");
+            navigate("/upgrade", { replace: true });
+        }
+    }, [navigate, user?.membership]);
 
     useEffect(() => {
         let s = state?.story;
