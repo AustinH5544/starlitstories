@@ -692,6 +692,18 @@ const StoryForm = ({ onSubmit }) => {
                             <option value="inkwash" disabled={isFree}>
                                 {isFree ? "🔒 Ink & wash (minimal)" : "Ink & wash (minimal)"}
                             </option>
+                            <option value="gouache" disabled={isFree}>
+                                {isFree ? "🔒 Gouache (storybook paint)" : "Gouache (storybook paint)"}
+                            </option>
+                            <option value="pastel" disabled={isFree}>
+                                {isFree ? "🔒 Soft pastel (chalky)" : "Soft pastel (chalky)"}
+                            </option>
+                            <option value="lineart" disabled={isFree}>
+                                {isFree ? "🔒 Clean line art (modern)" : "Clean line art (modern)"}
+                            </option>
+                            <option value="clay" disabled={isFree}>
+                                {isFree ? "🔒 Clay animation (handmade)" : "Clay animation (handmade)"}
+                            </option>
                         </select>
 
                         {isFree && (

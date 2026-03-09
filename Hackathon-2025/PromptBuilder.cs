@@ -172,6 +172,10 @@ public static class PromptBuilder
             "toy3d" => "Children's 3D toy render. Soft warm overhead lighting, smooth plastic and plush textures, clean soft pastel color palette." + guardrails,
             "pixel" => "Children's pixel art. 16-bit retro style, limited consistent 16-color palette, clear readable silhouettes." + guardrails,
             "inkwash" => "Children's ink and wash illustration. Minimal flowing brushstrokes, soft translucent washes, calm desaturated palette." + guardrails,
+            "gouache" => "Children's gouache painting. Rich matte brush textures, layered color fields, storybook warmth and depth." + guardrails,
+            "pastel" => "Children's soft pastel illustration. Chalky blended textures, velvety edges, dreamy gentle color transitions." + guardrails,
+            "lineart" => "Children's clean line art illustration. Crisp expressive outlines, simple modern shapes, bright balanced flat colors." + guardrails,
+            "clay" => "Children's clay animation style illustration. Handmade clay-like characters, tactile sculpted textures, playful studio lighting." + guardrails,
             _ => GetDefaultArtStyle()
         };
     }

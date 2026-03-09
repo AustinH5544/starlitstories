@@ -22,6 +22,75 @@ import heartIcon from "../assets/parent-icons/heart.png"
 const SHOW_COMPANY = false
 const SHOW_RESOURCES = false
 
+const artStyleShowcase = [
+    {
+        key: "watercolor",
+        name: "Watercolor",
+        note: "Soft and dreamy",
+        examples: ["/art-style-examples/watercolor-1.jpg", "/art-style-examples/watercolor-2.jpg", "/art-style-examples/watercolor-3.jpg"],
+    },
+    {
+        key: "comic",
+        name: "Comic",
+        note: "Bold lines and pop color",
+        examples: ["/art-style-examples/comic-1.jpg", "/art-style-examples/comic-2.jpg", "/art-style-examples/comic-3.jpg"],
+    },
+    {
+        key: "crayon",
+        name: "Crayon",
+        note: "Kid-drawn texture",
+        examples: ["/art-style-examples/crayon-1.jpg", "/art-style-examples/crayon-2.jpg", "/art-style-examples/crayon-3.jpg"],
+    },
+    {
+        key: "papercut",
+        name: "Paper Cutout",
+        note: "Layered collage shapes",
+        examples: ["/art-style-examples/papercut-1.jpg", "/art-style-examples/papercut-2.jpg", "/art-style-examples/papercut-3.jpg"],
+    },
+    {
+        key: "toy3d",
+        name: "3D Toy Render",
+        note: "Playful toy-world depth",
+        examples: ["/art-style-examples/toy3d-1.jpg", "/art-style-examples/toy3d-2.jpg", "/art-style-examples/toy3d-3.jpg"],
+    },
+    {
+        key: "pixel",
+        name: "Pixel Art",
+        note: "Retro 16-bit charm",
+        examples: ["/art-style-examples/pixel-1.jpg", "/art-style-examples/pixel-2.jpg", "/art-style-examples/pixel-3.jpg"],
+    },
+    {
+        key: "inkwash",
+        name: "Ink & Wash",
+        note: "Minimal and elegant",
+        examples: ["/art-style-examples/inkwash-1.jpg", "/art-style-examples/inkwash-2.jpg", "/art-style-examples/inkwash-3.jpg"],
+    },
+    {
+        key: "gouache",
+        name: "Gouache",
+        note: "Matte painterly storybook",
+        examples: ["/art-style-examples/gouache-1.jpg", "/art-style-examples/gouache-2.jpg", "/art-style-examples/gouache-3.jpg"],
+    },
+    {
+        key: "pastel",
+        name: "Soft Pastel",
+        note: "Chalky and cozy",
+        examples: ["/art-style-examples/pastel-1.jpg", "/art-style-examples/pastel-2.jpg", "/art-style-examples/pastel-3.jpg"],
+    },
+    {
+        key: "lineart",
+        name: "Clean Line Art",
+        note: "Modern and crisp",
+        examples: ["/art-style-examples/lineart-1.jpg", "/art-style-examples/lineart-2.jpg", "/art-style-examples/lineart-3.jpg"],
+    },
+    {
+        key: "clay",
+        name: "Clay Animation",
+        note: "Handmade clay look",
+        examples: ["/art-style-examples/clay-1.jpg", "/art-style-examples/clay-2.jpg", "/art-style-examples/clay-3.jpg"],
+    },
+]
+
 const LandingPage = () => {
     const disableFancy =
         window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
@@ -34,6 +103,7 @@ const LandingPage = () => {
     const [isVisible, setIsVisible] = useState({
         hero: true,
         features: false,
+        artStyles: false,
         parents: false,
         testimonials: false,
         cta: false,
@@ -43,6 +113,9 @@ const LandingPage = () => {
     const [showWarning, setShowWarning] = useState(false)
     const [warningAt, setWarningAt] = useState/** @type {'hero' | 'cta' | null} */(null)
     const warnBtnRef = useRef(null)
+    const [selectedArtStyle, setSelectedArtStyle] = useState(artStyleShowcase[0].key)
+    const [activeExampleIndex, setActiveExampleIndex] = useState(0)
+    const [imageLoadError, setImageLoadError] = useState(false)
 
     // focus the first action on warn (a11y)
     useEffect(() => {
@@ -59,9 +132,10 @@ const LandingPage = () => {
             setIsVisible({
                 hero: true,
                 features: scrollPosition > windowHeight * 0.2,
-                parents: scrollPosition > windowHeight * 0.5,
-                testimonials: scrollPosition > windowHeight * 0.7,
-                cta: scrollPosition > windowHeight * 0.9,
+                artStyles: scrollPosition > windowHeight * 0.38,
+                parents: scrollPosition > windowHeight * 0.55,
+                testimonials: scrollPosition > windowHeight * 0.75,
+                cta: scrollPosition > windowHeight * 0.95,
             })
         }
         window.addEventListener("scroll", handleScroll)
@@ -79,6 +153,31 @@ const LandingPage = () => {
         }
         navigate("/create")
     }
+
+    const activeStyle = artStyleShowcase.find((s) => s.key === selectedArtStyle) ?? artStyleShowcase[0]
+    const activeExamples = activeStyle.examples || []
+    const safeIndex = activeExamples.length > 0 ? activeExampleIndex % activeExamples.length : 0
+    const activeImage = activeExamples[safeIndex]
+
+    const goToPreviousExample = () => {
+        if (activeExamples.length <= 1) return
+        setActiveExampleIndex((prev) => (prev - 1 + activeExamples.length) % activeExamples.length)
+    }
+
+    const goToNextExample = () => {
+        if (activeExamples.length <= 1) return
+        setActiveExampleIndex((prev) => (prev + 1) % activeExamples.length)
+    }
+
+    useEffect(() => {
+        if (!isVisible.artStyles || activeExamples.length <= 1 || disableFancy) return
+
+        const interval = window.setInterval(() => {
+            setActiveExampleIndex((prev) => (prev + 1) % activeExamples.length)
+        }, 4500)
+
+        return () => window.clearInterval(interval)
+    }, [isVisible.artStyles, activeExamples.length, disableFancy, selectedArtStyle])
 
     return (
         <div className="landing-page">
@@ -206,6 +305,95 @@ const LandingPage = () => {
                                     Enjoy a special moment with a story that speaks to them—whether they’re starring as themselves
                                     or as a character they created.
                                 </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="section art-styles-section">
+                    <div className={`section-content ${isVisible.artStyles ? "fade-in" : ""}`}>
+                        <h2 className="section-title">Explore Art Styles</h2>
+                        <p className="art-styles-intro">
+                            Use the dropdown to pick a style and browse real examples.
+                        </p>
+
+                        <div className="art-style-showcase">
+                            <div className="art-style-preview-panel">
+                                <div className="art-style-controls">
+                                    <label htmlFor="style-picker">Style</label>
+                                    <select
+                                        id="style-picker"
+                                        value={selectedArtStyle}
+                                        onChange={(e) => {
+                                            setSelectedArtStyle(e.target.value)
+                                            setActiveExampleIndex(0)
+                                            setImageLoadError(false)
+                                        }}
+                                    >
+                                        {artStyleShowcase.map((style) => (
+                                            <option key={style.key} value={style.key}>
+                                                {style.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="art-style-preview-header">
+                                    <h3>{activeStyle.name}</h3>
+                                    <p>{activeStyle.note}</p>
+                                </div>
+
+                                <div className="art-style-preview-frame">
+                                    {!imageLoadError && activeImage ? (
+                                        <img
+                                            className="art-style-preview-image"
+                                            src={activeImage}
+                                            alt={`${activeStyle.name} example ${safeIndex + 1}`}
+                                            loading="lazy"
+                                            onError={() => setImageLoadError(true)}
+                                        />
+                                    ) : (
+                                        <div className={`art-style-fallback art-style-${activeStyle.key}`}>
+                                            <span>Add generated image files in /public/art-style-examples</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="art-style-rotator-controls">
+                                    <button
+                                        type="button"
+                                        className="art-style-nav-btn"
+                                        onClick={goToPreviousExample}
+                                        disabled={activeExamples.length <= 1}
+                                        aria-label="Previous example"
+                                    >
+                                        Prev
+                                    </button>
+                                    <span className="art-style-counter">
+                                        {Math.min(safeIndex + 1, Math.max(activeExamples.length, 1))} / {Math.max(activeExamples.length, 1)}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="art-style-nav-btn"
+                                        onClick={goToNextExample}
+                                        disabled={activeExamples.length <= 1}
+                                        aria-label="Next example"
+                                    >
+                                        Next
+                                    </button>
+                                </div>
+
+                                <div className="art-style-dots" role="tablist" aria-label={`${activeStyle.name} examples`}>
+                                    {activeExamples.map((_, idx) => (
+                                        <button
+                                            key={idx}
+                                            type="button"
+                                            className={`art-style-dot ${idx === safeIndex ? "active" : ""}`}
+                                            onClick={() => setActiveExampleIndex(idx)}
+                                            aria-label={`Show example ${idx + 1}`}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>

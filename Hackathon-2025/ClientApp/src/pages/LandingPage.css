@@ -439,6 +439,244 @@
         border-radius: 2px;
     }
 
+/* Art Styles Section */
+.art-styles-intro {
+    text-align: center;
+    color: #5e5e73;
+    max-width: 740px;
+    margin: -1rem auto 2rem;
+    line-height: 1.6;
+}
+
+.art-style-showcase {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+.art-style-controls {
+    width: 100%;
+    max-width: 360px;
+    margin: 0 auto 0.8rem;
+    text-align: center;
+}
+
+.art-style-controls label {
+    display: block;
+    font-weight: 700;
+    color: #2f3149;
+    margin-bottom: 0.5rem;
+}
+
+.art-style-controls select {
+    width: 100%;
+    border: 1px solid #d8dcf0;
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.98rem;
+    background: #fff;
+    color: #2f3149;
+}
+
+.art-style-preview-panel {
+    background: #fff;
+    border-radius: 14px;
+    padding: 1rem 1rem 1.2rem;
+    box-shadow: 0 8px 20px rgba(26, 27, 60, 0.08);
+    overflow: visible;
+}
+
+.art-style-preview-header {
+    text-align: center;
+}
+
+.art-style-preview-header h3 {
+    margin: 0 0 0.2rem;
+    color: #2f3149;
+}
+
+.art-style-preview-header p {
+    margin: 0 0 0.9rem;
+    color: #6c6d80;
+}
+
+.art-style-preview-frame {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: #f3f4fb;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    max-width: 720px;
+    min-height: 320px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.art-style-preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.art-style-fallback {
+    width: 100%;
+    height: 100%;
+    min-height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.art-style-fallback span {
+    background: rgba(255, 255, 255, 0.85);
+    color: #2f3149;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+.art-style-rotator-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.7rem;
+    margin-top: 0.9rem;
+}
+
+.art-style-nav-btn {
+    border: 1px solid #d4d9f3;
+    border-radius: 999px;
+    background: #fff;
+    color: #2f3149;
+    font-weight: 600;
+    padding: 0.45rem 0.9rem;
+    cursor: pointer;
+}
+
+.art-style-nav-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.art-style-counter {
+    color: #6c6d80;
+    font-weight: 600;
+    min-width: 62px;
+    text-align: center;
+}
+
+.art-style-dots {
+    margin-top: 0.8rem;
+    padding-bottom: 0.4rem;
+    min-height: 14px;
+    display: flex;
+    justify-content: center;
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.art-style-dot {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 0;
+    display: inline-block;
+    flex: 0 0 10px;
+    line-height: 0;
+    width: 10px;
+    height: 10px;
+    border: 0;
+    border-radius: 50%;
+    background: #cdd3ec;
+    cursor: pointer;
+}
+
+.art-style-dot.active {
+    background: #656fd6;
+}
+
+.art-styles-section {
+    padding-bottom: 6rem;
+    overflow: visible;
+}
+
+.parents-section {
+    padding-bottom: 6rem;
+}
+
+.art-style-watercolor {
+    background: radial-gradient(circle at 25% 25%, #ffe9ea 0%, #f8d7f3 48%, #d8e2ff 100%);
+}
+
+.art-style-comic {
+    background:
+        linear-gradient(135deg, transparent 0 68%, rgba(255, 255, 255, 0.22) 68% 100%),
+        linear-gradient(45deg, #ffbd59, #ff5d8f 45%, #7b62ff);
+}
+
+.art-style-crayon {
+    background:
+        repeating-linear-gradient(22deg, #fca5a5 0 8px, #fdba74 8px 16px, #fde68a 16px 24px, #93c5fd 24px 32px, #c4b5fd 32px 40px);
+}
+
+.art-style-papercut {
+    background:
+        radial-gradient(circle at 70% 22%, #fff3db 0 24%, transparent 24%),
+        radial-gradient(circle at 30% 78%, #e0d7ff 0 28%, transparent 28%),
+        linear-gradient(160deg, #ffe5cf, #f7ecff 55%, #e4f0ff);
+}
+
+.art-style-toy3d {
+    background: radial-gradient(circle at 30% 22%, #ffffff 0 11%, #ffddb1 22%, #ff9dbf 48%, #8cb4ff 78%);
+}
+
+.art-style-pixel {
+    background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+        linear-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+        linear-gradient(135deg, #ffc857, #ff6f91, #845ec2, #4d96ff);
+    background-size: 10px 10px, 10px 10px, 100% 100%;
+}
+
+.art-style-inkwash {
+    background:
+        radial-gradient(circle at 20% 35%, rgba(37, 53, 80, 0.48) 0, transparent 42%),
+        radial-gradient(circle at 70% 65%, rgba(69, 89, 120, 0.42) 0, transparent 40%),
+        linear-gradient(135deg, #eff2f8, #dce2ed);
+}
+
+.art-style-gouache {
+    background:
+        linear-gradient(25deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05)),
+        linear-gradient(145deg, #ffb6a0, #ffd987 35%, #7bd6bf 68%, #6f8bff);
+}
+
+.art-style-pastel {
+    background:
+        radial-gradient(circle at 30% 25%, #ffd6e9 0 20%, transparent 40%),
+        radial-gradient(circle at 72% 35%, #d9e7ff 0 24%, transparent 45%),
+        radial-gradient(circle at 45% 78%, #fff2b7 0 20%, transparent 42%),
+        #f7f8ff;
+}
+
+.art-style-lineart {
+    background:
+        repeating-linear-gradient(45deg, #f9f9fc 0 8px, #eef2ff 8px 16px),
+        linear-gradient(120deg, #c3dafe, #fbc2eb);
+}
+
+.art-style-clay {
+    background:
+        radial-gradient(circle at 24% 28%, #ffd7a8 0 24%, transparent 24%),
+        radial-gradient(circle at 56% 60%, #ffc7e1 0 22%, transparent 22%),
+        radial-gradient(circle at 76% 32%, #add5ff 0 18%, transparent 18%),
+        linear-gradient(135deg, #fff3e5, #f1e8ff);
+}
+
 /* How It Works Section */
 .steps-container {
     display: flex;
@@ -853,6 +1091,8 @@
         margin-left: auto;
         margin-right: auto;
     }
+
+    .art-style-showcase { max-width: 740px; }
 }
 
 @media (max-width: 768px) {
@@ -877,6 +1117,15 @@
         max-width: 500px;
         margin-left: auto;
         margin-right: auto;
+    }
+
+    .art-style-preview-frame {
+        max-width: 560px;
+        min-height: 240px;
+    }
+
+    .art-style-preview-image {
+        max-height: none;
     }
 
     .kids-stats {
