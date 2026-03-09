@@ -1,11 +1,11 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import "./FeedbackModal.css";
+import api from "../api";
 
 export default function FeedbackModal({
     open,
     onClose,
     storyMeta = { id: null, title: "", pageCount: 0, estReadMin: null },
-    apiBase = "/api",
     emailTargets = ["austintylerdevelopment@gmail.com", "support@starlitstories.app"],
     onSubmitted,
 }) {
@@ -65,12 +65,7 @@ export default function FeedbackModal({
                 notify: emailTargets,
             };
 
-            const res = await fetch(`${apiBase.replace(/\/$/, "")}/feedback`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            if (!res.ok) throw new Error(`Server responded ${res.status}`);
+            await api.post("/feedback", payload);
 
             setSubmitted(true);
             onSubmitted?.(payload);

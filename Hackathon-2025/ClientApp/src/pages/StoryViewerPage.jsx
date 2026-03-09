@@ -1024,7 +1024,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                     pageCount: story?.pages?.length ?? 0,
                     estReadMin: Math.ceil((story?.pages?.length ?? 0) * 1.5),
                 }}
-                apiBase="/api"
                 emailTargets={["support@starlitstories.app"]}
                 onSubmitted={() => {
                     setFeedbackSent(true);
