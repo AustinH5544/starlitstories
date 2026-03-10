@@ -312,9 +312,10 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
 
-        // Build cover prompt — used alongside page prompts in the parallel edit batch.
-        var coverPrompt = PromptBuilder.BuildCoverPrompt(
-            characters, request.Theme, request.ReadingLevel, request.ArtStyle);
+        // Build cover prompt — story-aware: LLM picks the most iconic scene from the full story.
+        var coverPrompt = await PromptBuilder.BuildCoverPromptAsync(
+            characters, request.Theme, request.ReadingLevel, request.ArtStyle,
+            paragraphsForImages, _httpClient, _apiKey);
 
         // Build the base character prompt used as the shared reference image.
         var charBasePrompt = PromptBuilder.BuildBaseCharacterPrompt(characters, request.ArtStyle);

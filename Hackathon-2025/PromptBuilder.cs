@@ -551,4 +551,113 @@ Paragraph: "{paragraph}"
     {
         return BuildCoverPrompt(characters, theme, readingLevel, null);
     }
+
+    /// <summary>
+    /// Story-aware cover prompt: asks the LLM to pick the most iconic or visually
+    /// exciting moment from the full story and describe it as a cover scene.
+    /// Falls back to the static BuildCoverPrompt on failure.
+    /// </summary>
+    public static async Task<string> BuildCoverPromptAsync(
+        List<CharacterSpec> characters,
+        string theme,
+        string? readingLevel,
+        string? artStyleKey,
+        string[] storyParagraphs,
+        HttpClient httpClient,
+        string apiKey)
+    {
+        const int maxAttempts = 2;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                return await BuildCoverPromptWithSceneAsync(
+                    characters, theme, artStyleKey, storyParagraphs, httpClient, apiKey);
+            }
+            catch when (attempt < maxAttempts)
+            {
+                await Task.Delay(300 * attempt);
+            }
+        }
+
+        // Fallback: use the static prompt if the AI call keeps failing
+        return BuildCoverPrompt(characters, theme, readingLevel, artStyleKey);
+    }
+
+    private static async Task<string> BuildCoverPromptWithSceneAsync(
+        List<CharacterSpec> characters,
+        string theme,
+        string? artStyleKey,
+        string[] storyParagraphs,
+        HttpClient httpClient,
+        string apiKey)
+    {
+        var style = GetArtStyle(artStyleKey);
+
+        // Join all pages into one block (cap at ~1200 chars to stay within token budget)
+        var fullStory = string.Join(" | ", storyParagraphs
+            .Select(p => (p ?? "").Replace("\r", " ").Replace("\n", " ").Trim())
+            .Where(p => p.Length > 0));
+        if (fullStory.Length > 1200)
+            fullStory = fullStory[..1200];
+
+        var userPrompt = $"""
+Read the following children's story and identify the single most visually exciting or
+iconic moment — the one scene that would make the best book cover illustration.
+
+Describe it as a short scene clause (10–20 words) that can follow "Show the described character".
+- Do NOT mention character names, appearance, or clothing.
+- Begin with a verb or preposition: e.g. "soaring above glowing crystal mountains at sunset" or
+  "facing a giant friendly dragon in a sparkling meadow".
+- Capture the story's mood, setting, and peak moment of magic or adventure.
+
+Story: "{fullStory}"
+""";
+
+        var requestBody = new
+        {
+            model = "gpt-4.1-mini",
+            messages = new[]
+            {
+                new
+                {
+                    role = "system",
+                    content = "You are an assistant generating book cover image prompts for a children's storybook. " +
+                              "Given a full story, pick the single most visually compelling scene and describe it as a " +
+                              "short clause. Never mention character names, appearance, or clothing."
+                },
+                new { role = "user", content = userPrompt }
+            },
+            temperature = 0.4,
+            max_tokens = 60
+        };
+
+        var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+        req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+        req.Content = new StringContent(
+            JsonSerializer.Serialize(requestBody), System.Text.Encoding.UTF8, "application/json");
+
+        var res = await httpClient.SendAsync(req);
+        if (!res.IsSuccessStatusCode)
+        {
+            var rawErr = await res.Content.ReadAsStringAsync();
+            throw new HttpRequestException($"Cover scene summarizer failed ({(int)res.StatusCode}). Body: {rawErr}");
+        }
+
+        using var stream = await res.Content.ReadAsStreamAsync();
+        using var json = await JsonDocument.ParseAsync(stream);
+
+        var scene = json.RootElement
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+
+        scene = (scene ?? "").Replace("\r", " ").Replace("\n", " ").Trim();
+
+        if (string.IsNullOrEmpty(scene))
+            scene = $"in a rich, atmospheric setting inspired by {theme}, with magical detail";
+
+        return $"{style} {scene}. Book cover composition — no text, no panels.";
+    }
 }
