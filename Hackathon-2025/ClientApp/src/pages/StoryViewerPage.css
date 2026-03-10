@@ -881,6 +881,28 @@
     .image-enlarge-hint { display: none; }
 }
 
+/* ── DESKTOP (≥1024px, landscape): edge-to-edge card, image-dominant layout ── */
+@media (min-width: 1024px) and (min-aspect-ratio: 4/3) {
+    .story-page {
+        max-width: none;   /* remove 1200px cap — card fills viewport */
+    }
+
+    .page-container {
+        grid-template-columns: 1.75fr 1fr;   /* image takes ~64%, text ~36% */
+        padding: 1.5rem 2rem;
+    }
+
+    .page-text-container {
+        --page-text-size: clamp(1.2rem, 1.8vw, 2rem);  /* bigger text on desktop */
+        max-width: none;    /* fill the full right column */
+        width: 100%;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
+    }
+
+}
+
 /* ── VERY SHORT landscape (phones): tighten spacing ── */
 @media (orientation: landscape) and (max-height: 450px) {
     .page-container { gap: 0.75rem; padding: 0.75rem 1rem; }
