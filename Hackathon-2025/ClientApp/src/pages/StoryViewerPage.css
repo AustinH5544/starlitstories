@@ -12,12 +12,9 @@
     --site-nav-h-mobile: 72px;
     /* Viewer chrome */
     --viewer-header-h: 68px; /* desktop progress pill */
-    --viewer-header-h-mobile: 0px; /* hidden on phones */
     --viewer-nav-h: 72px; /* bottom control bar */
     --gap-top: 72px; /* space under site nav */
-    --gap-bottom: -130px; /* space above story nav */
-    --progress-clearance: 72px; /* extra space under the progress pill (desktop only) */
-    --page-text-size: 1.125rem; /* ~18px on mobile */
+    --page-text-size: clamp(0.92rem, 1.8vmin + 0.4rem, 1.6rem);
     --page-line: 1.8;
 }
 
@@ -138,19 +135,12 @@
     transition: width .25s ease;
 }
 
-/* Hide progress pill on phones */
-@media (max-width: 768px) {
-    .story-header {
-        display: none !important;
-    }
-}
-
 /* --- Main content (between top & bottom chrome) --- */
 .story-content {
-    padding: calc(var(--gap-top) + var(--progress-clearance) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
-    /* Reserve space for navs + progress pill + gaps */
-    height: calc(100dvh - var(--site-nav-h) - var(--viewer-header-h) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+    flex: 1;
     min-height: 0;
+    overflow: hidden;
+    padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--viewer-nav-h) + env(safe-area-inset-bottom,0px));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -389,8 +379,8 @@
 }
 
 .page-text {
-    font-size: 1.25rem;
-    line-height: 1.8;
+    font-size: var(--page-text-size);
+    line-height: var(--page-line);
     color: #fff;
     font-family: Georgia, serif;
     text-shadow: 0 1px 3px rgba(0,0,0,.3);
@@ -720,21 +710,8 @@
    Responsive adjustments
    ========================= */
 
-/* 4) Very large screens (optional) */
-@media (min-width: 1440px) {
-    :root {
-        --page-text-size: 1.65rem; /* ~26.4px */
-        --page-line: 2.0;
-    }
-}
-
 /* Tablet and below (minor sizing tweaks) */
 @media (max-width: 1024px) {
-    :root {
-        --page-text-size: 1.5rem; /* 24px */
-        --page-line: 1.9;
-    }
-
     .page-container {
         max-width: 820px;
         margin: 0 auto;
@@ -748,232 +725,11 @@
 
     .page-text {
         text-align: center;
-        font-size: var(--page-text-size);
-        line-height: var(--page-line);
-    }
-}
-
-/* --- Wide but short screens (e.g., 1024x600) --- */
-@media (min-width: 900px) and (max-height: 900px) {
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: stretch; /* let children fill height */
-        gap: 1.5rem;
-        height: 100%; /* keep fixed viewer height */
-        min-height: 0; /* crucial for scrollable children */
-        overflow: hidden; /* clip child overflow */
-        border-radius: 20px; /* ensures clipping shape */
-        padding: 1.5rem; /* less padding = more room */
-    }
-
-    .cover-image-container {
-        margin-bottom: 1rem;
-    }
-
-    .cover-image {
-        border-radius: 15px;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden; /* clip image + shadow */
-        border-radius: inherit; /* match card rounding */
-        height: 100%; /* full height for column */
-        min-height: 0; /* allow proper sizing */
-        display: flex;
-        padding: 0;
-    }
-
-    .page-image {
-        height: 100%; /* fill column height */
-        max-height: 100%;
-        width: auto;
-        max-width: 100%;
-        object-fit: contain; /* preserve aspect ratio */
-        transform: none !important; /* cancel hover zoom */
-    }
-
-        .page-image:hover {
-            transform: none !important;
-        }
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 1rem 2rem;
-        height: 100%;
-        max-height: 100%;
-        min-height: 0; /* allow scrolling inside */
-        overflow: auto; /* scroll the text, not the page */
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .image-enlarge-hint {
-        display: none; /* optional, avoids extra spacing */
-    }
-}
-
-/* --- Compact cover for short widescreen displays (≈1024x600) --- */
-@media (min-width: 900px) and (max-height: 650px) {
-    .cover-container {
-        padding: 1.2rem 1.4rem; /* tighter padding */
-        transform: scale(0.9) translateY(20px);
-    }
-
-    .story-title {
-        font-size: 1.6rem; /* smaller title */
-        margin-bottom: 0.6rem;
-    }
-
-    .cover-image {
-        border-radius: 15px;
-    }
-}
-
-@media (min-width: 900px) and (max-height: 900px) {
-    .page-text-container:has(.page-text) {
-        font-size: 1.15rem;
-    }
-
-    /* If the text block is short, enlarge further */
-    .page-text-container:has(.page-text:only-child) .page-text {
-        font-size: 1.35rem;
-        line-height: 1.9;
-    }
-}
-
-@media (max-width: 950px) and (max-height: 500px) {
-    .story-content:has(.story-page) {
-        --gap-bottom: -190px; /* extend downward */
-    }
-
-    .cover-container {
-        padding: 1rem 1.2rem; /* tighter padding */
-        transform: scale(0.75) translateY(90px); /* smaller & moved down */
-        transform-origin: top center; /* shrink downward */
-    }
-
-    .story-title {
-        font-size: 1.4rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .cover-image {
-        border-radius: 12px;
-    }
-
-    .story-info {
-        font-size: 0.9rem;
-    }
-
-    .story-stats {
-        flex-direction: column; /* stack for narrow height */
-        gap: 0.3rem;
-        font-size: 0.8rem;
-    }
-
-    .start-reading-btn {
-        padding: 0.6rem 1rem;
-        font-size: 0.85rem;
-    }
-
-    .page-text {
-        font-size: 1rem !important; /* smaller text for low height */
-        line-height: 1.6; /* tighter lines */
-        text-align: left; /* prevent center crowding */
-    }
-}
-
-/* --- Landscape phone layout (≈667x375) --- */
-@media (max-width: 700px) and (max-height: 400px) {
-    .story-content:has(.story-page) {
-        --gap-bottom: -200px; /* extend reading area a bit */
-    }
-
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: stretch;
-        gap: 0.8rem;
-        height: 100%;
-        min-height: 0;
-        padding: 0.8rem;
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        flex: 0.9;
-        height: auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
-    }
-
-    /*    .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 60vh;
-        object-fit: contain;
-        transform: none !important;
-    }*/
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        padding: 0.6rem 1rem;
-        overflow: auto;
-        min-height: 0;
-    }
-
-    .page-text {
-        font-size: 0.85rem !important;
-        line-height: 1.4;
-        text-align: left;
-    }
-
-    .finish-story-btn {
-        padding: 0.5rem 0.9rem;
-        font-size: 0.8rem;
-    }
-
-    /* Optional: shrink nav bar for landscape */
-    .story-navigation {
-        height: 56px;
-        padding: 0.4rem 0.8rem;
-    }
-
-    .nav-button {
-        min-width: 80px;
-        padding: 0.5rem 0.7rem;
-        font-size: 0.8rem;
-    }
-
-    .page-dot {
-        width: 32px;
-        height: 32px;
-        font-size: 0.7rem;
     }
 }
 
 /* Phones */
 @media (max-width: 768px) {
-    :root {
-        --page-text-size: 1.00rem; /* ~21.6px */
-        --page-line: 1.85;
-        --progress-clearance: 10px;
-    }
-
     .cover-container, .page-container {
         padding: 1.5rem;
     }
@@ -1004,12 +760,6 @@
 
     .image-enlarge-hint {
         display: none;
-    }
-
-    /* Recompute story-content height for mobile nav sizes */
-    .story-content {
-        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
-        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
     }
 }
 
@@ -1060,223 +810,84 @@
     color: #b2ffb2;
     font-weight: 700;
 }
-/* Hide the top progress pill on landscape phones (short height) */
-@media (orientation: landscape) and (max-height: 450px) and (max-width: 915px) {
+
+/* ── Hide progress pill only when screen is too short to fit it ── */
+@media (max-height: 550px) {
     .story-header {
         display: none !important;
     }
-
-    /* Reclaim the reserved space for the pill */
-    :root {
-        --viewer-header-h: 0px; /* no header height */
-        --progress-clearance: 10px; /* minimal top padding */
-    }
-
-    /* Ensure the content height is recomputed without the header */
-    .story-content {
-        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
-        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
-    }
 }
 
-/* Optional: exact match for 896×414 devices (belt & suspenders) */
-@media (width: 896px) and (height: 414px) {
-    .story-header {
-        display: none !important;
-    }
-
-    :root {
-        --viewer-header-h: 0px;
-        --progress-clearance: 10px;
-    }
+/* ── Compact cover on short viewports ── */
+@media (max-height: 600px) {
+    .cover-container { padding: 1rem 1.2rem; }
+    .story-title { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .story-stats { flex-direction: column; gap: 0.3rem; font-size: 0.85rem; }
+    .start-reading-btn { padding: 0.6rem 1rem; font-size: 0.85rem; }
 }
-/* Landscape phones (≈896x414): image left, text right */
-@media (orientation: landscape) and (max-height: 430px) and (max-width: 930px) {
+
+/* ── WIDE / LANDSCAPE: image left, text right ──
+   Fires for: landscape tablets, landscape phones, wide desktops, iPad landscape */
+@media (min-aspect-ratio: 4/3) and (min-width: 600px) {
     .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: stretch;
-        gap: 1rem;
-        height: 100%;
-        min-height: 0;
-        padding: 1rem;
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
-    }
-
-    .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 80vh;
-        object-fit: contain;
-        transform: none !important;
-    }
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 0.8rem 1.2rem;
-        overflow: auto;
-        min-height: 0;
-    }
-
-    .page-text {
-        font-size: 0.95rem;
-        line-height: 1.5;
-        text-align: left;
-    }
-
-    .story-content {
-        padding-bottom: calc(var(--viewer-nav-h) + 0px);
-    }
-}
-
-/* Landscape phones (≈896x414–932x430): image left, text right, no progress pill */
-@media (orientation: landscape) and (max-height: 440px) and (max-width: 950px) {
-    /* Hide progress pill */
-    .story-header {
-        display: none !important;
-    }
-
-    :root {
-        --viewer-header-h: 0px; /* no header space */
-        --progress-clearance: 10px; /* reduce extra gap */
-    }
-
-    /* Layout: image left, text right */
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        align-items: stretch;
-        gap: 1rem;
-        height: 100%;
-        min-height: 0;
-        padding: 1rem;
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
-    }
-
-    .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 80vh;
-        object-fit: contain;
-        transform: none !important;
-    }
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 0.8rem 1.2rem;
-        overflow: auto;
-        min-height: 0;
-    }
-
-    .page-text {
-        font-size: 0.95rem;
-        line-height: 1.5;
-        text-align: left;
-    }
-
-    .story-content {
-        padding-bottom: calc(var(--viewer-nav-h) + 0px);
-    }
-}
-
-/* iPad Pro 12.9" landscape (≈1366x1024): image left, text right, keep progress pill */
-@media (orientation: landscape) and (min-width: 1180px) and (max-width: 1400px) and (min-height: 900px) {
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1.1fr; /* image left, text right */
-        align-items: stretch;
+        grid-template-columns: 1fr 1.1fr;
+        grid-template-rows: 1fr;
         gap: 1.5rem;
-        height: 100%;
-        min-height: 0;
         padding: 1.25rem 1.5rem;
-        border-radius: 16px;
+        height: 100%;
+        min-height: 0;
         overflow: hidden;
+        align-items: stretch;
     }
 
     .page-image-container {
         grid-column: 1;
+        height: 100%;
+        min-height: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
     }
 
     .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 78vh;
+        width: auto;
+        height: 100%;
+        max-height: 100%;
+        max-width: 100%;
         object-fit: contain;
         transform: none !important;
     }
 
     .page-text-container {
         grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 1rem 1.5rem;
-        overflow: auto;
+        height: 100%;
         min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        overflow: hidden;
+        padding: 0.75rem 1.25rem;
+        text-align: left;
     }
 
-    .page-text {
-        font-size: 1.05rem;
-        line-height: 1.6;
-        text-align: left;
+    .page-text-inner {
+        flex: 0 1 auto;
+        max-height: 100%;
+        width: 100%;
     }
+
+    .image-enlarge-hint { display: none; }
 }
 
-/* iPad Pro & wide tablets (e.g. 1366x1024, 1180x768): image left, text right */
-@media (min-width: 1000px) and (max-height: 1100px) and (orientation: landscape) {
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: center; /* center vertically instead of stretch */
-        gap: 1.5rem;
-        height: auto; /* let it shrink to fit */
-        padding: 1.5rem;
-    }
-
-    .page-image {
-        max-height: 70vh; /* less tall to avoid excess bottom gap */
-        object-fit: contain;
-    }
-
-    .page-text-container {
-        font-size: 1.25rem; /* increase text size */
-        line-height: 1.7;
-        text-align: left;
-    }
+/* ── VERY SHORT landscape (phones): tighten spacing ── */
+@media (orientation: landscape) and (max-height: 450px) {
+    .page-container { gap: 0.75rem; padding: 0.75rem 1rem; }
+    .page-text { font-size: 0.88rem !important; line-height: 1.45; }
+    .story-navigation { height: 52px; padding: 0.3rem 0.8rem; }
+    .nav-text { display: none; }
+    .story-header { display: none !important; }
 }
 
 /* ==== Book layout (two pages; cover = single page) ==== */

@@ -22,6 +22,10 @@ public class ConfigController : ControllerBase
         Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate";
         Response.Headers["Pragma"] = "no-cache";
         Response.Headers["Expires"] = "0";
-        return Ok(new { lengthHintEnabled = _story.Value.LengthHintEnabled });
+        return Ok(new
+        {
+            lengthHintEnabled = _story.Value.LengthHintEnabled,
+            showProgressPill = _story.Value.ShowProgressPill,
+        });
     }
 }
