@@ -21,6 +21,7 @@ const createEmptyCharacter = (role = "main") => ({
 })
 
 const cloneCharacter = (character) => JSON.parse(JSON.stringify(character))
+const MAX_CHARACTERS_PER_STORY = 1
 
 const sortedUnique = (values = []) =>
     [...new Set(values.map((v) => String(v).trim()).filter(Boolean))]
@@ -51,6 +52,7 @@ const StoryForm = ({ onSubmit }) => {
     const membershipRaw = user?.membership ?? "free"
     const membership = String(membershipRaw).toLowerCase()
     const isFree = membership === "free"
+    const canUseAdvancedCharacterCreation = membership !== "free"
 
     // Feature flag: hide the extra UI for now
     const showCharacterTypeAndExtraButton = false
@@ -74,6 +76,12 @@ const StoryForm = ({ onSubmit }) => {
     const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
     const API_BASE = import.meta.env.VITE_API_BASE ?? ""
     const [storyLength, setStoryLength] = useState("short")
+
+    useEffect(() => {
+        if (!canUseAdvancedCharacterCreation) {
+            setShowAdvancedOptions(false)
+        }
+    }, [canUseAdvancedCharacterCreation])
 
     const lengthOptionsByMembership = {
         free: [{ value: "short", label: "Short (about 4 pages)" }],
@@ -201,7 +209,11 @@ const StoryForm = ({ onSubmit }) => {
                 })
                 setIsUsingSavedCharacter(false)
                 setEditingSavedCharacterId(null)
-                setSavedCharacterNotice("")
+                setSavedCharacterNotice(
+                    data?.isOverLimit
+                        ? data?.downgradePolicy || "You are over your current saved character limit. Delete down before saving a new one."
+                        : ""
+                )
             } catch (err) {
                 if (err?.response?.status !== 404) {
                     console.error("Failed to load saved character:", err)
@@ -544,7 +556,7 @@ const StoryForm = ({ onSubmit }) => {
 
                 return normalized
             })(),
-        }))
+        })).slice(0, MAX_CHARACTERS_PER_STORY)
 
         const finalArtStyle = isFree ? "watercolor" : artStyle
 
@@ -608,9 +620,6 @@ const StoryForm = ({ onSubmit }) => {
         )
     }
 
-    // Check if user can add more characters
-    const canAddMoreCharacters = membership !== "free" || characters.length < 1
-    const isAtCharacterLimit = membership === "free" && characters.length >= 1
     const hasSavedCharacter = savedCharacters.length > 0
     const selectedSavedCharacter =
         savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId)) || null
@@ -891,7 +900,9 @@ const StoryForm = ({ onSubmit }) => {
                     Saved Character
                 </h3>
                 {!hasSavedCharacter ? (
-                    <p className="field-hint">Save characters here. You can keep up to {savedCharacterLimit} per account.</p>
+                    <p className="field-hint">
+                        Save characters here. Your {membership === "premium" ? "Premium" : membership === "pro" ? "Pro" : "Free"} plan includes up to {savedCharacterLimit} saved character{savedCharacterLimit === 1 ? "" : "s"}.
+                    </p>
                 ) : (
                     <>
                         <div className="field-group">
@@ -1036,7 +1047,7 @@ const StoryForm = ({ onSubmit }) => {
                         </div>
                     )}
 
-                    {i === 0 && (
+                    {i === 0 && canUseAdvancedCharacterCreation && (
                         <div className="field-group" style={{ marginTop: "1rem" }}>
                             <label className="toggle-label">
                                 <input
@@ -1050,6 +1061,13 @@ const StoryForm = ({ onSubmit }) => {
                                     Show advanced character options
                                 </span>
                             </label>
+                        </div>
+                    )}
+                    {i === 0 && !canUseAdvancedCharacterCreation && (
+                        <div className="field-group" style={{ marginTop: "1rem" }}>
+                            <p className="field-hint">
+                                Advanced character creation is available on Pro and Premium. Free includes the standard character creator.
+                            </p>
                         </div>
                     )}
 
@@ -1175,22 +1193,22 @@ const StoryForm = ({ onSubmit }) => {
                 )}
 
                 {!isUsingSavedCharacter && showCharacterTypeAndExtraButton && (
-                    canAddMoreCharacters ? (
+                    characters.length < MAX_CHARACTERS_PER_STORY ? (
                         <button type="button" onClick={addCharacter} className="add-character-btn">
                             <span className="button-icon">➕</span>
                             <span>Add Another Character</span>
                         </button>
                     ) : (
-                        isAtCharacterLimit && (
+                        characters.length >= MAX_CHARACTERS_PER_STORY && (
                             <div className="character-limit-notice">
                                 <div className="limit-icon">🔒</div>
                                 <div className="limit-content">
-                                    <h4>Want to add more characters?</h4>
-                                    <p>Upgrade to Pro or Premium to include friends, family, and pets in your stories!</p>
+                                    <h4>Single-character stories only</h4>
+                                    <p>Multiple characters are currently disabled, so each story uses one main character.</p>
                                     <div className="limit-benefits">
-                                        <span className="benefit">✨ Multiple characters</span>
-                                        <span className="benefit">🎨 Premium illustrations</span>
-                                        <span className="benefit">📚 More stories per month</span>
+                                        <span className="benefit">👤 One main character</span>
+                                        <span className="benefit">💾 Saved character slots depend on plan</span>
+                                        <span className="benefit">🎨 Advanced creator on paid plans</span>
                                     </div>
                                 </div>
                             </div>

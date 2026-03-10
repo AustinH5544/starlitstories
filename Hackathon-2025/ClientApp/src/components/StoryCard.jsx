@@ -162,16 +162,6 @@ export default function StoryCard({
 
             {menuOpen && (
                 <div ref={menuRef} className="scard-menu" role="menu">
-                    {canCustomize && (
-                        <button
-                            role="menuitem"
-                            className="scard-menuItem"
-                            disabled={isBusy}
-                            onClick={handleCustomize}
-                        >
-                            {customizing ? "Loading..." : "Customize"}
-                        </button>
-                    )}
                     <button
                         role="menuitem"
                         className="scard-menuItem"
@@ -183,6 +173,22 @@ export default function StoryCard({
                     >
                         Share
                     </button>
+
+                    <div
+                        className={`scard-menuGroup ${canCustomize ? "" : "is-disabled"}`}
+                        role="group"
+                        aria-label="Customize"
+                    >
+                        <button
+                            role="menuitem"
+                            className="scard-menuItem"
+                            disabled={!canCustomize || isBusy}
+                            onClick={handleCustomize}
+                        >
+                            {customizing ? "Loading..." : "Customize"}
+                        </button>
+                        {!canCustomize && <small className="scard-note">Upgrade to customize</small>}
+                    </div>
 
                     <div
                         className={`scard-menuGroup ${canDownload ? "" : "is-disabled"}`}

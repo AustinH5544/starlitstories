@@ -414,9 +414,21 @@ public class StoryController : ControllerBase
     // Immutable effective request according to StoryOptions + membership
     private StoryRequest BuildEffectiveRequest(MembershipPlan membership, StoryRequest request)
     {
+        var sanitizedCharacters = (request.Characters ?? new List<CharacterSpec>())
+            .Take(MembershipEntitlements.MaxCharactersPerStory)
+            .Select(c => MembershipEntitlements.SanitizeCharacterForMembership(membership, c))
+            .ToList();
+
+        var sanitizedRequest = request with
+        {
+            Characters = sanitizedCharacters,
+            StoryLength = null,
+            PageCount = null
+        };
+
         if (!_storyOpts.Value.LengthHintEnabled)
         {
-            return request with { StoryLength = null, PageCount = null };
+            return sanitizedRequest;
         }
 
         string[] allowed = membership switch
@@ -437,7 +449,7 @@ public class StoryController : ControllerBase
             ["long"] = 12
         };
 
-        return request with
+        return sanitizedRequest with
         {
             StoryLength = requested,
             PageCount = lengthToCount[requested]

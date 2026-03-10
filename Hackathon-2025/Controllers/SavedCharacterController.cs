@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;
+using Hackathon_2025.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,11 @@ namespace Hackathon_2025.Controllers;
 [Authorize]
 public class SavedCharacterController : ControllerBase
 {
-    private const int MaxSavedCharactersPerUser = 5;
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly AppDbContext _db;
 
     public SavedCharacterController(AppDbContext db)
@@ -32,6 +37,14 @@ public class SavedCharacterController : ControllerBase
     {
         if (!TryGetUserId(out var userId))
             return Unauthorized("Invalid or missing user ID.");
+
+        var membership = await _db.Users
+            .AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => x.Membership)
+            .FirstOrDefaultAsync();
+
+        var maxSavedCharacters = MembershipEntitlements.SavedCharacterLimitFor(membership);
 
         var saved = await _db.SavedCharacters
             .AsNoTracking()
@@ -56,7 +69,11 @@ public class SavedCharacterController : ControllerBase
 
         return Ok(new
         {
-            maxSavedCharacters = MaxSavedCharactersPerUser,
+            maxSavedCharacters,
+            savedCharacterCount = saved.Count,
+            isOverLimit = saved.Count > maxSavedCharacters,
+            overLimitCount = Math.Max(saved.Count - maxSavedCharacters, 0),
+            downgradePolicy = "Saved characters are never deleted when a membership changes. If you are over your current plan limit, keep the extras and delete down before saving new ones.",
             items
         });
     }
@@ -67,15 +84,21 @@ public class SavedCharacterController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized("Invalid or missing user ID.");
 
-        if (!TryValidateCharacterRequest(request, out var name))
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == userId);
+        if (user is null)
+            return Unauthorized("User not found.");
+
+        if (!TryParseCharacterRequest(request, out var character) || !TryValidateCharacterRequest(character, out var name))
             return BadRequest("Character name is required.");
 
+        var sanitizedCharacter = SanitizeCharacterPayload(user.Membership, character);
+        var maxSavedCharacters = MembershipEntitlements.SavedCharacterLimitFor(user.Membership);
         var savedCount = await _db.SavedCharacters.CountAsync(x => x.UserId == userId);
-        if (savedCount >= MaxSavedCharactersPerUser)
+        if (savedCount >= maxSavedCharacters)
         {
             return Conflict(new
             {
-                message = $"You can save up to {MaxSavedCharactersPerUser} characters. Delete one to save a new character."
+                message = $"Your {user.Membership} plan includes up to {maxSavedCharacters} saved character{(maxSavedCharacters == 1 ? "" : "s")}. Delete one to save a new character."
             });
         }
 
@@ -84,7 +107,7 @@ public class SavedCharacterController : ControllerBase
         {
             UserId = userId,
             Name = name,
-            CharacterJson = request.Character.GetRawText(),
+            CharacterJson = JsonSerializer.Serialize(sanitizedCharacter, JsonOptions),
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -95,7 +118,7 @@ public class SavedCharacterController : ControllerBase
         {
             id = entity.Id,
             name = entity.Name,
-            character = request.Character,
+            character = sanitizedCharacter,
             updatedAtUtc = entity.UpdatedAtUtc
         });
     }
@@ -106,15 +129,20 @@ public class SavedCharacterController : ControllerBase
         if (!TryGetUserId(out var userId))
             return Unauthorized("Invalid or missing user ID.");
 
-        if (!TryValidateCharacterRequest(request, out var name))
+        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId);
+        if (user is null)
+            return Unauthorized("User not found.");
+
+        if (!TryParseCharacterRequest(request, out var character) || !TryValidateCharacterRequest(character, out var name))
             return BadRequest("Character name is required.");
 
         var existing = await _db.SavedCharacters.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (existing is null) return NotFound();
 
+        var sanitizedCharacter = SanitizeCharacterPayload(user.Membership, character);
         var now = DateTime.UtcNow;
         existing.Name = name;
-        existing.CharacterJson = request.Character.GetRawText();
+        existing.CharacterJson = JsonSerializer.Serialize(sanitizedCharacter, JsonOptions);
         existing.UpdatedAtUtc = now;
 
         await _db.SaveChangesAsync();
@@ -123,7 +151,7 @@ public class SavedCharacterController : ControllerBase
         {
             id = existing.Id,
             name = existing.Name,
-            character = request.Character,
+            character = sanitizedCharacter,
             updatedAtUtc = existing.UpdatedAtUtc
         });
     }
@@ -147,15 +175,48 @@ public class SavedCharacterController : ControllerBase
         public JsonElement Character { get; set; }
     }
 
-    private static bool TryValidateCharacterRequest(UpsertSavedCharacterRequest request, out string name)
+    private sealed class SavedCharacterPayload
     {
-        name = string.Empty;
-        if (request.Character.ValueKind != JsonValueKind.Object) return false;
-        if (!request.Character.TryGetProperty("name", out var nameElement)) return false;
+        public string Role { get; set; } = "main";
+        public string RoleCustom { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public bool IsAnimal { get; set; }
+        public Dictionary<string, string> DescriptionFields { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    }
 
-        name = (nameElement.GetString() ?? string.Empty).Trim();
+    private static bool TryParseCharacterRequest(UpsertSavedCharacterRequest request, out SavedCharacterPayload character)
+    {
+        character = new SavedCharacterPayload();
+        if (request.Character.ValueKind != JsonValueKind.Object) return false;
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<SavedCharacterPayload>(request.Character.GetRawText(), JsonOptions);
+            if (parsed is null) return false;
+            character = parsed;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool TryValidateCharacterRequest(SavedCharacterPayload request, out string name)
+    {
+        name = (request.Name ?? string.Empty).Trim();
         return !string.IsNullOrWhiteSpace(name);
     }
+
+    private static SavedCharacterPayload SanitizeCharacterPayload(MembershipPlan membership, SavedCharacterPayload payload) =>
+        new()
+        {
+            Role = string.IsNullOrWhiteSpace(payload.Role) ? "main" : payload.Role.Trim(),
+            RoleCustom = payload.RoleCustom?.Trim() ?? string.Empty,
+            Name = payload.Name.Trim(),
+            IsAnimal = payload.IsAnimal,
+            DescriptionFields = MembershipEntitlements.SanitizeDescriptionFields(membership, payload.DescriptionFields)
+        };
 
     private static bool TryParseCharacter(string raw, out JsonElement character)
     {

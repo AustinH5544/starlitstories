@@ -19,7 +19,12 @@ const UpgradePage = () => {
             price: "$0/month",
             icon: "📖",
             description: "Perfect for trying out our service",
-            features: ["1 personalized story", "Basic customization", "Digital format only"],
+            features: [
+                "1 personalized story",
+                "1 saved character",
+                "Standard character creator",
+                "Digital format only",
+            ],
             disabled: user?.membership === "free",
         },
         {
@@ -28,7 +33,13 @@ const UpgradePage = () => {
             price: "$4/month",
             icon: "✨",
             description: "Great for regular storytelling",
-            features: ["5 stories per month", "Advanced customization", "High-quality illustrations", "Download & share"],
+            features: [
+                "5 stories per month",
+                "5 saved characters",
+                "Advanced character creation",
+                "High-quality illustrations",
+                "Download & share",
+            ],
             disabled: user?.membership === "pro" || user?.membership === "premium",
         },
         {
@@ -39,10 +50,11 @@ const UpgradePage = () => {
             description: "Perfect for families who love stories",
             features: [
                 "11 stories per month",
+                "10 saved characters",
+                "Advanced character creation",
                 "Premium illustrations",
-                "Multiple characters",
                 "Print-ready format",
-                "Priority support",
+                "Priority support queue",
             ],
             badge: "Most Popular",
             disabled: user?.membership === "premium",
@@ -126,7 +138,7 @@ const UpgradePage = () => {
                         <span>←</span> Back to Profile
                     </button>
                     <h1 className="upgrade-title">Upgrade Your Plan</h1>
-                    <p className="upgrade-subtitle">Unlock more magical stories and premium features</p>
+                    <p className="upgrade-subtitle">Unlock more stories, more saved characters, and the full character creator.</p>
                 </div>
 
                 <div className="current-plan-section">
@@ -220,14 +232,14 @@ const UpgradePage = () => {
 
                         <div className="benefit-card">
                             <div className="benefit-icon">🎨</div>
-                            <h4>Premium Quality</h4>
-                            <p>Access to higher quality illustrations and advanced customization options.</p>
+                            <h4>Character Creator</h4>
+                            <p>Paid plans unlock advanced character creation, while Free keeps the standard creator.</p>
                         </div>
 
                         <div className="benefit-card">
-                            <div className="benefit-icon">👨‍👩‍👧‍👦</div>
-                            <h4>Family Features</h4>
-                            <p>Support for multiple characters and family-oriented story themes.</p>
+                            <div className="benefit-icon">💾</div>
+                            <h4>Saved Characters</h4>
+                            <p>Keep 1 saved character on Free, 5 on Pro, and 10 on Premium.</p>
                         </div>
 
                         <div className="benefit-card">
@@ -240,7 +252,10 @@ const UpgradePage = () => {
 
                 <div className="upgrade-footer">
                     <p>
-                        Questions about upgrading? <a href="mailto:support@StarlitStories.app">Contact our support team</a>
+                        Multiple characters are currently disabled for all plans. If your membership changes, we keep saved characters in your account and only pause new saves until you are back under the active plan limit.
+                    </p>
+                    <p>
+                        Priority support is planned, but not live yet. A practical rollout is a dedicated premium inbox or tagged support queue with faster first-response targets. Questions about upgrading? <a href="mailto:support@StarlitStories.app">Contact our support team</a>
                     </p>
                 </div>
             </div>
