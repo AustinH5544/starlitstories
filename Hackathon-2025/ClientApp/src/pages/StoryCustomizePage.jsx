@@ -25,26 +25,95 @@ export default function StoryCustomizePage() {
     const [boxesByPage, setBoxesByPage] = useState({});
     const [selectedBoxId, setSelectedBoxId] = useState(null);
     const stageRef = useRef(null);
+    const topbarRef = useRef(null);
+    const [topbarOffset, setTopbarOffset] = useState(56);
+    const [stageSize, setStageSize] = useState({ stageW: 600, stageH: 450 });
+    const [layoutBaseSize, setLayoutBaseSize] = useState({ stageW: 600, stageH: 450, coverStageH: 450 });
 
     // Mobile drawers state: 'pages' | 'inspector' | null
     const [panel, setPanel] = useState(null);
+    const [headerOpen, setHeaderOpen] = useState(true);
     const openPages = () => setPanel("pages");
     const toggleInspector = () =>
         setPanel(prev => (prev === "inspector" ? null : "inspector"));
     const closePanels = () => setPanel(null);
 
+    function getStageMetrics() {
+        const rect = stageRef.current?.getBoundingClientRect();
+        const stageW = Math.round(rect?.width || stageSize.stageW || 600);
+        const stageH = Math.round(rect?.height || stageSize.stageH || Math.round(stageW * 0.75));
+        return { stageW, stageH };
+    }
+
+    useEffect(() => {
+        const el = stageRef.current;
+        if (!el) return;
+
+        const syncStageSize = () => {
+            const rect = el.getBoundingClientRect();
+            const next = {
+                stageW: Math.round(rect.width || 600),
+                stageH: Math.round(rect.height || Math.round((rect.width || 600) * 0.75)),
+            };
+            setStageSize((prev) =>
+                prev.stageW === next.stageW && prev.stageH === next.stageH ? prev : next
+            );
+        };
+
+        syncStageSize();
+
+        const ro = new ResizeObserver(() => syncStageSize());
+        ro.observe(el);
+        window.addEventListener("resize", syncStageSize);
+        window.addEventListener("orientationchange", syncStageSize);
+
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("resize", syncStageSize);
+            window.removeEventListener("orientationchange", syncStageSize);
+        };
+    }, [story, pageIndex]);
+
+    useEffect(() => {
+        const el = topbarRef.current;
+        if (!el) return;
+
+        const syncTopbarOffset = () => {
+            setTopbarOffset(Math.round(el.getBoundingClientRect().height || 56));
+        };
+
+        syncTopbarOffset();
+
+        const ro = new ResizeObserver(() => syncTopbarOffset());
+        ro.observe(el);
+        window.addEventListener("resize", syncTopbarOffset);
+
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("resize", syncTopbarOffset);
+        };
+    }, [headerOpen, story?.title]);
+
     // stable helper
-    function createDefaultTextBox(text, page) {
+    function createDefaultTextBox(text, page, stageW = 600, stageH = 450) {
+        const x = Math.round(clampN(stageW * 0.04, 12, 24));
+        const y = Math.round(clampN(stageH * 0.05, 12, 24));
+        const w = Math.round(clampN(stageW * 0.46, 160, 420));
+        const h = Math.round(clampN(stageH * 0.24, 88, 160));
+        const fontSize = Math.round(clampN(stageW * 0.028, 14, 20));
+        const padding = Math.round(clampN(stageW * 0.02, 8, 16));
+        const radius = Math.round(clampN(stageW * 0.015, 10, 12));
+
         return {
             id: crypto.randomUUID(),
             page,
-            x: 24, y: 24, w: 420, h: 160,
+            x, y, w, h,
             text,
             style: {
                 fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 20, fontWeight: 400, lineHeight: 1.35,
+                fontSize, fontWeight: 400, lineHeight: 1.35,
                 color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.8,
-                align: "left", padding: 16, radius: 12, shadow: true,
+                align: "left", padding, radius, shadow: true,
                 textEdge: false, textEdgeColor: "#ffffff", textEdgeWidth: 1,
             },
         };
@@ -71,8 +140,12 @@ export default function StoryCustomizePage() {
         }
 
         // Regular page
+        const { stageW, stageH } = getStageMetrics();
         setBoxesByPage(prev => {
-            const next = { ...prev, [pageIndex]: [createDefaultTextBox(story.pages[pageIndex]?.text || "", pageIndex)] };
+            const next = {
+                ...prev,
+                [pageIndex]: [createDefaultTextBox(story.pages[pageIndex]?.text || "", pageIndex, stageW, stageH)]
+            };
             localStorage.setItem(key, JSON.stringify(next));
             return next;
         });
@@ -98,9 +171,10 @@ export default function StoryCustomizePage() {
     }
 
     function seedFromStory(s) {
+        const { stageW, stageH } = getStageMetrics();
         const init = {};
         (s?.pages || []).forEach((p, i) => {
-            init[i] = [createDefaultTextBox(p?.text || "", i)];
+            init[i] = [createDefaultTextBox(p?.text || "", i, stageW, stageH)];
         });
         return init;
     }
@@ -178,6 +252,14 @@ export default function StoryCustomizePage() {
 
             const key = storageKey(s);
             const savedLayouts = JSON.parse(localStorage.getItem(key) || "null");
+            const { stageW, stageH } = getStageMetrics();
+            const meta = JSON.parse(localStorage.getItem(`${key}:meta`) || "null");
+
+            setLayoutBaseSize({
+                stageW: meta?.stageW || stageW,
+                stageH: meta?.stageH || stageH,
+                coverStageH: meta?.coverStageH || stageH,
+            });
 
             function normalizeLayouts(saved, s) {
                 if (!saved || typeof saved !== "object") return null;
@@ -194,7 +276,7 @@ export default function StoryCustomizePage() {
                     for (let i = 0; i < s.pages.length; i++) {
                         next[i] = (clean[i + 1] || []).map(b => ({ ...b, id: crypto.randomUUID(), page: i }));
                         if (!next[i].length && (s.pages[i]?.text ?? "")) {
-                            next[i] = [createDefaultTextBox(s.pages[i].text, i)];
+                            next[i] = [createDefaultTextBox(s.pages[i].text, i, stageW, stageH)];
                         }
                     }
                     return next;
@@ -208,7 +290,7 @@ export default function StoryCustomizePage() {
                 for (let i = 0; i < s.pages.length; i++) {
                     next[i] = (clean[i] || []).map(b => ({ ...b, id: b.id || crypto.randomUUID(), page: i }));
                     if (!next[i].length && (s.pages[i]?.text ?? "")) {
-                        next[i] = [createDefaultTextBox(s.pages[i].text, i)];
+                        next[i] = [createDefaultTextBox(s.pages[i].text, i, stageW, stageH)];
                     }
                 }
                 return next;
@@ -245,21 +327,8 @@ export default function StoryCustomizePage() {
         localStorage.setItem(`${key}:cover`, JSON.stringify(boxesByPage[-1] || []));
         localStorage.setItem(key, JSON.stringify(boxesByPage));
 
-        // store stage size so export can scale coordinates 1:1
-        const rect = stageRef.current?.getBoundingClientRect();
-        if (rect && pageIndex === -1) {
-            const mk = `${key}:meta`;
-            const metaNow = JSON.parse(localStorage.getItem(mk) || "{}");
-            metaNow.coverStageH = Math.round(rect.height);
-            localStorage.setItem(mk, JSON.stringify(metaNow));
-        }
-        if (rect) {
-            localStorage.setItem(`${key}:meta`, JSON.stringify({
-                stageW: Math.round(rect.width),
-                stageH: Math.round(rect.height),
-            }));
-        }
-    }, [story, boxesByPage, pageIndex]);
+        localStorage.setItem(`${key}:meta`, JSON.stringify(layoutBaseSize));
+    }, [story, boxesByPage, layoutBaseSize]);
 
     // Helpers
     const currentBoxes = boxesByPage?.[pageIndex] || [];
@@ -273,10 +342,11 @@ export default function StoryCustomizePage() {
     }
 
     function addTextBox() {
+        const { stageW, stageH } = getStageMetrics();
         setBoxesByPage((prev) => {
             const next = { ...prev };
             const copy = [...(next[pageIndex] || [])];
-            copy.push(createDefaultTextBox("New text…", pageIndex));
+            copy.push(createDefaultTextBox("New text…", pageIndex, stageW, stageH));
             next[pageIndex] = copy;
             return next;
         });
@@ -308,14 +378,16 @@ export default function StoryCustomizePage() {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
+            const scaleX = bounds ? bounds.width / (layoutBaseSize.stageW || bounds.width) : 1;
+            const scaleY = bounds ? bounds.height / (layoutBaseSize.stageH || bounds.height) : 1;
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
                 if (b.id !== id) return b;
                 let x = nextX,
                     y = nextY;
                 if (bounds) {
-                    const maxX = bounds.width - b.w - 2;
-                    const maxY = bounds.height - b.h - 2;
+                    const maxX = bounds.width / scaleX - b.w - 2;
+                    const maxY = bounds.height / scaleY - b.h - 2;
                     x = Math.max(2, Math.min(x, maxX));
                     y = Math.max(2, Math.min(y, maxY));
                 }
@@ -329,14 +401,16 @@ export default function StoryCustomizePage() {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
+            const scaleX = bounds ? bounds.width / (layoutBaseSize.stageW || bounds.width) : 1;
+            const scaleY = bounds ? bounds.height / (layoutBaseSize.stageH || bounds.height) : 1;
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
                 if (b.id !== id) return b;
-                let x = b.x + dx;
-                let y = b.y + dy;
+                let x = b.x + (dx / scaleX);
+                let y = b.y + (dy / scaleY);
                 if (bounds) {
-                    const maxX = bounds.width - b.w - 2;
-                    const maxY = bounds.height - b.h - 2;
+                    const maxX = bounds.width / scaleX - b.w - 2;
+                    const maxY = bounds.height / scaleY - b.h - 2;
                     x = Math.max(2, Math.min(x, maxX));
                     y = Math.max(2, Math.min(y, maxY));
                 }
@@ -350,6 +424,10 @@ export default function StoryCustomizePage() {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
+            const scaleX = bounds ? bounds.width / (layoutBaseSize.stageW || bounds.width) : 1;
+            const scaleY = bounds ? bounds.height / (layoutBaseSize.stageH || bounds.height) : 1;
+            const baseDw = dw / scaleX;
+            const baseDh = dh / scaleY;
 
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
@@ -359,24 +437,24 @@ export default function StoryCustomizePage() {
                     y = b.y,
                     w = b.w,
                     h = b.h;
-                const minW = 120,
-                    minH = 80;
+                const minW = 72,
+                    minH = 48;
 
                 const right = b.x + b.w;
                 const bottom = b.y + b.h;
 
                 if (anchor.includes("e")) {
-                    w = w + dw;
+                    w = w + baseDw;
                 }
                 if (anchor.includes("w")) {
-                    x = b.x - dw;
+                    x = b.x - baseDw;
                     w = right - x;
                 }
                 if (anchor.includes("s")) {
-                    h = h + dh;
+                    h = h + baseDh;
                 }
                 if (anchor.includes("n")) {
-                    y = b.y - dh;
+                    y = b.y - baseDh;
                     h = bottom - y;
                 }
 
@@ -385,14 +463,14 @@ export default function StoryCustomizePage() {
 
                 if (bounds) {
                     const pad = 2;
-                    const maxX = bounds.width - minW - pad;
-                    const maxY = bounds.height - minH - pad;
+                    const maxX = bounds.width / scaleX - minW - pad;
+                    const maxY = bounds.height / scaleY - minH - pad;
 
                     x = Math.max(pad, Math.min(x, maxX));
                     y = Math.max(pad, Math.min(y, maxY));
 
-                    w = Math.min(w, bounds.width - x - pad);
-                    h = Math.min(h, bounds.height - y - pad);
+                    w = Math.min(w, bounds.width / scaleX - x - pad);
+                    h = Math.min(h, bounds.height / scaleY - y - pad);
                 }
 
                 return { ...b, x, y, w, h };
@@ -436,6 +514,8 @@ export default function StoryCustomizePage() {
         const w = Math.round(stageW * 0.84);
         const x = Math.round((stageW - w) / 2);
         const y = Math.round(stageH * 0.06);
+        const fontSize = Math.round(clampN(stageW * 0.05, 22, 36));
+        const padding = Math.round(clampN(stageW * 0.012, 6, 10));
         return {
             id: crypto.randomUUID(),
             page: -1,
@@ -444,9 +524,9 @@ export default function StoryCustomizePage() {
             text: title || "My Story",
             style: {
                 fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 36, fontWeight: 700, lineHeight: 1.2,
+                fontSize, fontWeight: 700, lineHeight: 1.2,
                 color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.0,
-                align: "center", padding: 8, radius: 12, shadow: false,
+                align: "center", padding, radius: 12, shadow: false,
                 textEdge: false, textEdgeColor: "#ffffff", textEdgeWidth: 1
             },
         };
@@ -483,11 +563,16 @@ export default function StoryCustomizePage() {
     }
 
     const page = story.pages[pageIndex];
+    const currentStageW = stageSize.stageW;
+    const currentStageH = stageSize.stageH;
+    const scaleX = currentStageW / (layoutBaseSize.stageW || currentStageW || 1);
+    const scaleY = currentStageH / (layoutBaseSize.stageH || currentStageH || 1);
+    const contentScale = Math.min(scaleX || 1, scaleY || 1);
 
     return (
-        <div className="customizer">
+        <div className="customizer" style={{ "--customizer-topbar-offset": `${topbarOffset}px` }}>
             {/* Top bar */}
-            <header className="topbar">
+            <header className="topbar" data-collapsed={!headerOpen} ref={topbarRef}>
                 <div className="left-actions">
                     <button className="btn" onClick={() => navigate(-1)} aria-label="Go back">
                         ← Back
@@ -505,7 +590,18 @@ export default function StoryCustomizePage() {
                 </div>
 
                 <div className="title">
-                    Customize: <span>{story.title || "Untitled"}</span>
+                    <div className="title-bar">
+                        <span>Customize: <span>{story.title || "Untitled"}</span></span>
+                        <button
+                            className="btn ghost topbar-toggle show-on-mobile"
+                            type="button"
+                            onClick={() => setHeaderOpen((prev) => !prev)}
+                            aria-expanded={headerOpen}
+                            aria-label={headerOpen ? "Collapse customize header" : "Expand customize header"}
+                        >
+                            {headerOpen ? "Hide" : "Show"}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="actions">
@@ -631,6 +727,9 @@ export default function StoryCustomizePage() {
                                 key={b.id}
                                 box={b}
                                 selected={selectedBoxId === b.id}
+                                scaleX={scaleX}
+                                scaleY={scaleY}
+                                contentScale={contentScale}
                                 onSelect={() => setSelectedBoxId(b.id)}
                                 onDrag={onDrag}
                                 onResize={onResize}
@@ -700,11 +799,11 @@ export default function StoryCustomizePage() {
                                     <input
                                         type="number"
                                         className="input"
-                                        min={12}
+                                        min={8}
                                         max={64}
                                         value={selectedBox.style.fontSize}
                                         onChange={(e) =>
-                                            updateStyle({ fontSize: clampN(e.target.value, 12, 64) })
+                                            updateStyle({ fontSize: clampN(e.target.value, 8, 64) })
                                         }
                                     />
                                 </div>
@@ -931,7 +1030,7 @@ function edgeShadow(color = "#ffffff", width = 1) {
 }
 
 /** Draggable, resizable text box */
-function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange }) {
+function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1, onSelect, onDrag, onResize, onTextChange }) {
     const ref = useRef(null);
     const dragState = useRef(null);
 
@@ -1077,16 +1176,16 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
     }
 
     const style = {
-        left: box.x,
-        top: box.y,
-        width: box.w,
-        height: box.h,
-        padding: box.style.padding,
-        borderRadius: box.style.radius,
+        left: box.x * scaleX,
+        top: box.y * scaleY,
+        width: box.w * scaleX,
+        height: box.h * scaleY,
+        padding: box.style.padding * contentScale,
+        borderRadius: box.style.radius * contentScale,
         background: colorToRgba(box.style.bg, box.style.bgAlpha ?? 0.8),
         boxShadow: box.style.shadow ? "0 6px 24px rgba(0,0,0,.18)" : "none",
         fontFamily: box.style.fontFamily,
-        fontSize: box.style.fontSize,
+        fontSize: box.style.fontSize * contentScale,
         fontWeight: box.style.fontWeight,
         lineHeight: box.style.lineHeight,
         color: box.style.color,
