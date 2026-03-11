@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
+import posthog from "../analytics"
 import "./LandingPage.css"
 
 import instagramIcon from "../assets/social/instagram.png";
@@ -116,6 +117,10 @@ const LandingPage = () => {
     const [selectedArtStyle, setSelectedArtStyle] = useState(artStyleShowcase[0].key)
     const [activeExampleIndex, setActiveExampleIndex] = useState(0)
     const [imageLoadError, setImageLoadError] = useState(false)
+
+    useEffect(() => {
+        posthog.capture("landing_page_viewed")
+    }, [])
 
     // focus the first action on warn (a11y)
     useEffect(() => {
