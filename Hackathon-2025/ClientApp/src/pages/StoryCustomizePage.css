@@ -245,6 +245,7 @@
 /* Text box base (dynamic position/size/colors remain inline from React) */
 .tbox {
     cursor: grab;
+    touch-action: none;
 }
 
     .tbox.dragging {
@@ -257,6 +258,7 @@
         overflow: auto;
         white-space: pre-wrap;
         pointer-events: auto;
+        touch-action: none;
         -webkit-user-select: none;
         user-select: none;
     }

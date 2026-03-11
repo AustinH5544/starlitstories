@@ -955,6 +955,20 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         const el = ref.current;
         if (!el) return;
 
+        function cleanupDrag(pointerId) {
+            try {
+                if (pointerId != null) {
+                    el.releasePointerCapture?.(pointerId);
+                }
+            } catch { }
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+            window.removeEventListener("pointercancel", cancel);
+            el.removeEventListener("lostpointercapture", lostCapture);
+            dragState.current = null;
+            el.classList.remove("dragging");
+        }
+
         function down(e) {
             if (e.target.closest?.(".edge-handle, .corner-handle")) return;
 
@@ -970,6 +984,8 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
             } catch { }
             window.addEventListener("pointermove", move, { passive: false });
             window.addEventListener("pointerup", up, { once: true });
+            window.addEventListener("pointercancel", cancel, { once: true });
+            el.addEventListener("lostpointercapture", lostCapture, { once: true });
             el.classList.add("dragging");
         }
 
@@ -993,18 +1009,21 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         }
 
         function up(e) {
-            try {
-                el.releasePointerCapture?.(e.pointerId);
-            } catch { }
-            window.removeEventListener("pointermove", move);
-            dragState.current = null;
-            el.classList.remove("dragging");
+            cleanupDrag(e.pointerId);
+        }
+
+        function cancel(e) {
+            cleanupDrag(e.pointerId);
+        }
+
+        function lostCapture() {
+            cleanupDrag();
         }
 
         el.addEventListener("pointerdown", down);
         return () => {
             el.removeEventListener("pointerdown", down);
-            window.removeEventListener("pointermove", move);
+            cleanupDrag();
         };
     }, [box.id]);
 
@@ -1024,6 +1043,7 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         } catch { }
         window.addEventListener("pointermove", onResizeMove, { passive: false });
         window.addEventListener("pointerup", onResizeUp, { once: true });
+        window.addEventListener("pointercancel", onResizeUp, { once: true });
     }
 
     function onResizeMove(e) {
@@ -1051,6 +1071,8 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
             e.currentTarget?.releasePointerCapture?.(e.pointerId);
         } catch { }
         window.removeEventListener("pointermove", onResizeMove);
+        window.removeEventListener("pointerup", onResizeUp);
+        window.removeEventListener("pointercancel", onResizeUp);
         rs.current = null;
     }
 
@@ -1072,6 +1094,7 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         outline: selected ? "2px solid #6c8cff" : "1px solid rgba(0,0,0,.08)",
         position: "absolute",
         cursor: "grab",
+        touchAction: "none",
         userSelect: "none",
     };
 
