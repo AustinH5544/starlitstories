@@ -60,4 +60,4 @@ This repository is shared for engineering review and portfolio evaluation. It is
 
 ## License
 
-This repository is available for review and discussion under the terms in [LICENSE.md](/f:/Projects/Hackathon-2025/LICENSE.md).
+This repository is available for review and discussion under the terms in [LICENSE.md](LICENSE.md).
