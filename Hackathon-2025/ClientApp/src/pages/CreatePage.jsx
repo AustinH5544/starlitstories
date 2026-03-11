@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import StoryForm from "../components/StoryForm";
-import DoodlePad from "../Components/DoodlePad";
-import PaintingFlightGame from "../Components/PaintingFlightGame";
+import DoodlePad from "../components/DoodlePad";
+import PaintingFlightGame from "../components/PaintingFlightGame";
 import api from "../api";
 import "./CreatePage.css";
 import { useNavigate } from "react-router-dom";
