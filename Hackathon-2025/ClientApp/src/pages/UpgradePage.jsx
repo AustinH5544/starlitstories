@@ -223,27 +223,27 @@ const UpgradePage = () => {
                         Why Upgrade?
                     </h2>
 
-                    <div className="benefits-grid">
-                        <div className="benefit-card">
-                            <div className="benefit-icon">📚</div>
+                    <div className="upgrade-benefits-grid">
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">📚</div>
                             <h4>More Stories</h4>
                             <p>Create more personalized adventures for your children with higher monthly limits.</p>
                         </div>
 
-                        <div className="benefit-card">
-                            <div className="benefit-icon">🎨</div>
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">🎨</div>
                             <h4>Character Creator</h4>
                             <p>Paid plans unlock advanced character creation, while Free keeps the standard creator.</p>
                         </div>
 
-                        <div className="benefit-card">
-                            <div className="benefit-icon">💾</div>
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">💾</div>
                             <h4>Saved Characters</h4>
                             <p>Keep 1 saved character on Free, 5 on Pro, and 10 on Premium.</p>
                         </div>
 
-                        <div className="benefit-card">
-                            <div className="benefit-icon">🖨️</div>
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">🖨️</div>
                             <h4>Print & Share</h4>
                             <p>Download your stories in print-ready format to create physical keepsakes.</p>
                         </div>
