@@ -394,6 +394,13 @@
     justify-content: center;
 }
 
+.finish-inline {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
+}
+
 .finish-story-btn {
     display: inline-flex;
     align-items: center;
@@ -1275,6 +1282,10 @@
 .story-viewer.is-book .page-text {
     font-size: var(--book-page-text-size);
     line-height: var(--book-page-line);
+}
+
+.story-viewer.is-book .finish-inline {
+    justify-content: center;
 }
 
         .story-viewer.is-book .story-content {
