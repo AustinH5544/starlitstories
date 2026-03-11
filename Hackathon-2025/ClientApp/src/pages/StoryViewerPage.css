@@ -917,13 +917,17 @@
     display: grid;
     place-items: center;
     width: 100%;
+    height: 100%;
+    min-height: 0;
 }
 
 .book {
     position: relative;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    width: min(1000px, 92vw);
+    width: min(1000px, 100%);
+    max-width: 100%;
+    max-height: 100%;
     aspect-ratio: 3/2;
     perspective: 2000px;
 }
@@ -937,7 +941,10 @@
 /* Single centered cover */
 .book.cover-state {
     grid-template-columns: 1fr;
-    width: min(760px, 92vw);
+    width: min(760px, 100%);
+    max-width: 100%;
+    max-height: 100%;
+    align-self: start;
 }
 
     .book.cover-state .book-left {
@@ -1247,7 +1254,106 @@
     .story-viewer.is-book {
         --page-text-color: #1f222b;
         --page-title-color: #1a1d24;
+        --book-page-text-size: clamp(0.96rem, 0.55rem + 0.32vw + 0.36vh, 1.22rem);
+        --book-page-line: clamp(1.56, 1.5 + 0.12vw, 1.72);
     }
+
+.story-viewer.is-book .story-content {
+    align-items: stretch;
+}
+
+.story-viewer.is-book .book-wrapper {
+    place-items: start center;
+    padding-top: clamp(0px, 1vh, 12px);
+}
+
+.story-viewer.is-book .page-text-container {
+    --page-text-size: var(--book-page-text-size);
+    --page-line: var(--book-page-line);
+}
+
+.story-viewer.is-book .page-text {
+    font-size: var(--book-page-text-size);
+    line-height: var(--book-page-line);
+}
+
+        .story-viewer.is-book .story-content {
+            align-items: stretch;
+        }
+
+        .story-viewer.is-book .book-wrapper {
+            place-items: center;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            padding-top: clamp(0px, 1vh, 12px);
+            padding-bottom: clamp(0px, 1vh, 12px);
+        }
+
+    /* Shared available height for book mode */
+    .story-viewer.is-book {
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px );
+        --book-page-text-size: clamp(0.96rem, 0.55rem + 0.32vw + 0.36vh, 1.22rem);
+        --book-page-line: clamp(1.56, 1.5 + 0.12vw, 1.72);
+    }
+
+        /* Regular spreads */
+        .story-viewer.is-book .book {
+            width: min(100%, calc(var(--book-available-h) * 1.5));
+            height: min(var(--book-available-h), calc(100vw / 1.5));
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+            /* Cover page only */
+            .story-viewer.is-book .book.cover-state {
+                width: min(100%, calc(var(--book-available-h) * 0.78));
+                height: min(var(--book-available-h), calc(100vw / 0.78));
+                max-width: 100%;
+                max-height: 100%;
+            }
+
+/* Keep cover from feeling oversized on very wide desktop screens */
+@media (min-width: 1024px) and (min-aspect-ratio: 4/3) {
+    .story-viewer.is-book {
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px );
+        --book-page-text-size: clamp(1rem, 0.52rem + 0.36vw + 0.42vh, 1.3rem);
+    }
+
+        .story-viewer.is-book .book.cover-state {
+            width: min(92%, calc(var(--book-available-h) * 0.76));
+            height: min(var(--book-available-h), calc(92vw / 0.76));
+        }
+}
+
+/* Tablet / portrait tuning */
+@media (max-width: 1023px), (max-aspect-ratio: 4/3) {
+    .story-viewer.is-book {
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 28px );
+        --book-page-text-size: clamp(0.9rem, 0.58rem + 0.22vw + 0.3vh, 1.08rem);
+    }
+
+        .story-viewer.is-book .book.cover-state {
+            width: min(96%, calc(var(--book-available-h) * 0.8));
+            height: min(var(--book-available-h), calc(96vw / 0.8));
+        }
+}
+
+/* Short screens */
+@media (max-height: 760px) {
+    .story-viewer.is-book {
+        --book-page-text-size: clamp(0.88rem, 0.6rem + 0.18vw + 0.22vh, 1.02rem);
+        --book-page-line: 1.58;
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 18px );
+    }
+}
+
+@media (max-height: 760px) {
+    .story-viewer.is-book {
+        --book-page-text-size: clamp(0.88rem, 0.6rem + 0.18vw + 0.22vh, 1.02rem);
+        --book-page-line: 1.58;
+    }
+}
 
 .page-text {
     color: var(--page-text-color);
