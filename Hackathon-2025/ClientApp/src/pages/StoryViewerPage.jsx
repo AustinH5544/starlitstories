@@ -809,7 +809,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                                     </div>
                                     <div className="paper-face back">
                                         {openingFromCover && isFlipping && flipDir === "next" ? (
-                                            <SpreadBackFace rightIdx={openingTargetRight ?? (pageCount >= 2 ? 1 : 0)} />
+                                            <PageFace idx={0} />
                                         ) : (
                                             <PageFace idx={backIndex} />
                                         )}
