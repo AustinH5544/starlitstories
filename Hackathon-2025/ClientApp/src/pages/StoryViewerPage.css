@@ -1288,6 +1288,10 @@
     justify-content: center;
 }
 
+.story-viewer.is-book .finish-story-btn {
+    color: #fff;
+}
+
         .story-viewer.is-book .story-content {
             align-items: stretch;
         }
