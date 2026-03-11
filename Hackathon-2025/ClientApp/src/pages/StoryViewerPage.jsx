@@ -823,17 +823,81 @@ export default function StoryViewerPage({ mode = "private" }) {
 
             {/* Navigation Controls */}
             <div className={`story-navigation ${showControls ? "visible" : "hidden"}`}>
-                <button
-                    onClick={prevPage}
-                    disabled={isCover || isFlipping}
-                    className="nav-button prev-button"
-                    title={isBook && onFirstSpread ? "Close book" : "Previous"}
-                >
-                    <span className="nav-icon">←</span>
-                    <span className="nav-text">{isBook && onFirstSpread ? "Close" : "Previous"}</span>
-                </button>
+                <div className="nav-spacer" aria-hidden="true" />
 
-                <div className="nav-middle">
+                <div className="nav-reading-controls">
+                    <button
+                        onClick={prevPage}
+                        disabled={isCover || isFlipping}
+                        className="nav-button prev-button"
+                        title={isBook && onFirstSpread ? "Close book" : "Previous"}
+                    >
+                        <span className="nav-icon">←</span>
+                        <span className="nav-text">{isBook && onFirstSpread ? "Close" : "Previous"}</span>
+                    </button>
+
+                    <div className="nav-middle">
+                        <div className="page-indicators" ref={indicatorsRef}>
+                            <button
+                                ref={(el) => (dotRefs.current[0] = el)}
+                                onClick={() => goToPage(-1)}
+                                className={`page-dot ${isCover ? "active" : ""}`}
+                                title="Cover"
+                                disabled={isFlipping}
+                            >
+                                <span className="dot-icon">📖</span>
+                            </button>
+
+                            {isBook
+                                ? (
+                                    Array.from({ length: totalSpreads }, (_, i) => {
+                                        const spreadNum = i + 1;
+                                        const active = !isCover && spreadOf(currentPage) === spreadNum;
+                                        return (
+                                            <button
+                                                key={`spread-${spreadNum}`}
+                                                ref={(el) => (dotRefs.current[spreadNum] = el)}
+                                                onClick={() => goToPage(rightIndexOfSpread(spreadNum))}
+                                                className={`page-dot ${active ? "active" : ""}`}
+                                                title={`Spread ${spreadNum}`}
+                                                disabled={isFlipping}
+                                            >
+                                                {spreadNum}
+                                            </button>
+                                        );
+                                    })
+                                )
+                                : (
+                                    story.pages.map((_, index) => (
+                                        <button
+                                            key={index}
+                                            ref={(el) => (dotRefs.current[index + 1] = el)}
+                                            onClick={() => goToPage(index)}
+                                            className={`page-dot ${currentPage === index ? "active" : ""}`}
+                                            title={`Page ${index + 1}`}
+                                            disabled={isFlipping}
+                                        >
+                                            {index + 1}
+                                        </button>
+                                    ))
+                                )
+                            }
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={nextPage}
+                        disabled={isFlipping}
+                        className="nav-button next-button"
+                    >
+                        <span className="nav-text">
+                            {isBook && isLastSpread ? "Finish" : isLastPage ? "Finish" : "Next"}
+                        </span>
+                        <span className="nav-icon">{(isBook && isLastSpread) || isLastPage ? "🌟" : "→"}</span>
+                    </button>
+                </div>
+
+                <div className="nav-utility">
                     {bookEligible && (
                         <label className="flip-toggle" title="Toggle book mode">
                             <input
@@ -846,68 +910,13 @@ export default function StoryViewerPage({ mode = "private" }) {
                                     localStorage.setItem("bookMode", final ? "1" : "0");
                                 }}
                             />
-                            <span>Book mode (Beta)</span>
+                            <span className="flip-toggle-switch" aria-hidden="true">
+                                <span className="flip-toggle-thumb" />
+                            </span>
+                            <span className="flip-toggle-label">Book mode</span>
                         </label>
                     )}
-
-                    <div className="page-indicators" ref={indicatorsRef}>
-                        <button
-                            ref={(el) => (dotRefs.current[0] = el)}
-                            onClick={() => goToPage(-1)}
-                            className={`page-dot ${isCover ? "active" : ""}`}
-                            title="Cover"
-                            disabled={isFlipping}
-                        >
-                            <span className="dot-icon">📖</span>
-                        </button>
-
-                        {isBook
-                            ? (
-                                Array.from({ length: totalSpreads }, (_, i) => {
-                                    const spreadNum = i + 1;
-                                    const active = !isCover && spreadOf(currentPage) === spreadNum;
-                                    return (
-                                        <button
-                                            key={`spread-${spreadNum}`}
-                                            ref={(el) => (dotRefs.current[spreadNum] = el)}
-                                            onClick={() => goToPage(rightIndexOfSpread(spreadNum))}
-                                            className={`page-dot ${active ? "active" : ""}`}
-                                            title={`Spread ${spreadNum}`}
-                                            disabled={isFlipping}
-                                        >
-                                            {spreadNum}
-                                        </button>
-                                    );
-                                })
-                            )
-                            : (
-                                story.pages.map((_, index) => (
-                                    <button
-                                        key={index}
-                                        ref={(el) => (dotRefs.current[index + 1] = el)}
-                                        onClick={() => goToPage(index)}
-                                        className={`page-dot ${currentPage === index ? "active" : ""}`}
-                                        title={`Page ${index + 1}`}
-                                        disabled={isFlipping}
-                                    >
-                                        {index + 1}
-                                    </button>
-                                ))
-                            )
-                        }
-                    </div>
                 </div>
-
-                <button
-                    onClick={nextPage}
-                    disabled={isFlipping}
-                    className="nav-button next-button"
-                >
-                    <span className="nav-text">
-                        {isBook && isLastSpread ? "Finish" : isLastPage ? "Finish" : "Next"}
-                    </span>
-                    <span className="nav-icon">{(isBook && isLastSpread) || isLastPage ? "🌟" : "→"}</span>
-                </button>
             </div>
 
             {/* Completion Screen */}
