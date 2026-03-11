@@ -70,6 +70,7 @@ const SignupPage = () => {
         }
 
         setIsLoading(true);
+        posthog.capture('signup_started', { signup_method: 'email' })
 
         try {
             // Always create as FREE by default
