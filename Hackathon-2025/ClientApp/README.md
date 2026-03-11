@@ -1,12 +1,51 @@
-# React + Vite
+# Starlit Stories Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is the frontend for Starlit Stories. It covers the public-facing product, account flows, story creation experience, profile area, billing UI, and story-reading interface.
 
-Currently, two official plugins are available:
+## Frontend responsibilities
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Marketing and product-explanation pages
+- Authentication and account recovery flows
+- Story creation and customization workflows
+- Story viewing for private and public-share routes
+- Membership upgrade and billing entry points
+- Profile and saved-story experience
 
-## Expanding the ESLint configuration
+## Engineering highlights
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Route-driven SPA structure with dedicated pages for product, auth, creation, support, and reading
+- Centralized runtime configuration through Vite environment variables
+- Shared Axios API client with JWT attachment and auth-expiry handling
+- Stripe Elements integration for billing flows
+- Production and staging build targets
+
+## Main routes
+
+- `/`
+- `/create`
+- `/customize`
+- `/view`
+- `/s/:token`
+- `/login`
+- `/signup`
+- `/signup/complete`
+- `/forgot-password`
+- `/reset-password`
+- `/verify-email`
+- `/profile`
+- `/upgrade`
+- `/faq`
+- `/support`
+- `/about`
+
+## Technology choices
+
+- React 19
+- React Router 7
+- Vite 6
+- Axios
+- Stripe Elements
+
+## Usage note
+
+This client is included as part of a portfolio project and remains governed by the repository license rather than an open-source reuse model.

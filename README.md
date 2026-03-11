@@ -1,96 +1,63 @@
-**Starlit Stories**
+# Starlit Stories
 
-Starlit Stories is a full-stack SaaS platform that generates personalized, AI-powered children’s storybooks. The system supports authenticated users, subscription-based access, persistent story storage, and a modern web-based reading experience.
-This repository contains the full application stack, including the frontend web app, backend API, and associated tests.
----
-🚀 Features
-• Full-stack SaaS architecture (frontend + backend)
-• User authentication and authorization
-• Subscription-based access and billing logic
-• RESTful API for story generation and persistence
-• Cloud-backed database for user and story data
-• Secure secrets management via Azure Key Vault
-• Deployed and hosted on Azure infrastructure
+Starlit Stories is a full-stack SaaS application for generating personalized children's storybooks with AI. We built it as a portfolio-quality product system rather than a demo: a React frontend, a .NET API, persistent data models, Stripe billing, AI generation, and cloud-oriented infrastructure concerns all live in the same repository.
 
----
+This repository is shared for engineering review and portfolio evaluation. It is licensed restrictively and is not intended as a reusable starter project.
 
-🖼 Architecture Diagram
-![Starlit Stories Architecture](docs/architecture.png)
+## Project snapshot
 
----
+- Personalized story generation with AI-authored text and generated illustrations
+- JWT-based account system with signup, login, verification, and password reset flows
+- Membership plans, quotas, add-on credits, and Stripe billing workflows
+- Saved-character system with plan-based entitlements
+- Public story sharing and profile/story history
+- Operational endpoints for health, readiness, warm-up, and sitemap generation
 
-🧱 Architecture Overview
-The application follows a clean separation of concerns between frontend, backend, and data layers.
-High-Level Components
-• Frontend: React-based web application for user interaction and story reading
-• Backend API: ASP.NET Core REST API handling authentication, business logic, and data access
-• Database: SQL database for users, stories, and application state
-• Cloud Infrastructure:
-o Azure App Service (hosting)
-o Azure API (backend exposure)
-o Azure Database
-o Azure Key Vault (secrets and configuration)
-Solution Structure
-• Web application (React)
-• API project (ASP.NET Core)
-• Test projects for backend logic and services
+## What this project demonstrates
 
----
+- End-to-end product engineering across frontend, backend, data, billing, and cloud integrations
+- Production-oriented API work including auth, rate limiting, readiness checks, and webhook idempotency
+- Entitlement modeling for membership plans instead of simple UI gating
+- Integration work with OpenAI, Stripe, Azure Key Vault, Azure Blob Storage, and email providers
+- Separation of concerns across API controllers, services, options, domain models, and frontend pages
+- Test coverage around API and domain behavior
 
-🛠️ Tech Stack
-Frontend
-• React
-• TypeScript / JavaScript
-• Modern component-based UI architecture
-Backend
-• ASP.NET Core (.NET 8)
-• RESTful API design
-• Entity Framework Core
-• Authentication & authorization middleware
-Data & Cloud
-• SQL Database
-• Azure App Service
-• Azure API
-• Azure Key Vault
-Tooling
-• GitHub for version control
-• Automated testing for backend services
+## Stack
 
----
+- Frontend: React 19, React Router 7, Vite 6, Axios, Stripe Elements
+- Backend: ASP.NET Core 8, Entity Framework Core, SQL Server, JWT auth
+- Integrations: OpenAI, Stripe, Azure Key Vault, Azure Blob Storage, SMTP / Azure Communication Services
+- Testing: MSTest, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory
 
-🧪 Testing
-The repository includes test projects covering backend services and application logic. Tests are designed to validate core functionality and support safe iteration as the platform evolves.
+## System architecture
 
----
+![Starlit Stories architecture](docs/architecture.png)
 
-🔐 Environment Configuration
-This application relies on environment variables and secrets for secure operation.
-You will need to configure values such as:
-• Database connection strings
-• Authentication secrets
-• API keys (including AI service integrations)
-In production, secrets are managed via Azure Key Vault.
-For local development, use environment variables or a secure local configuration method.
-Note: No secrets are committed to this repository.
+## Repository structure
 
----
+- `Hackathon-2025/`: primary API project and embedded frontend
+- `Hackathon-2025/ClientApp/`: React application
+- `Hackathon-2025.Tests/`: backend tests
+- `Jobs.WebhookPruner/`: scheduled cleanup job for webhook fence records
+- `docs/`: supporting technical documentation
 
-🌐 Deployment
-A staging deployment is available at:
-https://staging.starlitstories.app
-Access is currently gated while the platform is under active development.
+## Notable implementation details
 
----
+- Story generation supports both synchronous completion and async progress streaming over Server-Sent Events
+- Stripe webhooks are handled with persisted idempotency fences via `ProcessedWebhook`
+- Membership rules drive quotas, story length access, and saved-character limits
+- Startup configuration is options-bound and validated early
+- Secrets are designed around Azure Key Vault rather than hardcoded environment assumptions
 
-📌 Project Status
-Starlit Stories is under active development, with ongoing work focused on:
-• Feature refinement
-• Performance and scalability improvements
-• UX enhancements
-• Production hardening
+## Engineering scope
 
----
+- Auth and identity flows
+- Story creation and viewing flows
+- Billing and subscription lifecycle handling
+- Data persistence and migrations
+- Cloud storage for generated images
+- Operational health and deployment-oriented endpoints
 
-📫 Contact
-Built and maintained by Austin Harrison and Tyler Woody.
-For questions, feedback, or discussion, feel free to reach out via GitHub.
+## License
+
+This repository is available for review and discussion under the terms in [LICENSE.md](/f:/Projects/Hackathon-2025/LICENSE.md).
