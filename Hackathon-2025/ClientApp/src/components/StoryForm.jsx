@@ -472,13 +472,25 @@ const StoryForm = ({ onSubmit }) => {
         }
     }
 
-    const handleLoadSavedCharacter = () => {
-        const selected = savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId))
+    const loadSelectedSavedCharacter = (savedCharacterId) => {
+        const selected = savedCharacters.find((x) => String(x.id) === String(savedCharacterId))
         if (!selected) return
         setCharacters([cloneCharacter(selected.character)])
         setEditingSavedCharacterId(selected.id)
         setSavedCharacterNotice("")
         setIsUsingSavedCharacter(true)
+    }
+
+    const handleLoadSavedCharacter = () => {
+        loadSelectedSavedCharacter(selectedSavedCharacterId)
+    }
+
+    const handleSelectedSavedCharacterChange = (nextSavedCharacterId) => {
+        setSelectedSavedCharacterId(nextSavedCharacterId)
+
+        if (isUsingSavedCharacter) {
+            loadSelectedSavedCharacter(nextSavedCharacterId)
+        }
     }
 
     const handleDeleteSavedCharacter = async () => {
@@ -910,7 +922,7 @@ const StoryForm = ({ onSubmit }) => {
                             <select
                                 className="form-select"
                                 value={selectedSavedCharacterId}
-                                onChange={(e) => setSelectedSavedCharacterId(e.target.value)}
+                                onChange={(e) => handleSelectedSavedCharacterChange(e.target.value)}
                                 disabled={isSavingCharacter || isDeletingCharacter}
                             >
                                 {savedCharacters.map((item) => (
