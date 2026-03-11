@@ -8,6 +8,7 @@ import "./LoginPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
 import useWarmup from "../hooks/useWarmup";
+import posthog from '../analytics';
 
 import savedStoriesIcon from "../assets/ui-icons/books.png";
 import sparkleIcon from "../assets/ui-icons/sparkle4.png";
@@ -70,6 +71,11 @@ const LoginPage = () => {
                 { skipAuth401Handler: true }
             )
             login(response.data)
+            posthog.identify(response.data.email, {
+                email: response.data.email,
+                name: response.data.username,
+                plan: response.data.membership || 'free',
+            })
             sessionStorage.removeItem(SESSION_KEY)
             navigate("/profile")
         } catch (err) {
@@ -181,6 +187,7 @@ const LoginPage = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 disabled={isLoading}
+                                className="ph-no-capture"
                             />
                             <button
                                 type="button"

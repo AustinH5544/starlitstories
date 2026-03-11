@@ -1,5 +1,6 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from "../api";
+import posthog from '../analytics';
 
 const AuthContext = createContext();
 
@@ -15,6 +16,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
+        posthog.reset();
         setUser(null);
         setToken(null);
         localStorage.removeItem("token");

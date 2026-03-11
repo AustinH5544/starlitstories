@@ -1,5 +1,6 @@
 ﻿import api from "../api";
 import { useEffect, useState, useRef, useCallback } from "react";
+import posthog from '../analytics';
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./StoryViewerPage.css";
 import { useAuth } from "../context/AuthContext";
@@ -152,7 +153,10 @@ export default function StoryViewerPage({ mode = "private" }) {
             if (mode === "public" && token) {
                 try {
                     const { data } = await api.get(`/share/${token}`, { skipAuth401Handler: true });
-                    if (alive) setStory(data);
+                    if (alive) {
+                        setStory(data);
+                        posthog.capture('story_viewed', { story_id: data.id, story_theme: data.theme })
+                    }
                 } catch (e) {
                     if (alive) setError("This shared story link is invalid or expired.");
                     console.error("Share load failed:", e);
@@ -165,10 +169,15 @@ export default function StoryViewerPage({ mode = "private" }) {
                 if (alive) {
                     setStory(state.story);
                     localStorage.setItem("story", JSON.stringify(state.story));
+                    posthog.capture('story_viewed', { story_id: state.story.id, story_theme: state.story.theme })
                 }
             } else {
                 const saved = localStorage.getItem("story");
-                if (saved && alive) setStory(JSON.parse(saved));
+                if (saved && alive) {
+                    const parsedStory = JSON.parse(saved)
+                    setStory(parsedStory)
+                    posthog.capture('story_viewed', { story_id: parsedStory.id, story_theme: parsedStory.theme })
+                }
             }
         }
         load();

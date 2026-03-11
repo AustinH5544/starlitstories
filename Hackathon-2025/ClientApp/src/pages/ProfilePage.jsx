@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom"
 import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 import { publicBase } from "../utils/urls";
+import posthog from '../analytics';
 
 import emailIcon from "../assets/ui-icons/email1.png";
 import membershipFreeIcon from "../assets/ui-icons/membership-free.png";
@@ -221,6 +222,19 @@ const ProfilePage = () => {
     }, [user?.email, storiesPage]);
 
     useEffect(() => {
+        if (user && storiesTotal > 0) {
+            const daysSinceSignup = user.createdAt
+                ? Math.floor((Date.now() - new Date(user.createdAt)) / 86400000)
+                : undefined
+            posthog.capture('return_visit', {
+                stories_created: storiesTotal,
+                days_since_signup: daysSinceSignup,
+                plan: user.membership || 'free',
+            })
+        }
+    }, [user?.email, storiesTotal]);
+
+    useEffect(() => {
         if (!loadingMore && shouldStickToBottomRef.current) {
             shouldStickToBottomRef.current = false;
 
@@ -288,6 +302,13 @@ const ProfilePage = () => {
         const q = new URLSearchParams(search);
         if (q.get("upgraded") === "1") {
             const plan = q.get("plan");
+            const planPrices = { pro: 4, premium: 8 }
+            posthog.capture('subscription_started', {
+                plan_name: plan,
+                plan_price: planPrices[plan],
+                currency: 'USD',
+                payment_method: 'stripe',
+            })
             setFlash(`You're all set! Your ${plan} plan is active.`);
             window.history.replaceState({}, "", "/profile");
         }
@@ -383,6 +404,12 @@ const ProfilePage = () => {
             if (!token) throw new Error("No token returned");
 
             const url = new URL(`/s/${token}`, publicBase()).toString();
+
+            const shareMethod = navigator.share ? 'native' : 'link'
+            posthog.capture('story_shared', {
+                story_id: storySummary.id,
+                share_method: shareMethod,
+            })
 
             if (navigator.share) {
                 try {

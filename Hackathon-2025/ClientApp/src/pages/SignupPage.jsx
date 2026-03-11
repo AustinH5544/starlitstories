@@ -8,6 +8,7 @@ import "./SignupPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
 import useWarmup from "../hooks/useWarmup";
+import posthog from '../analytics';
 
 import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passwordRules"
 import PasswordChecklist from "../components/PasswordChecklist"
@@ -79,6 +80,7 @@ const SignupPage = () => {
             });
 
             if (data?.requiresVerification) {
+                posthog.capture('signup_completed', { signup_method: 'email' })
                 alert("Account created! Please verify your email to continue.");
                 navigate("/login");
                 return;
@@ -86,6 +88,12 @@ const SignupPage = () => {
 
             // Log in and send to profile (they can upgrade from there)
             login(data);
+            posthog.identify(data.email, {
+                email: data.email,
+                name: data.username,
+                plan: data.membership || 'free',
+            })
+            posthog.capture('signup_completed', { signup_method: 'email' })
             navigate("/profile");
              } catch (err) {
             console.error(err);
@@ -187,7 +195,7 @@ const SignupPage = () => {
                         <div className="input-with-toggle">
                             <input
                                 id="password"
-                                className="input"
+                                className="input ph-no-capture"
                                 type={showPwd ? "text" : "password"}
                                 placeholder="Create a password"
                                 value={password}
@@ -243,7 +251,7 @@ const SignupPage = () => {
                         <div className="input-with-toggle">
                             <input
                                 id="confirm"
-                                className="input"
+                                className="input ph-no-capture"
                                 type={showConfirm ? "text" : "password"}
                                 placeholder="Confirm your password"
                                 value={confirm}

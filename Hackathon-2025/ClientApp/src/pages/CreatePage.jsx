@@ -8,6 +8,7 @@ import "./CreatePage.css";
 import { useNavigate } from "react-router-dom";
 import useUserProfile from "../hooks/useUserProfile";
 import useWarmup from "../hooks/useWarmup";
+import posthog from '../analytics';
 
 const CreatePage = () => {
     useWarmup();
@@ -33,6 +34,10 @@ const CreatePage = () => {
     const startedJobRef = useRef(null);
     const finalizedRef = useRef(false);
 
+    const generationStartRef = useRef(null);
+    const storyThemeRef = useRef(null);
+    const storyCharNameRef = useRef(null);
+
     // Keep a ref to the current SSE connection to close it on unmount / finish
     const esRef = useRef(null);
 
@@ -51,6 +56,10 @@ const CreatePage = () => {
             safeClose(esRef.current);
             esRef.current = null;
         };
+    }, []);
+
+    useEffect(() => {
+        posthog.capture('character_customization_started')
     }, []);
 
     // Prefer the axios baseURL (same host your other API calls use)
@@ -91,6 +100,20 @@ const CreatePage = () => {
 
         startedJobRef.current = null;
         finalizedRef.current = false;
+
+        const mainChar = request.characters?.find(c => c.role === 'main') ?? request.characters?.[0]
+        posthog.capture('character_customization_completed', {
+            character_name: mainChar?.name,
+            character_gender: mainChar?.descriptionFields?.gender,
+            story_theme: request.theme,
+        })
+        posthog.capture('story_generation_started', {
+            story_theme: request.theme,
+            character_name: mainChar?.name,
+        })
+        generationStartRef.current = Date.now()
+        storyThemeRef.current = request.theme
+        storyCharNameRef.current = mainChar?.name
 
         setLastFormData(request);
         setIsLoading(true);
@@ -343,6 +366,16 @@ const CreatePage = () => {
 
     useEffect(() => {
         if (!storyReady || !isValidStory) return;
+        const elapsed = Math.round((Date.now() - (generationStartRef.current ?? Date.now())) / 1000)
+        posthog.capture('story_generation_completed', {
+            story_theme: storyThemeRef.current,
+            character_name: storyCharNameRef.current,
+            page_count: story.pages?.length ?? 0,
+            generation_time_seconds: elapsed,
+        })
+        posthog.capture('story_saved_to_library', {
+            story_id: story.id,
+        })
         setIsRedirectingToStory(true);
         const redirectTimer = setTimeout(() => {
             navigate("/view", { state: { story } });
@@ -351,6 +384,15 @@ const CreatePage = () => {
     }, [navigate, story, storyReady, isValidStory]);
 
     const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1;
+
+    useEffect(() => {
+        if (isFreeUserAtLimit) {
+            posthog.capture('paywall_encountered', {
+                trigger: 'story_limit_reached',
+                stories_created: userProfile?.booksGenerated,
+            })
+        }
+    }, [isFreeUserAtLimit]);
 
     // Not logged in
     if (!user) {
