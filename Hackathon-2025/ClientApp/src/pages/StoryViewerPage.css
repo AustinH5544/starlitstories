@@ -834,8 +834,9 @@
 }
 
 /* ── WIDE / LANDSCAPE: image left, text right ──
-   Fires for: landscape tablets, landscape phones, wide desktops, iPad landscape */
-@media (min-aspect-ratio: 4/3) and (min-width: 600px) {
+   Fires for: landscape tablets, landscape phones, wide desktops, iPad landscape,
+   and near-square foldables (e.g. Galaxy Z Fold open) at min-aspect-ratio: 1 */
+@media (min-aspect-ratio: 1) and (min-width: 600px) {
     .page-container {
         grid-template-columns: 1fr 1.1fr;
         grid-template-rows: 1fr;
@@ -860,7 +861,7 @@
     .page-image {
         width: auto;
         height: 100%;
-        max-height: 100%;
+        max-height: 100%; /* override the 50vh/60vh caps from narrower breakpoints */
         max-width: 100%;
         object-fit: contain;
         transform: none !important;
