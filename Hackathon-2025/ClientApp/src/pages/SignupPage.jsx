@@ -173,6 +173,21 @@ const SignupPage = () => {
                                 id="username-reqs"
                             />
                         </div>
+                        {/* Show failing rules when blurred with invalid input */}
+                        {username.length > 0 && !isUsernameFocused && !isUsernameValid && (
+                            <div className="missing-reqs">
+                                <p className="missing-reqs-title">Username issues:</p>
+                                <ul>
+                                    {Object.entries(usernameReqs)
+                                        .filter(([, met]) => !met)
+                                        .map(([key]) => (
+                                            <li key={key} className="missing-req">
+                                                {usernameLabels[key]}
+                                            </li>
+                                        ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
 
                     {/* Email */}

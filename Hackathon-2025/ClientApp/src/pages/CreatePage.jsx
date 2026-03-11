@@ -549,22 +549,6 @@ const CreatePage = () => {
                 ) : !storyReady || !isValidStory ? (
                     <div className="create-form-wrapper">
                         <StoryForm onSubmit={generateStory} />
-                        {error && (
-                            <div className="error-container">
-                                <div className="error-icon">😔</div>
-                                <p className="create-error">{error}</p>
-                                <p className="error-subtext">Please try again or contact support if the problem persists</p>
-                                <button
-                                    onClick={() => lastFormData && generateStory(lastFormData)}
-                                    disabled={!lastFormData}
-                                    className="retry-btn"
-                                    aria-disabled={!lastFormData}
-                                    title={!lastFormData ? "Submit the form once before retrying" : undefined}
-                                >
-                                    🔄 Retry
-                                </button>
-                            </div>
-                        )}
                     </div>
                 ) : (
                     <div className="success-container">
@@ -579,6 +563,36 @@ const CreatePage = () => {
                     </div>
                 )}
             </div>
+
+            {error && (
+                <>
+                    <div className="error-modal-backdrop" onClick={() => setError(null)} />
+                    <div className="error-modal" role="dialog" aria-modal="true">
+                        <button className="error-modal-close" onClick={() => setError(null)} aria-label="Close">✕</button>
+                        <div className="error-icon">🌧️</div>
+                        <h3 className="error-title">Oops! The magic fizzled out</h3>
+                        <p className="create-error">{error}</p>
+                        <div className="error-suggestions">
+                            <p className="error-suggestions-title">A few things that might help:</p>
+                            <ul>
+                                <li>Try a different character name or description</li>
+                                <li>Simplify the story theme or setting</li>
+                                <li>Avoid unusual words or symbols in your inputs</li>
+                                <li>Wait a moment and try again — it might just be a hiccup!</li>
+                            </ul>
+                        </div>
+                        <button
+                            onClick={() => { setError(null); lastFormData && generateStory(lastFormData); }}
+                            disabled={!lastFormData}
+                            className="retry-btn"
+                            aria-disabled={!lastFormData}
+                            title={!lastFormData ? "Submit the form once before retrying" : undefined}
+                        >
+                            <span>✨</span> Try Again
+                        </button>
+                    </div>
+                </>
+            )}
         </div>
     );
 };
