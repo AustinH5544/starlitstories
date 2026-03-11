@@ -260,8 +260,30 @@ export default function StoryViewerPage({ mode = "private" }) {
         if (idx <= pageCount - 1) return idx; // real right page exists
         return pageCount;                     // virtual right page when odd
     };
+    const toBookRightIndex = useCallback((idx) => {
+        if (idx < 0) return -1;
+        if (idx % 2 === 1) return idx;
+        return Math.min(idx + 1, lastRightIndex);
+    }, [lastRightIndex]);
+    const toClassicPageIndex = useCallback((idx) => {
+        if (idx < 0) return -1;
+        return Math.max(0, Math.min(idx - 1, pageCount - 1));
+    }, [pageCount]);
 
     const spreadNumber = isCover ? 0 : spreadOf(currentPage);
+
+    const prevIsBookRef = useRef(isBook);
+    useEffect(() => {
+        const wasBook = prevIsBookRef.current;
+        if (wasBook === isBook) return;
+
+        setCurrentPage((prev) => (
+            isBook
+                ? toBookRightIndex(prev)
+                : toClassicPageIndex(prev)
+        ));
+        prevIsBookRef.current = isBook;
+    }, [isBook, toBookRightIndex, toClassicPageIndex]);
 
     // Scroll active dot into view
     useEffect(() => {
