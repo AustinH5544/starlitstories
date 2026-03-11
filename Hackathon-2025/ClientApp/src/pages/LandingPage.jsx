@@ -222,7 +222,7 @@ const LandingPage = () => {
                                     Log In
                                 </button>
                                 <button onClick={() => navigate("/signup")} className="warning-button">
-                                    Sign Up
+                                    Try for Free
                                 </button>
                             </div>
                         </div>
@@ -558,7 +558,7 @@ const LandingPage = () => {
                                     Log In
                                 </button>
                                 <button onClick={() => navigate("/signup")} className="warning-button">
-                                    Sign Up
+                                    Try for Free
                                 </button>
                             </div>
                         </div>
