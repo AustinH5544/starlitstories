@@ -3,8 +3,8 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import "./StoryViewerPage.css";
 import { useAuth } from "../context/AuthContext";
-import FeedbackModal from "../components/FeedbackModal";
-import ScrollableTextPane from "../components/ScrollableTextPane";
+import FeedbackModal from "../Components/FeedbackModal";
+import ScrollableTextPane from "../Components/ScrollableTextPane";
 
 export default function StoryViewerPage({ mode = "private" }) {
     const navigate = useNavigate();
