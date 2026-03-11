@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../context/AuthContext"
 import api from "../api"
 import "./StoryForm.css"
@@ -45,8 +45,150 @@ const normalizeDescFields = (df = {}) => {
     return out
 }
 
+const getSavedDescriptionFields = (character = {}) =>
+    character.descriptionFields ||
+    character.DescriptionFields ||
+    {}
+
+const normalizeSavedCharacter = (character = {}) => ({
+    ...character,
+    role: character.role || character.Role || "main",
+    roleCustom: character.roleCustom || character.RoleCustom || "",
+    name: character.name || character.Name || "",
+    isAnimal: Boolean(
+        typeof character.isAnimal === "boolean"
+            ? character.isAnimal
+            : character.IsAnimal
+    ),
+    descriptionFields: getSavedDescriptionFields(character),
+})
+
+const prepareCharacterForSubmit = (character) => {
+    const normalized = normalizeDescFields(getSavedDescriptionFields(character))
+    const onePieceSelected = (normalized.onePieceWear || "").trim().length > 0
+    const keepTopWithOnePiece = onePieceAllowsTopLayer(normalized.onePieceWear || "")
+
+    if (onePieceSelected) {
+        delete normalized.bottomWear
+        delete normalized.bottomWearColor
+
+        if (!keepTopWithOnePiece) {
+            delete normalized.topWear
+            delete normalized.topWearColor
+        }
+    }
+
+    if (!normalized.shirtColor && normalized.topWearColor) {
+        normalized.shirtColor = normalized.topWearColor
+    }
+    if (!normalized.pantsColor && normalized.bottomWearColor) {
+        normalized.pantsColor = normalized.bottomWearColor
+    }
+
+    return {
+        ...normalizeSavedCharacter(character),
+        role: character.roleCustom?.trim() ? character.roleCustom.trim() : (character.role || "main"),
+        descriptionFields: normalized,
+    }
+}
+
+const normalizeSavedCharacterList = (items = []) =>
+    items
+        .map((item) => {
+            const parsed = item?.character
+            if (!parsed || typeof parsed !== "object") return null
+            const normalizedCharacter = normalizeSavedCharacter(parsed)
+            return {
+                id: item.id,
+                name: item.name || normalizedCharacter.name || "Unnamed Character",
+                character: normalizedCharacter,
+                updatedAtUtc: item.updatedAtUtc || null,
+            }
+        })
+        .filter(Boolean)
+
+const hasValue = (value) => String(value || "").trim().length > 0
+
+const getCharacterValidationResult = (character, { advanced }) => {
+    if (!hasValue(character?.name)) {
+        return { field: "name", message: "Please enter a character name." }
+    }
+
+    const fields = getSavedDescriptionFields(character)
+
+    if (character?.isAnimal) {
+        if (!hasValue(fields.species) && !hasValue(fields.speciesCustom)) {
+            return { field: "species", message: "Please choose a species for the character." }
+        }
+        if (!hasValue(fields.bodyCovering) && !hasValue(fields.bodyCoveringCustom)) {
+            return { field: "bodyCovering", message: "Please choose a body covering for the character." }
+        }
+        if (!hasValue(fields.bodyColor) && !hasValue(fields.bodyColorCustom)) {
+            return { field: "bodyColor", message: "Please choose a body color for the character." }
+        }
+
+        return null
+    }
+
+    if (!hasValue(fields.age) && !hasValue(fields.ageCustom)) {
+        return { field: "age", message: "Please choose an age for the character." }
+    }
+    if (!hasValue(fields.gender) && !hasValue(fields.genderCustom)) {
+        return { field: "gender", message: "Please choose a gender for the character." }
+    }
+    if (!hasValue(fields.skinTone) && !hasValue(fields.skinToneCustom)) {
+        return { field: "skinTone", message: "Please choose a skin tone for the character." }
+    }
+    if (!hasValue(fields.eyeColor) && !hasValue(fields.eyeColorCustom)) {
+        return { field: "eyeColor", message: "Please choose an eye color for the character." }
+    }
+
+    const hasOnePiece = hasValue(fields.onePieceWear) || hasValue(fields.onePieceWearCustom)
+    if (advanced) {
+        if (hasOnePiece && !hasValue(fields.onePieceColor) && !hasValue(fields.onePieceColorCustom)) {
+            return { field: "onePieceColor", message: "Please choose a one-piece color for the character." }
+        }
+
+        const hasTop = hasValue(fields.topWear) || hasValue(fields.topWearCustom)
+        const hasBottom = hasValue(fields.bottomWear) || hasValue(fields.bottomWearCustom)
+        const allowsTopLayer = onePieceAllowsTopLayer(fields.onePieceWearCustom || fields.onePieceWear || "")
+
+        if (!hasOnePiece && !hasTop) {
+            return { field: "topWear", message: "Please choose a top or a one-piece outfit for the character." }
+        }
+        if (hasTop && !hasValue(fields.topWearColor) && !hasValue(fields.topWearColorCustom)) {
+            return { field: "topWearColor", message: "Please choose a top color for the character." }
+        }
+        if (!hasOnePiece && !hasBottom) {
+            return { field: "bottomWear", message: "Please choose a bottom for the character." }
+        }
+        if (!hasOnePiece && hasBottom && !hasValue(fields.bottomWearColor) && !hasValue(fields.bottomWearColorCustom)) {
+            return { field: "bottomWearColor", message: "Please choose a bottom color for the character." }
+        }
+        if (hasOnePiece && allowsTopLayer && hasTop && !hasValue(fields.topWearColor) && !hasValue(fields.topWearColorCustom)) {
+            return { field: "topWearColor", message: "Please choose a top color for the layered outfit." }
+        }
+        if (!hasValue(fields.shoeColor) && !hasValue(fields.shoeColorCustom)) {
+            return { field: "shoeColor", message: "Please choose a shoe color for the character." }
+        }
+    } else {
+        if (!hasValue(fields.shirtColor) && !hasValue(fields.shirtColorCustom)) {
+            return { field: "shirtColor", message: "Please choose a shirt color for the character." }
+        }
+        if (!hasValue(fields.pantsColor) && !hasValue(fields.pantsColorCustom)) {
+            return { field: "pantsColor", message: "Please choose a pants color for the character." }
+        }
+        if (!hasValue(fields.shoeColor) && !hasValue(fields.shoeColorCustom)) {
+            return { field: "shoeColor", message: "Please choose a shoe color for the character." }
+        }
+    }
+
+    return null
+}
+
 const StoryForm = ({ onSubmit }) => {
     const { user } = useAuth()
+    const formRef = useRef(null)
 
     // Normalize membership to a lowercase string
     const membershipRaw = user?.membership ?? "free"
@@ -76,6 +218,28 @@ const StoryForm = ({ onSubmit }) => {
     const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
     const API_BASE = import.meta.env.VITE_API_BASE ?? ""
     const [storyLength, setStoryLength] = useState("short")
+
+    const clearValidationMessage = (event) => {
+        event.target.setCustomValidity("")
+    }
+
+    const showValidationPopup = (field, message, { reopenCharacterEditor = true } = {}) => {
+        if (reopenCharacterEditor) {
+            setIsUsingSavedCharacter(false)
+        }
+
+        requestAnimationFrame(() => {
+            const form = formRef.current
+            if (!form) return
+
+            const target = form.querySelector(`[data-field="${field}"]`)
+            if (!target) return
+
+            target.setCustomValidity(message)
+            target.reportValidity()
+            target.focus()
+        })
+    }
 
     useEffect(() => {
         if (!canUseAdvancedCharacterCreation) {
@@ -172,48 +336,47 @@ const StoryForm = ({ onSubmit }) => {
 
     const [characters, setCharacters] = useState([createEmptyCharacter("main")])
 
+    const applySavedCharactersResponse = (data, preferredSavedCharacterId = null) => {
+        const normalizedItems = normalizeSavedCharacterList(Array.isArray(data?.items) ? data.items : [])
+        const preferredId = preferredSavedCharacterId != null ? String(preferredSavedCharacterId) : null
+
+        setSavedCharacters(normalizedItems)
+        setSavedCharacterLimit(Number(data?.maxSavedCharacters) || 5)
+        setSelectedSavedCharacterId((prev) => {
+            if (normalizedItems.length === 0) return ""
+            if (preferredId && normalizedItems.some((x) => String(x.id) === preferredId)) {
+                return preferredId
+            }
+
+            const prevId = String(prev)
+            return normalizedItems.some((x) => String(x.id) === prevId)
+                ? prevId
+                : String(normalizedItems[0].id)
+        })
+        setSavedCharacterNotice(
+            data?.isOverLimit
+                ? data?.downgradePolicy || "You are over your current saved character limit. Delete down before saving a new one."
+                : ""
+        )
+
+        return normalizedItems
+    }
+
+    const refreshSavedCharacters = async (preferredSavedCharacterId = null) => {
+        const { data } = await api.get("/saved-character/me")
+        return applySavedCharactersResponse(data, preferredSavedCharacterId)
+    }
+
     useEffect(() => {
         let isMounted = true
 
         const loadSavedCharacters = async () => {
             try {
                 const { data } = await api.get("/saved-character/me")
-                const nextItems = Array.isArray(data?.items) ? data.items : []
-                const normalizedItems = nextItems
-                    .map((item) => {
-                        const parsed = item?.character
-                        if (!parsed || typeof parsed !== "object") return null
-                        return {
-                            id: item.id,
-                            name: item.name || parsed.name || "Unnamed Character",
-                            character: {
-                                ...parsed,
-                                role: "main",
-                                roleCustom: "",
-                                descriptionFields: parsed.descriptionFields || {},
-                            },
-                            updatedAtUtc: item.updatedAtUtc || null,
-                        }
-                    })
-                    .filter(Boolean)
-
                 if (!isMounted) return
-                setSavedCharacters(normalizedItems)
-                setSavedCharacterLimit(Number(data?.maxSavedCharacters) || 5)
-                setSelectedSavedCharacterId((prev) => {
-                    if (normalizedItems.length === 0) return ""
-                    const prevId = Number(prev)
-                    return normalizedItems.some((x) => x.id === prevId)
-                        ? String(prevId)
-                        : String(normalizedItems[0].id)
-                })
+                applySavedCharactersResponse(data)
                 setIsUsingSavedCharacter(false)
                 setEditingSavedCharacterId(null)
-                setSavedCharacterNotice(
-                    data?.isOverLimit
-                        ? data?.downgradePolicy || "You are over your current saved character limit. Delete down before saving a new one."
-                        : ""
-                )
             } catch (err) {
                 if (err?.response?.status !== 404) {
                     console.error("Failed to load saved character:", err)
@@ -402,17 +565,19 @@ const StoryForm = ({ onSubmit }) => {
 
     const handleSaveCharacter = async () => {
         const mainCharacter = characters[0]
-        if (!mainCharacter?.name?.trim()) {
-            alert("Please enter a character name before saving.")
+        const validationResult = getCharacterValidationResult(mainCharacter, {
+            advanced: canUseAdvancedCharacterCreation && showAdvancedOptions,
+        })
+        if (validationResult) {
+            showValidationPopup(validationResult.field, validationResult.message)
             return
         }
 
-        const toSave = cloneCharacter({
+        const toSave = cloneCharacter(prepareCharacterForSubmit({
             ...mainCharacter,
             role: "main",
             roleCustom: "",
-            descriptionFields: mainCharacter.descriptionFields || {},
-        })
+        }))
 
         const isCreatingNew = !editingSavedCharacterId
         if (isCreatingNew && savedCharacters.length >= savedCharacterLimit) {
@@ -432,32 +597,21 @@ const StoryForm = ({ onSubmit }) => {
                 ? {
                     id: response.data.id,
                     name: response.data.name || toSave.name || "Unnamed Character",
-                    character: cloneCharacter({
-                        ...(response.data.character || toSave),
-                        role: "main",
-                        roleCustom: "",
-                        descriptionFields: (response.data.character || toSave).descriptionFields || {},
-                    }),
+                    character: cloneCharacter(normalizeSavedCharacter(response.data.character || toSave)),
                     updatedAtUtc: response.data.updatedAtUtc || null,
                 }
                 : null
 
             if (savedItem) {
-                setSavedCharacters((prev) => {
-                    const existingIndex = prev.findIndex((x) => x.id === savedItem.id)
-                    if (existingIndex < 0) {
-                        return [savedItem, ...prev]
-                    }
-
-                    const next = [...prev]
-                    next[existingIndex] = savedItem
-                    return next
-                })
-                setSelectedSavedCharacterId(String(savedItem.id))
-                setEditingSavedCharacterId(savedItem.id)
+                const refreshedItems = await refreshSavedCharacters(savedItem.id)
+                const refreshedSelected = refreshedItems.find((x) => x.id === savedItem.id) || savedItem
+                setSelectedSavedCharacterId(String(refreshedSelected.id))
+                setCharacters([cloneCharacter(refreshedSelected.character)])
+                setEditingSavedCharacterId(refreshedSelected.id)
+            } else {
+                setCharacters([cloneCharacter(toSave)])
+                setEditingSavedCharacterId(editingSavedCharacterId)
             }
-
-            setCharacters([cloneCharacter(toSave)])
             setIsUsingSavedCharacter(true)
         } catch (err) {
             console.error("Failed to save character:", err)
@@ -509,8 +663,7 @@ const StoryForm = ({ onSubmit }) => {
             setIsDeletingCharacter(false)
         }
 
-        const nextCharacters = savedCharacters.filter((x) => x.id !== selected.id)
-        setSavedCharacters(nextCharacters)
+        const nextCharacters = await refreshSavedCharacters()
         setSelectedSavedCharacterId(nextCharacters.length ? String(nextCharacters[0].id) : "")
 
         if (isUsingSavedCharacter && editingSavedCharacterId === selected.id) {
@@ -541,34 +694,27 @@ const StoryForm = ({ onSubmit }) => {
     const handleSubmit = (e) => {
         e.preventDefault()
 
-        const processedCharacters = characters.map((c) => ({
-            ...c,
-            role: c.roleCustom?.trim() ? c.roleCustom.trim() : c.role,
-            descriptionFields: (() => {
-                const normalized = normalizeDescFields(c.descriptionFields)
-                const onePieceSelected = (normalized.onePieceWear || "").trim().length > 0
-                const keepTopWithOnePiece = onePieceAllowsTopLayer(normalized.onePieceWear || "")
+        if (!theme.trim()) {
+            showValidationPopup("theme", "Please choose or enter a story theme.", {
+                reopenCharacterEditor: false,
+            })
+            return
+        }
 
-                if (onePieceSelected) {
-                    delete normalized.bottomWear
-                    delete normalized.bottomWearColor
+        const validationResult = characters
+            .map((character) => getCharacterValidationResult(character, {
+                advanced: canUseAdvancedCharacterCreation && showAdvancedOptions,
+            }))
+            .find(Boolean)
 
-                    if (!keepTopWithOnePiece) {
-                        delete normalized.topWear
-                        delete normalized.topWearColor
-                    }
-                }
+        if (validationResult) {
+            showValidationPopup(validationResult.field, validationResult.message)
+            return
+        }
 
-                if (!normalized.shirtColor && normalized.topWearColor) {
-                    normalized.shirtColor = normalized.topWearColor
-                }
-                if (!normalized.pantsColor && normalized.bottomWearColor) {
-                    normalized.pantsColor = normalized.bottomWearColor
-                }
-
-                return normalized
-            })(),
-        })).slice(0, MAX_CHARACTERS_PER_STORY)
+        const processedCharacters = characters
+            .map((c) => prepareCharacterForSubmit(c))
+            .slice(0, MAX_CHARACTERS_PER_STORY)
 
         const finalArtStyle = isFree ? "watercolor" : artStyle
 
@@ -600,17 +746,25 @@ const StoryForm = ({ onSubmit }) => {
         options = [],
         disabled = false
     ) => {
+        const selectedValue = characters[index].descriptionFields[field] || ""
         const customValue = characters[index].descriptionFields[field + "Custom"] || ""
         const isFieldDisabled = disabled || !!customValue
+        const displaySelectValue = customValue ? "" : selectedValue
+        const selectClassName = `form-select${displaySelectValue ? " is-filled" : ""}`
+        const inputClassName = `form-input${customValue ? " is-filled" : ""}`
 
         return (
             <div className="field-group">
                 <label className="field-label">{label}</label>
                 <div className="dual-input-container">
                     <select
-                        value={characters[index].descriptionFields[field] || ""}
-                        onChange={(e) => handleFieldChange(index, field, e.target.value)}
-                        className="form-select"
+                        data-field={field}
+                        value={displaySelectValue}
+                        onChange={(e) => {
+                            clearValidationMessage(e)
+                            handleFieldChange(index, field, e.target.value)
+                        }}
+                        className={selectClassName}
                         disabled={isFieldDisabled}
                     >
                         <option value="">Select {label}</option>
@@ -621,10 +775,14 @@ const StoryForm = ({ onSubmit }) => {
                         ))}
                     </select>
                     <input
+                        data-field={`${field}Custom`}
                         placeholder={`Or enter custom ${label.toLowerCase()}`}
                         value={customValue}
-                        onChange={(e) => handleFieldChange(index, field + "Custom", e.target.value)}
-                        className="form-input"
+                        onChange={(e) => {
+                            clearValidationMessage(e)
+                            handleFieldChange(index, field + "Custom", e.target.value)
+                        }}
+                        className={inputClassName}
                         disabled={disabled}
                     />
                 </div>
@@ -639,7 +797,23 @@ const StoryForm = ({ onSubmit }) => {
     const isCreatingNewCharacter = !isUsingSavedCharacter && !editingSavedCharacterId
 
     return (
-        <form onSubmit={handleSubmit} className="story-form">
+        <form
+            ref={formRef}
+            onSubmit={handleSubmit}
+            onInvalidCapture={(e) => {
+                const field = e.target?.dataset?.field || ""
+                const isCharacterField =
+                    field !== "theme" &&
+                    field !== "" &&
+                    field !== "lesson" &&
+                    field !== "selectedCategory"
+
+                if (isUsingSavedCharacter && isCharacterField) {
+                    setIsUsingSavedCharacter(false)
+                }
+            }}
+            className="story-form"
+        >
             {/* Reading/Art section */}
             <div className="form-section">
                 <h3 className="section-title">
@@ -878,10 +1052,20 @@ const StoryForm = ({ onSubmit }) => {
                 <div className="field-group">
                     <label className="field-label">Choose your adventure</label>
                     <div className="dual-input-container">
+                        {(() => {
+                            const selectedTheme = defaultThemes.includes(theme) ? theme : ""
+                            const customTheme = !defaultThemes.includes(theme) ? theme : ""
+
+                            return (
+                                <>
                         <select
-                            value={defaultThemes.includes(theme) ? theme : ""}
-                            onChange={(e) => setTheme(e.target.value)}
-                            className="form-select"
+                            data-field="theme"
+                            value={selectedTheme}
+                            onChange={(e) => {
+                                clearValidationMessage(e)
+                                setTheme(e.target.value)
+                            }}
+                            className={`form-select${selectedTheme ? " is-filled" : ""}`}
                             disabled={theme.trim() !== "" && !defaultThemes.includes(theme)}
                         >
                             <option value="">Select Theme</option>
@@ -891,11 +1075,18 @@ const StoryForm = ({ onSubmit }) => {
                         </select>
 
                         <input
+                            data-field="theme"
                             placeholder="Or create your own theme"
-                            value={!defaultThemes.includes(theme) ? theme : ""}
-                            onChange={(e) => setTheme(e.target.value)}
-                            className="form-input"
+                            value={customTheme}
+                            onChange={(e) => {
+                                clearValidationMessage(e)
+                                setTheme(e.target.value)
+                            }}
+                            className={`form-input${customTheme.trim() ? " is-filled" : ""}`}
                         />
+                                </>
+                            )
+                        })()}
                     </div>
                 </div>
             </div>
@@ -1006,11 +1197,15 @@ const StoryForm = ({ onSubmit }) => {
                         <label className="field-label">Character Name</label>
                         <input
                             type="text"
+                            data-field="name"
                             placeholder="Enter character name"
                             value={char.name}
-                            onChange={(e) => handleCharacterChange(i, "name", e.target.value)}
+                            onChange={(e) => {
+                                clearValidationMessage(e)
+                                handleCharacterChange(i, "name", e.target.value)
+                            }}
                             required
-                            className="form-input"
+                            className={`form-input${char.name?.trim() ? " is-filled" : ""}`}
                         />
                     </div>
 
@@ -1021,7 +1216,7 @@ const StoryForm = ({ onSubmit }) => {
                                 <select
                                     value={char.role}
                                     onChange={(e) => handleCharacterChange(i, "role", e.target.value)}
-                                    className="form-select"
+                                    className={`form-select${char.role ? " is-filled" : ""}`}
                                 >
                                     <option value="">Select Role</option>
                                     <option value="dad">Dad</option>
@@ -1036,7 +1231,7 @@ const StoryForm = ({ onSubmit }) => {
                                     placeholder="Or enter custom role"
                                     value={char.roleCustom || ""}
                                     onChange={(e) => handleCharacterChange(i, "roleCustom", e.target.value)}
-                                    className="form-input"
+                                    className={`form-input${char.roleCustom?.trim() ? " is-filled" : ""}`}
                                 />
                             </div>
                         </div>
@@ -1145,7 +1340,9 @@ const StoryForm = ({ onSubmit }) => {
                                                     )}
                                                     {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
                                                     {renderDropdownWithCustom(i, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
-                                                    {renderDropdownWithCustom(i, "onePieceColor", "One-Piece Color", defaultOptions.onePieceColor)}
+                                                    {hasOnePieceOutfit
+                                                        ? renderDropdownWithCustom(i, "onePieceColor", "One-Piece Color", defaultOptions.onePieceColor)
+                                                        : null}
                                                     {renderDropdownWithCustom(i, "topWear", "Top", defaultOptions.topWear, disableTopFields)}
                                                     {renderDropdownWithCustom(i, "topWearColor", "Top Color", defaultOptions.topWearColor, disableTopFields)}
                                                     {renderDropdownWithCustom(i, "bottomWear", "Bottom", defaultOptions.bottomWear, disableBottomFields)}
