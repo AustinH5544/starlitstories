@@ -88,6 +88,7 @@ export default function StoryViewerPage({ mode = "private" }) {
     const indicatorsRef = useRef(null);
     const dotRefs = useRef([]);
     const contentRef = useRef(null);
+    const preloadedImageUrls = useRef(new Set());
 
     // ===== RESET SCROLL WHEN PAGE / SPREAD CHANGES =====
     const scrollToTop = useCallback(() => {
@@ -185,6 +186,53 @@ export default function StoryViewerPage({ mode = "private" }) {
     }, [mode, token, state]);
 
     const pageCount = story?.pages?.length ?? 0;
+
+    const preloadImage = useCallback((url) => {
+        if (!url || preloadedImageUrls.current.has(url)) return;
+        preloadedImageUrls.current.add(url);
+
+        const img = new Image();
+        img.decoding = "async";
+        img.src = url;
+    }, []);
+
+    useEffect(() => {
+        if (!story) return;
+
+        const priorityUrls = [
+            story.coverImageUrl,
+            ...story.pages.slice(0, isBook ? 4 : 2).map((page) => page?.imageUrl),
+        ].filter(Boolean);
+
+        priorityUrls.forEach(preloadImage);
+
+        const remainingUrls = story.pages
+            .slice(isBook ? 4 : 2)
+            .map((page) => page?.imageUrl)
+            .filter(Boolean);
+
+        if (remainingUrls.length === 0) return;
+
+        let cancelled = false;
+        const idle = window.requestIdleCallback
+            ? window.requestIdleCallback(() => {
+                if (cancelled) return;
+                remainingUrls.forEach(preloadImage);
+            }, { timeout: 1200 })
+            : window.setTimeout(() => {
+                if (cancelled) return;
+                remainingUrls.forEach(preloadImage);
+            }, 250);
+
+        return () => {
+            cancelled = true;
+            if (window.cancelIdleCallback && typeof idle === "number" && window.requestIdleCallback) {
+                window.cancelIdleCallback(idle);
+                return;
+            }
+            clearTimeout(idle);
+        };
+    }, [story, isBook, preloadImage]);
 
     // page helpers
     const hasOddPageCount = pageCount % 2 === 1;
