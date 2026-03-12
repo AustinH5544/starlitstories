@@ -58,6 +58,9 @@ public class UsersController : ControllerBase
         var baseQuota = _quota.BaseQuotaFor(planKey);
         var used = user.BooksGenerated;
         var baseRemaining = Math.Max(baseQuota - used, 0);
+        var superStoryQuota = _quota.SuperStoryQuotaFor(planKey);
+        var superStoriesUsed = user.SuperStoriesGenerated;
+        var superStoriesRemaining = Math.Max(superStoryQuota - superStoriesUsed, 0);
 
         var addOnBalance = user.AddOnBalance;              // carryover wallet
         var addOnSpentThisPeriod = user.AddOnSpentThisPeriod;
@@ -72,6 +75,9 @@ public class UsersController : ControllerBase
             baseQuota,
             used,
             baseRemaining,
+            superStoryQuota,
+            superStoriesUsed,
+            superStoriesRemaining,
             addOnBalance,
             addOnSpentThisPeriod,
             remaining,

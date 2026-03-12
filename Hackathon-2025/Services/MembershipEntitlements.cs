@@ -40,6 +40,7 @@ public static class MembershipEntitlements
     {
         MembershipPlan.Pro => 5,
         MembershipPlan.Premium => 10,
+        MembershipPlan.Storybook => 10,
         _ => 1
     };
 

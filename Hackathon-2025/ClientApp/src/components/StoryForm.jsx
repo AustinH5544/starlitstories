@@ -258,6 +258,11 @@ const StoryForm = ({ onSubmit }) => {
             { value: "medium", label: "Medium (about 8 pages)" },
             { value: "long", label: "Long (about 12 pages)" },
         ],
+        storybook: [
+            { value: "short", label: "Short (about 4 pages)" },
+            { value: "medium", label: "Medium (about 8 pages)" },
+            { value: "long", label: "Long (about 12 pages)" },
+        ],
     }
 
     useEffect(() => {
@@ -276,6 +281,7 @@ const StoryForm = ({ onSubmit }) => {
 
     const availableLengths = lengthOptionsByMembership[membership] || lengthOptionsByMembership.free
     const isLengthAllowed = (v) => availableLengths.some(o => o.value === v)
+    const isPremiumOrHigher = membership === "premium" || membership === "storybook"
 
     // --- Lessons split into categories (two-step UI) ---
     const lessonsByCategory = {
@@ -930,14 +936,14 @@ const StoryForm = ({ onSubmit }) => {
                         </option>
                         <option
                             value="long"
-                            disabled={membership !== "premium"}
+                            disabled={!isPremiumOrHigher}
                         >
-                            {membership === "premium"
+                            {isPremiumOrHigher
                                 ? "Long (about 12 pages)"
-                                : "🔒 Long (premium only)"}
+                                : "🔒 Long (premium/storybook only)"}
                         </option>
                     </select>
-                    {membership !== "premium" && (
+                    {!isPremiumOrHigher && (
                         <p className="style-lock-hint">
                             Choose longer stories by upgrading your plan.
                         </p>
@@ -1104,7 +1110,7 @@ const StoryForm = ({ onSubmit }) => {
                 </h3>
                 {!hasSavedCharacter ? (
                     <p className="field-hint">
-                        Save characters here. Your {membership === "premium" ? "Premium" : membership === "pro" ? "Pro" : "Free"} plan includes up to {savedCharacterLimit} saved character{savedCharacterLimit === 1 ? "" : "s"}.
+                        Save characters here. Your {membership === "storybook" ? "Storybook" : membership === "premium" ? "Premium" : membership === "pro" ? "Pro" : "Free"} plan includes up to {savedCharacterLimit} saved character{savedCharacterLimit === 1 ? "" : "s"}.
                     </p>
                 ) : (
                     <>
@@ -1273,7 +1279,7 @@ const StoryForm = ({ onSubmit }) => {
                     {i === 0 && !canUseAdvancedCharacterCreation && (
                         <div className="field-group" style={{ marginTop: "1rem" }}>
                             <p className="field-hint">
-                                Advanced character creation is available on Pro and Premium. Free includes the standard character creator.
+                                Advanced character creation is available on Pro, Premium, and Storybook. Free includes the standard character creator.
                             </p>
                         </div>
                     )}

@@ -110,9 +110,9 @@ namespace Hackathon_2025.Controllers
             var baseQuota = _quota.BaseQuotaFor(user.Membership.ToString());
             var baseRemaining = Math.Max(baseQuota - user.BooksGenerated, 0);
 
-            if (_quota.RequirePremiumForAddons() && user.Membership != MembershipPlan.Premium)
+            if (!_quota.HasAddOnAccess(user.Membership.ToString()))
             {
-                return StatusCode(403, "Add-on credits are only available to premium members. Please upgrade first.");
+                return StatusCode(403, "Add-on credits are only available to Premium and Storybook members. Please upgrade first.");
             }
 
             if (_quota.OnlyAllowPurchaseWhenExhausted() && baseRemaining > 0)
@@ -320,6 +320,7 @@ WHEN NOT MATCHED THEN
                             }
                             // Reset per-period counters so paid quota starts fresh
                             user.BooksGenerated = 0;
+                            user.SuperStoriesGenerated = 0;
                             user.AddOnSpentThisPeriod = 0;
                         }
                     }
@@ -385,6 +386,7 @@ WHEN NOT MATCHED THEN
                 case "free": membership = MembershipPlan.Free; return true;
                 case "pro": membership = MembershipPlan.Pro; return true;
                 case "premium": membership = MembershipPlan.Premium; return true;
+                case "storybook": membership = MembershipPlan.Storybook; return true;
                 default: return false;
             }
         }

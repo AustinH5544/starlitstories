@@ -20,6 +20,17 @@ namespace Hackathon_2025.Tests.Models
         }
 
         [TestMethod]
+        public void CanAssignStorybookMembershipEnumValue()
+        {
+            var request = new CheckoutRequest
+            {
+                Membership = MembershipPlan.Storybook
+            };
+
+            Assert.AreEqual(MembershipPlan.Storybook, request.Membership);
+        }
+
+        [TestMethod]
         public void RequiredProperty_Membership_MustBeSet()
         {
             // Act & Assert

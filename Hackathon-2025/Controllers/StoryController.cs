@@ -64,11 +64,12 @@ public class StoryController : ControllerBase
 
         await RolloverIfNeededAsync(user, now);
 
-        var capacity = await EnsureCapacityAndReserveCreditAsync(user);
-        if (!capacity.ok) return StatusCode(403, capacity.message!);
-
         // Build immutable effective request (StoryRequest has init-only props)
         var effectiveRequest = BuildEffectiveRequest(user.Membership, request);
+        var isSuperStory = IsSuperStoryRequested(request);
+
+        var capacity = await EnsureCapacityAndReserveCreditAsync(user, isSuperStory);
+        if (!capacity.ok) return StatusCode(403, capacity.message!);
 
         var pendingStory = new Story
         {
@@ -85,7 +86,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await RefundReservedCreditAsync(user, capacity.usedAddOn);
+            await RefundReservedCreditAsync(user, capacity.usedAddOn, capacity.usedSuperStoryQuota);
             throw;
         }
 
@@ -97,7 +98,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn);
+            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn, capacity.usedSuperStoryQuota);
             throw;
         }
 
@@ -137,7 +138,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn);
+            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn, capacity.usedSuperStoryQuota);
             throw;
         }
     }
@@ -156,7 +157,8 @@ public class StoryController : ControllerBase
         await RolloverIfNeededAsync(user, now);
 
         var effectiveRequest = BuildEffectiveRequest(user.Membership, request);
-        var reserved = await EnsureCapacityAndReserveCreditAsync(user);
+        var isSuperStory = IsSuperStoryRequested(request);
+        var reserved = await EnsureCapacityAndReserveCreditAsync(user, isSuperStory);
         if (!reserved.ok) return StatusCode(403, reserved.message!);
 
         var pendingStory = new Story
@@ -174,7 +176,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await RefundReservedCreditAsync(user, reserved.usedAddOn);
+            await RefundReservedCreditAsync(user, reserved.usedAddOn, reserved.usedSuperStoryQuota);
             throw;
         }
 
@@ -220,7 +222,7 @@ public class StoryController : ControllerBase
                 }
                 catch
                 {
-                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn);
+                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn, reserved.usedSuperStoryQuota);
                     throw;
                 }
 
@@ -277,7 +279,7 @@ public class StoryController : ControllerBase
                 }
                 catch
                 {
-                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn);
+                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn, reserved.usedSuperStoryQuota);
                     throw;
                 }
             }
@@ -353,10 +355,25 @@ public class StoryController : ControllerBase
         }
     }
 
-    private async Task<(bool ok, bool usedAddOn, string? message)> EnsureCapacityAndReserveCreditAsync(User user)
+    private async Task<(bool ok, bool usedAddOn, bool usedSuperStoryQuota, string? message)> EnsureCapacityAndReserveCreditAsync(User user, bool isSuperStory)
     {
+        if (isSuperStory)
+        {
+            var superStoryQuota = _quota.SuperStoryQuotaFor(user.Membership.ToString());
+            if (superStoryQuota <= 0)
+                return (false, false, false, "Super Stories are only available on the Storybook plan.");
+
+            if (user.SuperStoriesGenerated >= superStoryQuota)
+                return (false, false, false, $"Your {user.Membership} plan includes {superStoryQuota} Super Story per period. You've reached your limit.");
+
+            user.SuperStoriesGenerated += 1;
+            _db.Users.Update(user);
+            await _db.SaveChangesAsync();
+            return (true, false, true, null);
+        }
+
         if (user.Membership == MembershipPlan.Free && user.BooksGenerated >= 1)
-            return (false, false, "Free users can only generate one story.");
+            return (false, false, false, "Free users can only generate one story.");
 
         var baseQuota = _quota.BaseQuotaFor(user.Membership.ToString());
         var baseRemaining = Math.Max(baseQuota - user.BooksGenerated, 0);
@@ -365,7 +382,7 @@ public class StoryController : ControllerBase
         if (baseRemaining <= 0)
         {
             if (user.AddOnBalance <= 0)
-                return (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
+                return (false, false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
 
             user.AddOnBalance -= 1;
             user.AddOnSpentThisPeriod += 1;
@@ -376,12 +393,20 @@ public class StoryController : ControllerBase
         _db.Users.Update(user);
         await _db.SaveChangesAsync();
 
-        return (true, usedAddOn, null);
+        return (true, usedAddOn, false, null);
     }
 
-    private async Task RefundReservedCreditAsync(User user, bool usedAddOn)
+    private async Task RefundReservedCreditAsync(User user, bool usedAddOn, bool usedSuperStoryQuota)
     {
-        if (user.BooksGenerated > 0) user.BooksGenerated -= 1;
+        if (usedSuperStoryQuota)
+        {
+            if (user.SuperStoriesGenerated > 0) user.SuperStoriesGenerated -= 1;
+        }
+        else if (user.BooksGenerated > 0)
+        {
+            user.BooksGenerated -= 1;
+        }
+
         if (usedAddOn)
         {
             user.AddOnBalance += 1;
@@ -392,9 +417,17 @@ public class StoryController : ControllerBase
         await _db.SaveChangesAsync();
     }
 
-    private async Task RefundReservedCreditAsyncScoped(AppDbContext scopedDb, User sUser, bool usedAddOn)
+    private async Task RefundReservedCreditAsyncScoped(AppDbContext scopedDb, User sUser, bool usedAddOn, bool usedSuperStoryQuota)
     {
-        if (sUser.BooksGenerated > 0) sUser.BooksGenerated -= 1;
+        if (usedSuperStoryQuota)
+        {
+            if (sUser.SuperStoriesGenerated > 0) sUser.SuperStoriesGenerated -= 1;
+        }
+        else if (sUser.BooksGenerated > 0)
+        {
+            sUser.BooksGenerated -= 1;
+        }
+
         if (usedAddOn)
         {
             sUser.AddOnBalance += 1;
@@ -405,10 +438,10 @@ public class StoryController : ControllerBase
         await scopedDb.SaveChangesAsync();
     }
 
-    private async Task DeletePendingStoryAndRefundReservedCreditAsync(AppDbContext scopedDb, User sUser, Story story, bool usedAddOn)
+    private async Task DeletePendingStoryAndRefundReservedCreditAsync(AppDbContext scopedDb, User sUser, Story story, bool usedAddOn, bool usedSuperStoryQuota)
     {
         scopedDb.Stories.Remove(story);
-        await RefundReservedCreditAsyncScoped(scopedDb, sUser, usedAddOn);
+        await RefundReservedCreditAsyncScoped(scopedDb, sUser, usedAddOn, usedSuperStoryQuota);
     }
 
     // Immutable effective request according to StoryOptions + membership
@@ -419,11 +452,13 @@ public class StoryController : ControllerBase
             .Select(c => MembershipEntitlements.SanitizeCharacterForMembership(membership, c))
             .ToList();
 
+        var isSuperStory = IsSuperStoryRequested(request);
+
         var sanitizedRequest = request with
         {
             Characters = sanitizedCharacters,
-            StoryLength = null,
-            PageCount = null
+            StoryLength = isSuperStory && membership == MembershipPlan.Storybook ? "super" : null,
+            PageCount = isSuperStory && membership == MembershipPlan.Storybook ? 32 : null
         };
 
         if (!_storyOpts.Value.LengthHintEnabled)
@@ -436,17 +471,19 @@ public class StoryController : ControllerBase
             MembershipPlan.Free => new[] { "short" },
             MembershipPlan.Pro => new[] { "short", "medium" },
             MembershipPlan.Premium => new[] { "short", "medium", "long" },
+            MembershipPlan.Storybook => new[] { "short", "medium", "long", "super" },
             _ => new[] { "short" }
         };
 
-        var requested = (request.StoryLength ?? "short").ToLowerInvariant();
+        var requested = isSuperStory ? "super" : (request.StoryLength ?? "short").ToLowerInvariant();
         if (!allowed.Contains(requested)) requested = allowed[0];
 
         var lengthToCount = new Dictionary<string, int>
         {
             ["short"] = 4,
             ["medium"] = 8,
-            ["long"] = 12
+            ["long"] = 12,
+            ["super"] = 32
         };
 
         return sanitizedRequest with
@@ -455,4 +492,8 @@ public class StoryController : ControllerBase
             PageCount = lengthToCount[requested]
         };
     }
+
+    private static bool IsSuperStoryRequested(StoryRequest request) =>
+        string.Equals(request.StoryLength, "super", StringComparison.OrdinalIgnoreCase) ||
+        (request.PageCount.HasValue && request.PageCount.Value >= 32);
 }

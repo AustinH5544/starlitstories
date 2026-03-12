@@ -18,16 +18,30 @@ namespace Hackathon_2025.Services
             return _opts.Value.BaseQuotas.TryGetValue(key, out var q) ? q : 0;
         }
 
+        public int SuperStoryQuotaFor(string? membership)
+        {
+            var key = string.IsNullOrWhiteSpace(membership) ? "free" : membership!;
+            return _opts.Value.SuperStoryQuotas.TryGetValue(key, out var q) ? q : 0;
+        }
+
         public bool CarryoverEnabled() => _opts.Value.CarryoverEnabled;
 
         public bool RequirePremiumForAddons() => _opts.Value.RequirePremiumForAddons;
 
         public bool OnlyAllowPurchaseWhenExhausted() => _opts.Value.OnlyAllowPurchaseWhenExhausted;
 
+        public bool HasAddOnAccess(string? membership)
+        {
+            if (!RequirePremiumForAddons())
+                return true;
+
+            return string.Equals(membership, "premium", System.StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(membership, "storybook", System.StringComparison.OrdinalIgnoreCase);
+        }
+
         public bool CanBuyAddons(string? membership, int baseRemaining, int addOnBalance)
         {
-            // Require premium membership?
-            if (RequirePremiumForAddons() && !string.Equals(membership, "premium", System.StringComparison.OrdinalIgnoreCase))
+            if (!HasAddOnAccess(membership))
                 return false;
 
             // Only allow purchase when base is exhausted?

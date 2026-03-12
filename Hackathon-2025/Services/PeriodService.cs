@@ -48,6 +48,7 @@ public sealed class PeriodService : IPeriodService
     {
         // Per-period counters reset
         user.BooksGenerated = 0;
+        user.SuperStoriesGenerated = 0;
         user.AddOnSpentThisPeriod = 0;
 
         // Keep or clear carryover wallet based on policy

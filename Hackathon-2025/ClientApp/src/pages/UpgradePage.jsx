@@ -40,7 +40,7 @@ const UpgradePage = () => {
                 "High-quality illustrations",
                 "Download & share",
             ],
-            disabled: user?.membership === "pro" || user?.membership === "premium",
+            disabled: ["pro", "premium", "storybook"].includes(user?.membership),
         },
         {
             id: "premium",
@@ -57,7 +57,24 @@ const UpgradePage = () => {
                 "Priority support queue",
             ],
             badge: "Most Popular",
-            disabled: user?.membership === "premium",
+            disabled: ["premium", "storybook"].includes(user?.membership),
+        },
+        {
+            id: "storybook",
+            name: "Storybook",
+            price: "$14/month",
+            icon: "📚",
+            description: "For families who want a full picture-book keepsake each month",
+            features: [
+                "11 regular stories per month",
+                "1 Super Story per month",
+                "32-page full children's storybook",
+                "10 saved characters",
+                "Advanced character creation",
+                "Premium illustrations",
+                "Print-ready format",
+            ],
+            disabled: user?.membership === "storybook",
         },
     ]
 
@@ -69,7 +86,7 @@ const UpgradePage = () => {
         setIsProcessing(true);
 
         try {
-            // Map UI ids to numeric enum values (Free=0, Pro=1, Premium=2)
+            // Map UI ids to numeric enum values (Free=0, Pro=1, Premium=2, Storybook=3)
             let membershipValue;
 
             switch (selectedPlan) {
@@ -78,6 +95,9 @@ const UpgradePage = () => {
                     break;
                 case "premium":
                     membershipValue = 2;
+                    break;
+                case "storybook":
+                    membershipValue = 3;
                     break;
                 case "free":
                 default:
@@ -239,7 +259,7 @@ const UpgradePage = () => {
                         <div className="upgrade-benefit-card">
                             <div className="upgrade-benefit-icon">💾</div>
                             <h4>Saved Characters</h4>
-                            <p>Keep 1 saved character on Free, 5 on Pro, and 10 on Premium.</p>
+                            <p>Keep 1 saved character on Free, 5 on Pro, and 10 on Premium or Storybook.</p>
                         </div>
 
                         <div className="upgrade-benefit-card">

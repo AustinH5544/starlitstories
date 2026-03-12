@@ -103,6 +103,7 @@ if (builder.Environment.IsEnvironment("Testing"))
 else
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
     if (string.IsNullOrWhiteSpace(connectionString))
         throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.");
 

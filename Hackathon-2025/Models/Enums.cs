@@ -4,7 +4,8 @@ public enum MembershipPlan
 {
     Free,
     Pro,
-    Premium
+    Premium,
+    Storybook
 }
 
 public enum CreditPack

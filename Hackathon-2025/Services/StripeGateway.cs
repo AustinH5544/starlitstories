@@ -39,6 +39,7 @@ public class StripeGateway : IPaymentGateway
         {
             "pro" => _cfg.PriceIdPro,
             "premium" => _cfg.PriceIdPremium,
+            "storybook" => _cfg.PriceIdStorybook,
             _ => throw new ArgumentOutOfRangeException(nameof(planKey), $"Unknown plan '{planKey}'")
         };
     }
@@ -273,7 +274,8 @@ public class StripeGateway : IPaymentGateway
                     var priceId = sub.Items?.Data?.FirstOrDefault()?.Price?.Id;
                     string? planKey =
                         priceId == _cfg.PriceIdPremium ? "premium" :
-                        priceId == _cfg.PriceIdPro ? "pro" : null;
+                        priceId == _cfg.PriceIdPro ? "pro" :
+                        priceId == _cfg.PriceIdStorybook ? "storybook" : null;
 
                     // Pull current period from latest invoice
                     Invoice? latestInv = null;

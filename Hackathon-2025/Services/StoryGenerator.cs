@@ -60,8 +60,10 @@ public class StoryGenerator : IStoryGeneratorService
 
         var style = BuildReadingStyle(request.ReadingLevel);
 
-        // SINGLE SOURCE OF TRUTH: page count from config only
-        int pageCount = _config.GetValue<int?>("Story:DefaultParagraphs") ?? 10;
+        var requestedPageCount = request.PageCount.GetValueOrDefault();
+        int pageCount = requestedPageCount > 0
+            ? requestedPageCount
+            : _config.GetValue<int?>("Story:DefaultParagraphs") ?? 10;
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
 
         // ----- System prompt depends on whether a lesson is required -----

@@ -63,7 +63,7 @@ export default function StoryCard({
 
     const handleDownload = async () => {
         if (!canDownload) {
-            alert("Download is available for Pro and Premium users.");
+            alert("Download is available for Pro, Premium, and Storybook users.");
             return;
         }
 

@@ -31,11 +31,12 @@ const normalizeMembership = (value) => {
     if (value === null || value === undefined) return "free";
     if (typeof value === "string") return value.toLowerCase();
     if (typeof value === "number") {
-        // Enum mapping: 0 = Free, 1 = Pro, 2 = Premium
+        // Enum mapping: 0 = Free, 1 = Pro, 2 = Premium, 3 = Storybook
         switch (value) {
             case 0: return "free";
             case 1: return "pro";
             case 2: return "premium";
+            case 3: return "storybook";
             default: return "free";
         }
     }
@@ -46,6 +47,7 @@ const prettyMembershipLabel = (key) => {
     switch (key) {
         case "pro": return "Pro";
         case "premium": return "Premium";
+        case "storybook": return "Storybook";
         default: return "Free";
     }
 };
@@ -178,6 +180,7 @@ const ProfilePage = () => {
         free: membershipFreeIcon,
         pro: membershipProIcon,
         premium: membershipPremiumIcon,
+        storybook: membershipPremiumIcon,
     };
     const membershipIcon = membershipIconByTier[membershipKey] ?? membershipFreeIcon;
 
@@ -291,7 +294,7 @@ const ProfilePage = () => {
     }, [user?.email, user?.membership]);
 
     const isPaid = membershipKey !== "free" || Boolean(billing?.cancelAt);
-    const isPremium = membershipKey === "premium";
+    const hasAddonAccess = ["premium", "storybook"].includes(membershipKey);
     const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
     const renewalLabel = "Next renewal";
     const renewalValue = billing?.cancelAt
@@ -302,7 +305,7 @@ const ProfilePage = () => {
         const q = new URLSearchParams(search);
         if (q.get("upgraded") === "1") {
             const plan = q.get("plan");
-            const planPrices = { pro: 4, premium: 8 }
+            const planPrices = { pro: 4, premium: 8, storybook: 14 }
             posthog.capture('subscription_started', {
                 plan_name: plan,
                 plan_price: planPrices[plan],
@@ -363,7 +366,7 @@ const ProfilePage = () => {
         setImgError(false);
     }, [user?.profileImage, BASE, avatarVersion]);
 
-    const canDownload = ["pro", "premium"].includes(membershipKey);
+    const canDownload = ["pro", "premium", "storybook"].includes(membershipKey);
     const canCustomize = canDownload;
 
     // ---- ADDED: lazy loader for full story (used by open/download/share) ----
@@ -686,6 +689,7 @@ const ProfilePage = () => {
                             {!usageLoading && usage && (
                                 <div className="detail-subtext">
                                     Base: {usage.baseRemaining} • Extras: {usage.addOnBalance}
+                                    {usage.superStoryQuota > 0 ? ` • Super Stories: ${usage.superStoriesRemaining}` : ""}
                                 </div>
                             )}
                         </div>
@@ -741,7 +745,7 @@ const ProfilePage = () => {
                 </div>
 
                 {/* Premium-only Buy Credits — only shown when the user is out of stories */}
-                {isPremium && !usageLoading && usage?.remaining === 0 && (
+                {hasAddonAccess && !usageLoading && usage?.remaining === 0 && (
                     <div className="addons-compact">
                         <h2 className="section-title">
                             <span className="section-icon">

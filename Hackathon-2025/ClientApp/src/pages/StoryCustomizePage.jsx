@@ -236,7 +236,7 @@ export default function StoryCustomizePage() {
     useEffect(() => {
         const membership = String(user?.membership ?? "free").toLowerCase();
         if (membership === "free") {
-            alert("Story customization is available for Pro and Premium users.");
+            alert("Story customization is available for Pro, Premium, and Storybook users.");
             navigate("/upgrade", { replace: true });
         }
     }, [navigate, user?.membership]);

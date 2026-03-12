@@ -5,6 +5,7 @@ namespace Hackathon_2025.Services
     public interface IQuotaService
     {
         int BaseQuotaFor(string? membership);
+        int SuperStoryQuotaFor(string? membership);
 
         bool CarryoverEnabled();
 
@@ -17,5 +18,6 @@ namespace Hackathon_2025.Services
         /// Uses membership level and, optionally, current remaining counts.
         /// </summary>
         bool CanBuyAddons(string? membership, int baseRemaining, int addOnBalance);
+        bool HasAddOnAccess(string? membership);
     }
 }

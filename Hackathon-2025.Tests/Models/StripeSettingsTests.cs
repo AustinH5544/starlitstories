@@ -17,6 +17,7 @@ public class StripeSettingsTests
             WebhookSecret = "whsec_abcdef",
             PriceIdPro = "price_pro_001",
             PriceIdPremium = "price_premium_002",
+            PriceIdStorybook = "price_storybook_003",
             PriceIdAddon5 = "price_addon5_003",
             PriceIdAddon11 = "price_addon11_004"
         };
@@ -27,6 +28,7 @@ public class StripeSettingsTests
         var webhook = settings.WebhookSecret;
         var pro = settings.PriceIdPro;
         var premium = settings.PriceIdPremium;
+        var storybook = settings.PriceIdStorybook;
         var addon5 = settings.PriceIdAddon5;
         var addon11 = settings.PriceIdAddon11;
 
@@ -36,6 +38,7 @@ public class StripeSettingsTests
         Assert.AreEqual("whsec_abcdef", webhook);
         Assert.AreEqual("price_pro_001", pro);
         Assert.AreEqual("price_premium_002", premium);
+        Assert.AreEqual("price_storybook_003", storybook);
         Assert.AreEqual("price_addon5_003", addon5);
         Assert.AreEqual("price_addon11_004", addon11);
     }

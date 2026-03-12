@@ -21,6 +21,7 @@ public class User
     public MembershipPlan Membership { get; set; } = MembershipPlan.Free;
 
     public int BooksGenerated { get; set; }
+    public int SuperStoriesGenerated { get; set; }
     public int AddOnBalance { get; set; }
     public int AddOnSpentThisPeriod { get; set; }
     public DateTime LastReset { get; set; } = DateTime.UtcNow;
