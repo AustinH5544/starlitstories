@@ -1,0 +1,85 @@
+.blog-page {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem 0;
+}
+
+.blog-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.blog-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    color: white;
+}
+
+.blog-header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(45deg, #fff, #f0f8ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.blog-header p {
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.blog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.blog-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 2rem;
+    color: white;
+}
+
+.blog-card-date {
+    font-size: 0.85rem;
+    opacity: 0.7;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.blog-card-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.blog-card-title a {
+    color: white;
+    text-decoration: none;
+}
+
+.blog-card-title a:hover {
+    text-decoration: underline;
+}
+
+.blog-card-excerpt {
+    opacity: 0.85;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.blog-card-link {
+    color: #c4b5fd;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.blog-card-link:hover {
+    color: white;
+}

@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import posthog from '../analytics';
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import "./StoryViewerPage.css";
 import { useAuth } from "../context/AuthContext";
 import FeedbackModal from "../components/FeedbackModal";
@@ -760,6 +761,10 @@ export default function StoryViewerPage({ mode = "private" }) {
             className={`story-viewer ${isBook ? "is-book" : "is-classic"}`}
             onClick={handleContentClick}
         >
+            <Helmet>
+                <title>Story Viewer | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             <div className="stars"></div><div className="twinkling"></div><div className="clouds"></div>
 
             {!isBook && showProgressPill && (

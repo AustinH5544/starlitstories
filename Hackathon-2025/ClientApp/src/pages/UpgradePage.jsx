@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState } from "react"
+import { Helmet } from "react-helmet-async"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import api from "../api"
@@ -128,6 +129,10 @@ const UpgradePage = () => {
 
     return (
         <div className="upgrade-page">
+            <Helmet>
+                <title>Upgrade Your Plan | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>

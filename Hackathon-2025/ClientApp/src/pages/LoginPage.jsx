@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import "./LoginPage.css"
@@ -152,6 +153,21 @@ const LoginPage = () => {
 
     return (
         <div className="login-page">
+            <Helmet>
+                <title>Log In | Starlit Stories</title>
+                <meta name="description" content="Log in to your Starlit Stories account to create and manage your personalized children's storybooks." />
+                <link rel="canonical" href="https://starlitstories.app/login" />
+                <meta property="og:title" content="Log In | Starlit Stories" />
+                <meta property="og:description" content="Log in to your Starlit Stories account to create and manage your personalized children's storybooks." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/login" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Log In | Starlit Stories" />
+                <meta name="twitter:description" content="Log in to your Starlit Stories account to create and manage your personalized children's storybooks." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>

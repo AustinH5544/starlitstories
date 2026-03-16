@@ -17,6 +17,8 @@ import VerifyEmailPage from "./pages/VerifyEmailPage"
 import FAQPage from "./pages/FAQPage"
 import SupportPage from "./pages/SupportPage"
 import StoryCustomizePage from "./pages/StoryCustomizePage"
+import BlogPage from "./pages/BlogPage"
+import BlogPostPage from "./pages/BlogPostPage"
 import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
@@ -42,6 +44,8 @@ function App() {
                     <Route path="/faq" element={<FAQPage />} />
                     <Route path="/support" element={<SupportPage />} />
                     <Route path="/customize" element={<StoryCustomizePage />} />
+                    <Route path="/blog" element={<BlogPage />} />
+                    <Route path="/blog/:slug" element={<BlogPostPage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>

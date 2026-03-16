@@ -2,6 +2,7 @@
 
 import { useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
@@ -587,6 +588,10 @@ const ProfilePage = () => {
 
     return (
         <div className="profile-page">
+            <Helmet>
+                <title>My Library | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             <div className="stars" />
             <div className="twinkling" />
             <div className="clouds" />

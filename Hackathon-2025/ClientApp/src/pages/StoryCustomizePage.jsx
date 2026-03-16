@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "../context/AuthContext";
 import "./StoryCustomizePage.css";
 
@@ -571,6 +572,10 @@ export default function StoryCustomizePage() {
 
     return (
         <div className="customizer" style={{ "--customizer-topbar-offset": `${topbarOffset}px` }}>
+            <Helmet>
+                <title>Customize Your Story | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             {/* Top bar */}
             <header className="topbar" data-collapsed={!headerOpen} ref={topbarRef}>
                 <div className="left-actions">

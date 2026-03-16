@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Helmet } from "react-helmet-async";
 import { useAuth } from "../context/AuthContext";
 import StoryForm from "../components/StoryForm";
 import DoodlePad from "../components/DoodlePad";
@@ -468,6 +469,10 @@ const CreatePage = () => {
 
     return (
         <div className="create-page">
+            <Helmet>
+                <title>Create a Story | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>

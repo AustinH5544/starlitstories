@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useEffect } from "react"
+import { Helmet } from "react-helmet-async"
 import "./LandingPage.css";
 import "./AboutPage.css"
 
@@ -67,6 +68,21 @@ const AboutPage = () => {
 
     return (
         <div className="about-page">
+            <Helmet>
+                <title>About Starlit Stories — AI-Powered Personalized Children's Books | Starlit Stories</title>
+                <meta name="description" content="Learn how Starlit Stories uses AI to create safe, beautiful, personalized storybooks that make your child the hero of every bedtime story." />
+                <link rel="canonical" href="https://starlitstories.app/about" />
+                <meta property="og:title" content="About Starlit Stories — AI-Powered Personalized Children's Books | Starlit Stories" />
+                <meta property="og:description" content="Learn how Starlit Stories uses AI to create safe, beautiful, personalized storybooks that make your child the hero of every bedtime story." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/about" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="About Starlit Stories — AI-Powered Personalized Children's Books | Starlit Stories" />
+                <meta name="twitter:description" content="Learn how Starlit Stories uses AI to create safe, beautiful, personalized storybooks that make your child the hero of every bedtime story." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+            </Helmet>
             {/* Hero Section */}
             <section className="about-hero">
                 <div className="stars"></div>

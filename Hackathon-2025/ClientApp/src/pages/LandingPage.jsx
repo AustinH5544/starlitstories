@@ -4,7 +4,29 @@ import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import posthog from "../analytics"
+import { Helmet } from "react-helmet-async"
 import "./LandingPage.css"
+
+const webAppSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Starlit Stories",
+    "url": "https://starlitstories.app",
+    "description": "Create personalized illustrated storybooks where your child is the hero.",
+    "applicationCategory": "EntertainmentApplication",
+    "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free tier available" },
+    "audience": { "@type": "PeopleAudience", "audienceType": "Parents", "suggestedMinAge": "2", "suggestedMaxAge": "10" }
+}
+
+const orgSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "Starlit Stories",
+    "url": "https://starlitstories.app",
+    "logo": "https://starlitstories.app/og-image.png",
+    "sameAs": []
+}
 
 import instagramIcon from "../assets/social/instagram.png";
 import facebookIcon from "../assets/social/facebook.png";
@@ -186,6 +208,23 @@ const LandingPage = () => {
 
     return (
         <div className="landing-page">
+            <Helmet>
+                <title>Starlit Stories — Personalized Storybooks Where Your Child Is the Hero</title>
+                <meta name="description" content="Create magical, personalized illustrated storybooks for your child in minutes. Choose a character, pick a theme, and watch your child become the hero of their own bedtime story." />
+                <link rel="canonical" href="https://starlitstories.app/" />
+                <meta property="og:title" content="Starlit Stories — Personalized Storybooks Where Your Child Is the Hero" />
+                <meta property="og:description" content="Create magical, personalized illustrated storybooks for your child in minutes. Choose a character, pick a theme, and watch your child become the hero of their own bedtime story." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Starlit Stories — Personalized Storybooks Where Your Child Is the Hero" />
+                <meta name="twitter:description" content="Create magical, personalized illustrated storybooks for your child in minutes." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+                <script type="application/ld+json">{JSON.stringify(webAppSchema)}</script>
+                <script type="application/ld+json">{JSON.stringify(orgSchema)}</script>
+            </Helmet>
             {/* Hero Section */}
             <section className="hero-section">
                 <div className="stars"></div>

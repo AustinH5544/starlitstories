@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState } from "react"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
@@ -138,6 +139,21 @@ const SignupPage = () => {
 
     return (
         <div className="signup-page">
+            <Helmet>
+                <title>Sign Up — Create Your Free Account | Starlit Stories</title>
+                <meta name="description" content="Create your free account and start making personalized illustrated storybooks featuring your child as the hero. Ready in minutes." />
+                <link rel="canonical" href="https://starlitstories.app/signup" />
+                <meta property="og:title" content="Sign Up — Create Your Free Account | Starlit Stories" />
+                <meta property="og:description" content="Create your free account and start making personalized illustrated storybooks featuring your child as the hero. Ready in minutes." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/signup" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Sign Up — Create Your Free Account | Starlit Stories" />
+                <meta name="twitter:description" content="Create your free account and start making personalized illustrated storybooks featuring your child as the hero. Ready in minutes." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+            </Helmet>
             <div className="stars"></div>
             <div className="small-clouds"></div>
             <div className="clouds"></div>

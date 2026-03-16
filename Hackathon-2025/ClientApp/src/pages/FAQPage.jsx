@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Link } from "react-router-dom"
+import { Helmet } from "react-helmet-async"
 import "./FAQPage.css"
 
 const FAQPage = () => {
@@ -139,6 +140,21 @@ const FAQPage = () => {
 
     return (
         <div className="faq-page">
+            <Helmet>
+                <title>Frequently Asked Questions | Starlit Stories</title>
+                <meta name="description" content="Got questions about Starlit Stories? Find answers about how personalized AI storybooks work, pricing, and how to get started." />
+                <link rel="canonical" href="https://starlitstories.app/faq" />
+                <meta property="og:title" content="Frequently Asked Questions | Starlit Stories" />
+                <meta property="og:description" content="Got questions about Starlit Stories? Find answers about how personalized AI storybooks work, pricing, and how to get started." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/faq" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Frequently Asked Questions | Starlit Stories" />
+                <meta name="twitter:description" content="Got questions about Starlit Stories? Find answers about how personalized AI storybooks work, pricing, and how to get started." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>

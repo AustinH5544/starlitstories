@@ -21,6 +21,8 @@
     "posthog-js": "^1.360.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-helmet-async": "^3.0.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.6.0"
   },
   "devDependencies": {

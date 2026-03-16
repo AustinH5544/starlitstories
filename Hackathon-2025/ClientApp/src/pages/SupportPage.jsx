@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Link } from "react-router-dom"
+import { Helmet } from "react-helmet-async"
 import "./SupportPage.css"
 
 const SupportPage = () => {
@@ -48,6 +49,21 @@ const SupportPage = () => {
 
     return (
         <div className="support-page">
+            <Helmet>
+                <title>Support | Starlit Stories</title>
+                <meta name="description" content="Need help with Starlit Stories? Contact our support team and we'll get you back to creating magical stories." />
+                <link rel="canonical" href="https://starlitstories.app/support" />
+                <meta property="og:title" content="Support | Starlit Stories" />
+                <meta property="og:description" content="Need help with Starlit Stories? Contact our support team and we'll get you back to creating magical stories." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/support" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Support | Starlit Stories" />
+                <meta name="twitter:description" content="Need help with Starlit Stories? Contact our support team and we'll get you back to creating magical stories." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>
