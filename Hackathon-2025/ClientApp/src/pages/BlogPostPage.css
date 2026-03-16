@@ -5,7 +5,7 @@
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-    padding: 2rem 0 4rem;
+    padding: calc(64px + 2.5rem) 0 4rem;
 }
 
 /* ── Starry background ───────────────────────────────── */
@@ -225,7 +225,7 @@
 
 @media (max-width: 768px) {
     .blog-post-page {
-        padding: 1.5rem 0 3rem;
+        padding: calc(56px + 2rem) 0 3rem;
     }
 
     .blog-post-container {

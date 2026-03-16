@@ -5,7 +5,7 @@
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-    padding: 2rem 0 4rem;
+    padding: calc(64px + 2.5rem) 0 4rem;
 }
 
 /* ── Starry background (mirrors Login/Landing) ───────── */
@@ -106,6 +106,16 @@
     text-align: center;
     margin-bottom: 2.5rem;
     color: white;
+    position: relative;
+}
+
+.faq-header::before {
+    content: "";
+    position: absolute;
+    inset: -3rem -6rem;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .faq-title {
@@ -116,16 +126,17 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-shadow: none;
-    filter: drop-shadow(0 0 20px rgba(167, 139, 250, 0.4));
+    filter: drop-shadow(0 2px 16px rgba(0, 0, 0, 0.8))
+            drop-shadow(0 0 20px rgba(167, 139, 250, 0.4));
 }
 
 .faq-subtitle {
     font-size: 1.15rem;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.9);
     max-width: 560px;
     margin: 0 auto 2rem;
     line-height: 1.6;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.7);
 }
 
 /* ── Search ──────────────────────────────────────────── */
@@ -364,7 +375,7 @@
 
 @media (max-width: 768px) {
     .faq-page {
-        padding: 1.5rem 0 3rem;
+        padding: calc(56px + 2rem) 0 3rem;
     }
 
     .faq-container {
