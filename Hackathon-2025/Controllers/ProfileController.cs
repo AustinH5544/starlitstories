@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;
+using Hackathon_2025.Services;
 using System.Security.Claims;
 
 namespace Hackathon_2025.Controllers;
@@ -12,10 +13,12 @@ namespace Hackathon_2025.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IAdminAccessService _adminAccess;
 
-    public ProfileController(AppDbContext db)
+    public ProfileController(AppDbContext db, IAdminAccessService adminAccess)
     {
         _db = db;
+        _adminAccess = adminAccess;
     }
 
     private bool TryGetUserId(out int userId)
@@ -48,7 +51,16 @@ public class ProfileController : ControllerBase
 
         if (user is null) return NotFound("User not found.");
 
-        return Ok(user);
+        return Ok(new
+        {
+            user.Email,
+            user.Username,
+            user.Membership,
+            user.BooksGenerated,
+            user.LastReset,
+            user.profileImage,
+            isAdmin = _adminAccess.IsAdminEmail(user.Email)
+        });
     }
 
     [Authorize]
@@ -75,6 +87,33 @@ public class ProfileController : ControllerBase
     }
 
     public record AvatarDto(string ProfileImage);
+    public record UsernameDto(string Username);
+
+    [Authorize]
+    [HttpPut("username")]
+    public async Task<IActionResult> UpdateUsername([FromBody] UsernameDto dto)
+    {
+        if (!TryGetUserId(out var userId))
+            return Unauthorized("Invalid or missing user ID.");
+
+        var username = dto.Username?.Trim() ?? string.Empty;
+        if (!UsernameRules.IsValid(username))
+            return BadRequest(new { message = "Use 3-24 chars: a-z, 0-9, dot, underscore, hyphen." });
+
+        var normalized = UsernameRules.Normalize(username);
+        var taken = await _db.Users.AnyAsync(u => u.Id != userId && u.UsernameNormalized == normalized);
+        if (taken)
+            return Conflict(new { message = "That username is taken." });
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return NotFound();
+
+        user.Username = username;
+        user.UsernameNormalized = normalized;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { username = user.Username });
+    }
 
     // GET: api/profile/me/stories
     // Summaries only (no pages). Use page + pageSize with sensible defaults.

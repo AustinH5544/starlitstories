@@ -19,6 +19,7 @@ import SupportPage from "./pages/SupportPage"
 import StoryCustomizePage from "./pages/StoryCustomizePage"
 import BlogPage from "./pages/BlogPage"
 import BlogPostPage from "./pages/BlogPostPage"
+import AdminPage from "./pages/AdminPage"
 import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
@@ -46,6 +47,7 @@ function App() {
                     <Route path="/customize" element={<StoryCustomizePage />} />
                     <Route path="/blog" element={<BlogPage />} />
                     <Route path="/blog/:slug" element={<BlogPostPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>

@@ -218,7 +218,12 @@ export default function StoryCustomizePage() {
         }
         try {
             // try to warm up one typical size; it’s okay if it resolves immediately
-            await document.fonts.load(`16px ${fontFamily.split(",")[0]}`);
+            await Promise.all([
+                document.fonts.load(`300 16px ${fontFamily.split(",")[0]}`),
+                document.fonts.load(`400 16px ${fontFamily.split(",")[0]}`),
+                document.fonts.load(`700 16px ${fontFamily.split(",")[0]}`),
+                document.fonts.load(`900 16px ${fontFamily.split(",")[0]}`),
+            ]);
         } catch { /* ignore */ }
     }
 
@@ -502,6 +507,17 @@ export default function StoryCustomizePage() {
         });
     }
 
+    function updateDimension(key, value) {
+        if (!selectedBox) return;
+        const min = key === "w" ? 72 : 48;
+        const nextValue = Math.max(min, Number(value) || min);
+        onResize(
+            selectedBox.id,
+            key === "w" ? nextValue - selectedBox.w : 0,
+            key === "h" ? nextValue - selectedBox.h : 0
+        );
+    }
+
     function copyLayoutFrom(fromIndex) {
         setBoxesByPage((prev) => {
             const next = { ...prev };
@@ -751,7 +767,20 @@ export default function StoryCustomizePage() {
                     data-open={panel === "inspector"}
                     aria-hidden={panel !== "inspector"}
                 >
-                    <h3>Text Box</h3>
+                    <div className="inspector-header">
+                        <div>
+                            <h3>Text Box</h3>
+                            <p className="tip">Keep this open while comparing changes on the page.</p>
+                        </div>
+                        <button
+                            className="btn ghost show-on-mobile"
+                            type="button"
+                            onClick={closePanels}
+                            aria-label="Close inspector"
+                        >
+                            Close
+                        </button>
+                    </div>
                     {selectedBox ? (
                         <>
                             <label>Text</label>
@@ -799,62 +828,46 @@ export default function StoryCustomizePage() {
                             </div>
 
                             <div className="grid2">
-                                <div>
-                                    <label>Font size</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={8}
-                                        max={64}
-                                        value={selectedBox.style.fontSize}
-                                        onChange={(e) =>
-                                            updateStyle({ fontSize: clampN(e.target.value, 8, 64) })
-                                        }
-                                    />
-                                </div>
+                                <NumberStepperField
+                                    label="Font size"
+                                    value={selectedBox.style.fontSize}
+                                    min={8}
+                                    max={64}
+                                    step={1}
+                                    onChange={(value) => updateStyle({ fontSize: clampN(value, 8, 64) })}
+                                />
                                 <div>
                                     <label>Weight</label>
                                     <select
                                         className="input"
-                                        value={selectedBox.style.fontWeight}
+                                        value={normalizeWeight(selectedBox.style.fontWeight)}
                                         onChange={(e) => updateStyle({ fontWeight: Number(e.target.value) })}
                                     >
                                         <option value={300}>Light</option>
                                         <option value={400}>Regular</option>
-                                        <option value={600}>Semibold</option>
                                         <option value={700}>Bold</option>
+                                        <option value={900}>Heavy</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div className="grid2">
-                                <div>
-                                    <label>Line height</label>
-                                    <input
-                                        type="number"
-                                        step="0.05"
-                                        className="input"
-                                        min={1.1}
-                                        max={2}
-                                        value={selectedBox.style.lineHeight}
-                                        onChange={(e) =>
-                                            updateStyle({ lineHeight: clampN(e.target.value, 1.1, 2) })
-                                        }
-                                    />
-                                </div>
-                                <div>
-                                    <label>Padding</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={0}
-                                        max={48}
-                                        value={selectedBox.style.padding}
-                                        onChange={(e) =>
-                                            updateStyle({ padding: clampN(e.target.value, 0, 48) })
-                                        }
-                                    />
-                                </div>
+                                <NumberStepperField
+                                    label="Line height"
+                                    value={selectedBox.style.lineHeight}
+                                    min={1.1}
+                                    max={2}
+                                    step={0.05}
+                                    onChange={(value) => updateStyle({ lineHeight: clampN(value, 1.1, 2) })}
+                                />
+                                <NumberStepperField
+                                    label="Padding"
+                                    value={selectedBox.style.padding}
+                                    min={0}
+                                    max={48}
+                                    step={1}
+                                    onChange={(value) => updateStyle({ padding: clampN(value, 0, 48) })}
+                                />
                             </div>
 
                             <div className="grid2">
@@ -898,19 +911,16 @@ export default function StoryCustomizePage() {
                                             onChange={(e) => updateStyle({ textEdgeColor: e.target.value })}
                                         />
                                     </div>
-                                    <div>
-                                        <label>Edge width</label>
-                                        <input
-                                            type="number"
-                                            className="input"
-                                            min={1}
-                                            max={6}
-                                            value={selectedBox.style.textEdgeWidth ?? 1}
-                                            onChange={(e) =>
-                                                updateStyle({ textEdgeWidth: clampN(e.target.value, 1, 6) })
-                                            }
-                                        />
-                                    </div>
+                                    <NumberStepperField
+                                        label="Edge width"
+                                        value={selectedBox.style.textEdgeWidth ?? 1}
+                                        min={1}
+                                        max={6}
+                                        step={1}
+                                        onChange={(value) =>
+                                            updateStyle({ textEdgeWidth: clampN(value, 1, 6) })
+                                        }
+                                    />
                                 </div>
                             )}
 
@@ -944,30 +954,22 @@ export default function StoryCustomizePage() {
                             </div>
 
                             <div className="grid2">
-                                <div>
-                                    <label>Width (px)</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={80}
-                                        value={selectedBox.w}
-                                        onChange={(e) =>
-                                            onResize(selectedBox.id, Number(e.target.value) - selectedBox.w, 0)
-                                        }
-                                    />
-                                </div>
-                                <div>
-                                    <label>Height (px)</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={60}
-                                        value={selectedBox.h}
-                                        onChange={(e) =>
-                                            onResize(selectedBox.id, 0, Number(e.target.value) - selectedBox.h)
-                                        }
-                                    />
-                                </div>
+                                <NumberStepperField
+                                    label="Width (px)"
+                                    value={selectedBox.w}
+                                    min={72}
+                                    max={2000}
+                                    step={8}
+                                    onChange={(value) => updateDimension("w", value)}
+                                />
+                                <NumberStepperField
+                                    label="Height (px)"
+                                    value={selectedBox.h}
+                                    min={48}
+                                    max={2000}
+                                    step={8}
+                                    onChange={(value) => updateDimension("h", value)}
+                                />
                             </div>
 
                             <label className="row gap sm">
@@ -991,6 +993,63 @@ export default function StoryCustomizePage() {
 function clampN(v, min, max) {
     const n = Number(v);
     return isNaN(n) ? min : Math.max(min, Math.min(max, n));
+}
+
+function normalizeWeight(value) {
+    const weight = Number(value) || 400;
+    if (weight <= 350) return 300;
+    if (weight <= 550) return 400;
+    if (weight <= 800) return 700;
+    return 900;
+}
+
+function formatStepValue(value, step) {
+    const decimals = step < 1 ? String(step).split(".")[1]?.length || 0 : 0;
+    return decimals ? Number(value).toFixed(decimals) : String(Math.round(Number(value)));
+}
+
+function NumberStepperField({ label, value, min, max, step = 1, onChange }) {
+    const numericValue = Number(value);
+    const safeValue = Number.isFinite(numericValue) ? numericValue : min;
+
+    const applyValue = (nextValue) => {
+        const clamped = clampN(nextValue, min, max);
+        const rounded = Number(formatStepValue(clamped, step));
+        onChange(rounded);
+    };
+
+    return (
+        <div>
+            <label>{label}</label>
+            <div className="stepper">
+                <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={() => applyValue(safeValue - step)}
+                    aria-label={`Decrease ${label.toLowerCase()}`}
+                >
+                    -
+                </button>
+                <input
+                    type="number"
+                    className="input stepper-input"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={formatStepValue(safeValue, step)}
+                    onChange={(e) => applyValue(e.target.value)}
+                />
+                <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={() => applyValue(safeValue + step)}
+                    aria-label={`Increase ${label.toLowerCase()}`}
+                >
+                    +
+                </button>
+            </div>
+        </div>
+    );
 }
 
 function hexToRgb(hex) {
