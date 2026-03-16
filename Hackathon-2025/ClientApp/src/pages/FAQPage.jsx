@@ -158,6 +158,9 @@ const FAQPage = () => {
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>
+            <div className="sprinkle"></div>
+            <div className="sprinkle2"></div>
+            <div className="sprinkle3"></div>
 
             <div className="faq-container">
                 <div className="faq-header">

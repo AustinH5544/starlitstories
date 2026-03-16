@@ -40,6 +40,11 @@ const BlogPostPage = () => {
                 <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
             </Helmet>
             <div className="stars"></div>
+            <div className="twinkling"></div>
+            <div className="clouds"></div>
+            <div className="sprinkle"></div>
+            <div className="sprinkle2"></div>
+            <div className="sprinkle3"></div>
             <div className="blog-post-container">
                 <Link to="/blog" className="blog-post-back">← Back to Blog</Link>
                 <article className="blog-post-article">

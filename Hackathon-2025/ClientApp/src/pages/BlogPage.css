@@ -1,18 +1,109 @@
+/* ── Page shell ──────────────────────────────────────── */
+
 .blog-page {
+    position: relative;
     min-height: 100vh;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 2rem 0;
+    width: 100%;
+    overflow-x: hidden;
+    padding: 2rem 0 4rem;
 }
+
+/* ── Starry background ───────────────────────────────── */
+
+.blog-page .stars {
+    position: absolute;
+    inset: 0;
+    background: #0c1445 url("/stars.jpg") no-repeat center center;
+    background-size: cover;
+    z-index: -3;
+}
+
+.blog-page .twinkling {
+    pointer-events: none;
+    z-index: -2;
+}
+
+.blog-page .clouds {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: transparent url("/clouds.png") repeat top center;
+    background-size: contain;
+    z-index: -1;
+    opacity: 0.6;
+    animation: blog-move-clouds 500s linear infinite;
+}
+
+@keyframes blog-move-clouds {
+    from { background-position: 0 0; }
+    to   { background-position: 10000px 0; }
+}
+
+/* ── Sprinkle / twinkle stars ────────────────────────── */
+
+.blog-page .sprinkle,
+.blog-page .sprinkle2,
+.blog-page .sprinkle3 {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: -2;
+}
+
+.blog-page .sprinkle::before,
+.blog-page .sprinkle2::before,
+.blog-page .sprinkle3::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: transparent url("/new_stars.png") repeat-x top center;
+    background-size: 320px auto;
+    clip-path: inset(0 0 42% 0);
+    filter: brightness(var(--b, 1))
+            drop-shadow(0 0 12px rgb(255 255 255 / .45))
+            drop-shadow(0 0 28px rgb(255 255 255 / .18));
+    animation: twinkleTop 12s ease-in-out infinite both;
+    opacity: 0;
+}
+
+.blog-page .sprinkle::after,
+.blog-page .sprinkle2::after,
+.blog-page .sprinkle3::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: transparent url("/new_stars.png") repeat-x bottom center;
+    background-size: 80px auto;
+    clip-path: inset(58% 0 0 0);
+    filter: brightness(var(--b, 1))
+            drop-shadow(0 0 5px rgb(255 255 255 / .28))
+            drop-shadow(0 0 12px rgb(255 255 255 / .10));
+    animation: twinkleBottom 14s ease-in-out infinite both;
+    opacity: 0;
+}
+
+.blog-page .sprinkle2::before { animation-duration: 15s; animation-delay: .7s; }
+.blog-page .sprinkle2::after  { animation-duration: 17s; animation-delay: 1.1s; }
+.blog-page .sprinkle3::before { animation-duration: 16s; animation-delay: 1.9s; }
+.blog-page .sprinkle3::after  { animation-duration: 18s; animation-delay: 2.3s; }
+
+/* ── Container ───────────────────────────────────────── */
 
 .blog-container {
     max-width: 800px;
     margin: 0 auto;
     padding: 0 2rem;
+    position: relative;
+    z-index: 1;
 }
+
+/* ── Header ──────────────────────────────────────────── */
 
 .blog-header {
     text-align: center;
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
     color: white;
 }
 
@@ -20,16 +111,22 @@
     font-size: 3rem;
     font-weight: 700;
     margin-bottom: 1rem;
-    background: linear-gradient(45deg, #fff, #f0f8ff);
+    background: linear-gradient(45deg, #fff, #d8b4fe);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    filter: drop-shadow(0 0 20px rgba(167, 139, 250, 0.4));
 }
 
 .blog-header p {
-    font-size: 1.2rem;
-    opacity: 0.9;
+    font-size: 1.15rem;
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.6;
 }
+
+/* ── Post list ───────────────────────────────────────── */
 
 .blog-list {
     display: flex;
@@ -37,49 +134,100 @@
     gap: 1.5rem;
 }
 
+/* ── Post card ───────────────────────────────────────── */
+
 .blog-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 20px;
     padding: 2rem;
-    color: white;
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.blog-card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+        0 32px 72px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(255, 255, 255, 0.16);
 }
 
 .blog-card-date {
-    font-size: 0.85rem;
-    opacity: 0.7;
     display: block;
-    margin-bottom: 0.5rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #9a7fd4;
+    margin-bottom: 0.6rem;
 }
 
 .blog-card-title {
-    font-size: 1.4rem;
+    font-size: 1.35rem;
     font-weight: 700;
+    color: #1a1035;
     margin-bottom: 0.75rem;
+    line-height: 1.35;
 }
 
 .blog-card-title a {
-    color: white;
+    color: inherit;
     text-decoration: none;
+    transition: color 0.15s ease;
 }
 
 .blog-card-title a:hover {
-    text-decoration: underline;
+    color: #6d46d4;
 }
 
 .blog-card-excerpt {
-    opacity: 0.85;
-    line-height: 1.6;
-    margin-bottom: 1rem;
+    color: #555;
+    line-height: 1.7;
+    margin-bottom: 1.25rem;
+    font-size: 0.97rem;
 }
 
 .blog-card-link {
-    color: #c4b5fd;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    font-size: 0.9rem;
     text-decoration: none;
-    font-weight: 600;
+    transition: gap 0.15s ease, filter 0.15s ease;
+    filter: drop-shadow(0 0 8px rgba(161, 140, 209, 0));
 }
 
 .blog-card-link:hover {
-    color: white;
+    gap: 0.55rem;
+    filter: drop-shadow(0 0 8px rgba(161, 140, 209, 0.5));
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .blog-page {
+        padding: 1.5rem 0 3rem;
+    }
+
+    .blog-container {
+        padding: 0 1rem;
+    }
+
+    .blog-header h1 {
+        font-size: 2rem;
+    }
+
+    .blog-header p {
+        font-size: 1rem;
+    }
+
+    .blog-card {
+        padding: 1.5rem;
+    }
 }
