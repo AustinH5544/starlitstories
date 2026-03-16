@@ -7,7 +7,7 @@ public sealed record SignupRequest
     [System.ComponentModel.DataAnnotations.EmailAddress, StringLength(256)]
     public required string Email { get; init; }
 
-    [System.ComponentModel.DataAnnotations.RegularExpression(@"^[a-zA-Z0-9_\.]{3,32}$")]
+    [System.ComponentModel.DataAnnotations.RegularExpression(Hackathon_2025.Services.UsernameRules.Pattern)]
     public required string Username { get; init; }
 
     [StringLength(256, MinimumLength = 8)]

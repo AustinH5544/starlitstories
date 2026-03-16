@@ -66,6 +66,10 @@ builder.Services.AddOptions<AppOptions>()
     .Bind(builder.Configuration.GetSection("App"))
     .ValidateOnStart();
 
+builder.Services.AddOptions<AdminOptions>()
+    .Bind(builder.Configuration.GetSection("Admin"))
+    .ValidateOnStart();
+
 builder.Services.Configure<CreditsOptions>(builder.Configuration.GetSection("Credits"));
 builder.Services.Configure<StoryOptions>(builder.Configuration.GetSection("Story"));
 
@@ -155,6 +159,7 @@ builder.Services.AddScoped<EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddScoped<IPeriodService, PeriodService>();
+builder.Services.AddSingleton<IAdminAccessService, AdminAccessService>();
 builder.Services.AddHealthChecks();
 
 // Payments provider toggle (default: stripe)

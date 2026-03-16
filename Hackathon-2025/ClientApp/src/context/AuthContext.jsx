@@ -8,9 +8,9 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem("token"));
 
-    // EXPECTS backend to return { token, email, username, membership, profileImage? }
-    const login = ({ token: jwt, email, username, membership, profileImage }) => {
-        setUser({ email, username, membership, profileImage });
+    // EXPECTS backend to return { token, email, username, membership, profileImage?, isAdmin? }
+    const login = ({ token: jwt, email, username, membership, profileImage, isAdmin }) => {
+        setUser({ email, username, membership, profileImage, isAdmin: Boolean(isAdmin) });
         setToken(jwt);
         localStorage.setItem("token", jwt);
     };
@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }) => {
                     username: data.username ?? u?.username,
                     membership: data.membership ?? u?.membership,
                     profileImage: data.profileImage ?? u?.profileImage,
+                    isAdmin: data.isAdmin ?? u?.isAdmin ?? false,
                 }));
             } catch (e) {
                 console.error("Failed to load profile", e);
