@@ -138,6 +138,7 @@ const LandingPage = () => {
     const [showWarning, setShowWarning] = useState(false)
     const [warningAt, setWarningAt] = useState/** @type {'hero' | 'cta' | null} */(null)
     const warnBtnRef = useRef(null)
+    const warningTimeoutRef = useRef(null)
     const [selectedArtStyle, setSelectedArtStyle] = useState(artStyleShowcase[0].key)
     const [activeExampleIndex, setActiveExampleIndex] = useState(0)
     const [imageLoadError, setImageLoadError] = useState(false)
@@ -146,12 +147,36 @@ const LandingPage = () => {
         posthog.capture("landing_page_viewed")
     }, [])
 
+    useEffect(() => {
+        return () => {
+            if (warningTimeoutRef.current) {
+                window.clearTimeout(warningTimeoutRef.current)
+                warningTimeoutRef.current = null
+            }
+        }
+    }, [])
+
     // focus the first action on warn (a11y)
     useEffect(() => {
         if (showWarning && warnBtnRef.current) {
             warnBtnRef.current.focus()
         }
     }, [showWarning])
+
+    const clearWarningHideTimer = () => {
+        if (warningTimeoutRef.current) {
+            window.clearTimeout(warningTimeoutRef.current)
+            warningTimeoutRef.current = null
+        }
+    }
+
+    const scheduleWarningHide = () => {
+        clearWarningHideTimer()
+        warningTimeoutRef.current = window.setTimeout(() => {
+            setShowWarning(false)
+            warningTimeoutRef.current = null
+        }, 3000)
+    }
 
     // Handle scroll animations
     useEffect(() => {
@@ -175,12 +200,21 @@ const LandingPage = () => {
         if (!user) {
             setWarningAt(origin)
             setShowWarning(true)
-            // auto-hide after 3s; remove if you want it persistent
-            window.clearTimeout((handleCreateClick)._t)
-                ; (handleCreateClick)._t = window.setTimeout(() => setShowWarning(false), 3000)
+            scheduleWarningHide()
             return
         }
         navigate("/create")
+    }
+
+    const warningInteractionProps = {
+        onMouseEnter: clearWarningHideTimer,
+        onMouseLeave: scheduleWarningHide,
+        onFocusCapture: clearWarningHideTimer,
+        onBlurCapture: (event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+                scheduleWarningHide()
+            }
+        },
     }
 
     const activeStyle = artStyleShowcase.find((s) => s.key === selectedArtStyle) ?? artStyleShowcase[0]
@@ -261,7 +295,7 @@ const LandingPage = () => {
                     </div>
 
                     {showWarning && warningAt === "hero" && (
-                        <div className="warning-message" role="alert">
+                        <div className="warning-message" role="alert" {...warningInteractionProps}>
                             <p>You need to be logged in to create a story</p>
                             <div className="warning-actions">
                                 <button ref={warnBtnRef} onClick={() => navigate("/login")} className="warning-button">
@@ -599,7 +633,7 @@ const LandingPage = () => {
 
                     {/* inline warning for the bottom CTA */}
                     {showWarning && warningAt === "cta" && (
-                        <div className="warning-message" role="alert">
+                        <div className="warning-message" role="alert" {...warningInteractionProps}>
                             <p>You need to be logged in to create a story</p>
                             <div className="warning-actions">
                                 <button ref={warnBtnRef} onClick={() => navigate("/login")} className="warning-button">
