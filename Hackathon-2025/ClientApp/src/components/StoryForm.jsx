@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect, useRef } from "react"
+import { Fragment, useState, useEffect, useRef } from "react"
 import { useAuth } from "../context/AuthContext"
 import api from "../api"
 import "./StoryForm.css"
@@ -22,6 +22,10 @@ const createEmptyCharacter = (role = "main") => ({
 
 const cloneCharacter = (character) => JSON.parse(JSON.stringify(character))
 const MAX_CHARACTERS_PER_STORY = 1
+const MAX_ACCESSORIES_PER_CHARACTER = 5
+const ACCESSORY_FIELDS = Array.from({ length: MAX_ACCESSORIES_PER_CHARACTER }, (_, index) =>
+    index === 0 ? "accessory" : `accessory${index + 1}`
+)
 
 const sortedUnique = (values = []) =>
     [...new Set(values.map((v) => String(v).trim()).filter(Boolean))]
@@ -108,6 +112,22 @@ const normalizeSavedCharacterList = (items = []) =>
         .filter(Boolean)
 
 const hasValue = (value) => String(value || "").trim().length > 0
+
+const getAccessoryFieldCountForCharacter = (character = {}) => {
+    const fields = getSavedDescriptionFields(character)
+    let count = 1
+
+    ACCESSORY_FIELDS.forEach((field, index) => {
+        if (hasValue(fields[field]) || hasValue(fields[`${field}Custom`])) {
+            count = index + 1
+        }
+    })
+
+    return count
+}
+
+const getAccessoryFieldCounts = (characterList = []) =>
+    characterList.map((character) => getAccessoryFieldCountForCharacter(character))
 
 const getCharacterValidationResult = (character, { advanced }) => {
     if (!hasValue(character?.name)) {
@@ -335,6 +355,7 @@ const StoryForm = ({ onSubmit }) => {
     const isPresetLesson = (val) => allPresetLessons.includes(val)
 
     const [characters, setCharacters] = useState([createEmptyCharacter("main")])
+    const [accessoryFieldCounts, setAccessoryFieldCounts] = useState([1])
 
     const applySavedCharactersResponse = (data, preferredSavedCharacterId = null) => {
         const normalizedItems = normalizeSavedCharacterList(Array.isArray(data?.items) ? data.items : [])
@@ -451,13 +472,14 @@ const StoryForm = ({ onSubmit }) => {
         ]),
 
         humanAccessories: sortedUnique([
-            "backpack", "boots", "bowtie", "bracelet", "cape", "crown",
-            "glasses", "hat", "necklace", "scarf", "sneakers", "wand", "watch",
+            "backpack", "bowtie", "bracelet", "cape", "crown",
+            "glasses", "hair bow", "headband", "hat", "necklace",
+            "satchel", "scarf", "wand", "watch",
         ]),
 
         animalAccessories: sortedUnique([
-            "armor", "bandana", "bell", "bow", "collar", "feather accessory",
-            "ribbon", "tiny hat", "wing clips",
+            "bandana", "bell", "bow", "collar", "flower crown",
+            "harness", "ribbon", "saddle", "tiny hat",
         ]),
     }
 
@@ -544,6 +566,15 @@ const StoryForm = ({ onSubmit }) => {
         setCharacters(updated)
     }
 
+    const addAccessoryField = (index) => {
+        setAccessoryFieldCounts((current) => {
+            const next = [...current]
+            const existingCount = next[index] ?? getAccessoryFieldCountForCharacter(characters[index])
+            next[index] = Math.min(MAX_ACCESSORIES_PER_CHARACTER, existingCount + 1)
+            return next
+        })
+    }
+
     const addCharacter = () => {
         setCharacters([
             ...characters,
@@ -555,12 +586,19 @@ const StoryForm = ({ onSubmit }) => {
                 descriptionFields: {},
             },
         ])
+        setAccessoryFieldCounts([
+            ...accessoryFieldCounts,
+            1,
+        ])
     }
 
     const removeCharacter = (index) => {
         const updated = [...characters]
         updated.splice(index, 1)
         setCharacters(updated)
+        const nextAccessoryCounts = [...accessoryFieldCounts]
+        nextAccessoryCounts.splice(index, 1)
+        setAccessoryFieldCounts(nextAccessoryCounts.length ? nextAccessoryCounts : [1])
     }
 
     const handleSaveCharacter = async () => {
@@ -607,9 +645,11 @@ const StoryForm = ({ onSubmit }) => {
                 const refreshedSelected = refreshedItems.find((x) => x.id === savedItem.id) || savedItem
                 setSelectedSavedCharacterId(String(refreshedSelected.id))
                 setCharacters([cloneCharacter(refreshedSelected.character)])
+                setAccessoryFieldCounts(getAccessoryFieldCounts([refreshedSelected.character]))
                 setEditingSavedCharacterId(refreshedSelected.id)
             } else {
                 setCharacters([cloneCharacter(toSave)])
+                setAccessoryFieldCounts(getAccessoryFieldCounts([toSave]))
                 setEditingSavedCharacterId(editingSavedCharacterId)
             }
             setIsUsingSavedCharacter(true)
@@ -630,6 +670,7 @@ const StoryForm = ({ onSubmit }) => {
         const selected = savedCharacters.find((x) => String(x.id) === String(savedCharacterId))
         if (!selected) return
         setCharacters([cloneCharacter(selected.character)])
+        setAccessoryFieldCounts(getAccessoryFieldCounts([selected.character]))
         setEditingSavedCharacterId(selected.id)
         setSavedCharacterNotice("")
         setIsUsingSavedCharacter(true)
@@ -669,6 +710,7 @@ const StoryForm = ({ onSubmit }) => {
         if (isUsingSavedCharacter && editingSavedCharacterId === selected.id) {
             setIsUsingSavedCharacter(false)
             setCharacters([createEmptyCharacter("main")])
+            setAccessoryFieldCounts([1])
         }
         if (editingSavedCharacterId === selected.id) {
             setEditingSavedCharacterId(null)
@@ -679,6 +721,7 @@ const StoryForm = ({ onSubmit }) => {
         const selected = savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId))
         if (!selected) return
         setCharacters([cloneCharacter(selected.character)])
+        setAccessoryFieldCounts(getAccessoryFieldCounts([selected.character]))
         setEditingSavedCharacterId(selected.id)
         setSavedCharacterNotice("")
         setIsUsingSavedCharacter(false)
@@ -687,6 +730,7 @@ const StoryForm = ({ onSubmit }) => {
     const handleStartNewCharacter = () => {
         setEditingSavedCharacterId(null)
         setCharacters([createEmptyCharacter("main")])
+        setAccessoryFieldCounts([1])
         setSavedCharacterNotice("")
         setIsUsingSavedCharacter(false)
     }
@@ -787,6 +831,44 @@ const StoryForm = ({ onSubmit }) => {
                     />
                 </div>
             </div>
+        )
+    }
+
+    const renderAccessoryFields = (index, options) => {
+        const visibleCount = Math.max(
+            accessoryFieldCounts[index] ?? 1,
+            getAccessoryFieldCountForCharacter(characters[index])
+        )
+        const fields = characters[index]?.descriptionFields || {}
+        const lastVisibleField = ACCESSORY_FIELDS[Math.max(0, visibleCount - 1)]
+        const canAddAnotherAccessory =
+            visibleCount < MAX_ACCESSORIES_PER_CHARACTER &&
+            (hasValue(fields[lastVisibleField]) || hasValue(fields[`${lastVisibleField}Custom`]))
+
+        return (
+            <>
+                {ACCESSORY_FIELDS.slice(0, visibleCount).map((field, accessoryIndex) => (
+                    <Fragment key={field}>
+                        {renderDropdownWithCustom(
+                            index,
+                            field,
+                            `Accessory ${accessoryIndex + 1} (optional)`,
+                            options
+                        )}
+                    </Fragment>
+                ))}
+                {canAddAnotherAccessory ? (
+                    <div className="field-group accessory-actions">
+                        <button
+                            type="button"
+                            className="add-accessory-btn"
+                            onClick={() => addAccessoryField(index)}
+                        >
+                            + Add accessory
+                        </button>
+                    </div>
+                ) : null}
+            </>
         )
     }
 
@@ -1284,7 +1366,7 @@ const StoryForm = ({ onSubmit }) => {
                                 {renderDropdownWithCustom(i, "species", "Species", defaultOptions.species)}
                                 {renderDropdownWithCustom(i, "bodyCovering", "Body Covering", defaultOptions.bodyCovering)}
                                 {renderDropdownWithCustom(i, "bodyColor", "Body Color", defaultOptions.bodyColor)}
-                                {renderDropdownWithCustom(i, "accessory", "Accessory (optional)", defaultOptions.animalAccessories)}
+                                {renderAccessoryFields(i, defaultOptions.animalAccessories)}
                             </>
                         ) : (
                             <>
@@ -1365,7 +1447,7 @@ const StoryForm = ({ onSubmit }) => {
                                         </>
                                     )
                                 })()}
-                                {renderDropdownWithCustom(i, "accessory", "Accessory (optional)", defaultOptions.humanAccessories)}
+                                {renderAccessoryFields(i, defaultOptions.humanAccessories)}
                             </>
                         )}
                     </div>

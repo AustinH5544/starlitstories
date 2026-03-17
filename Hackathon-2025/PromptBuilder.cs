@@ -8,6 +8,15 @@ namespace Hackathon_2025.Services;
 
 public static class PromptBuilder
 {
+    private static readonly string[] AccessoryFieldNames = new[]
+    {
+        "accessory",
+        "accessory2",
+        "accessory3",
+        "accessory4",
+        "accessory5"
+    };
+
     // --- Descriptor lookup tables -------------------------------------------
 
     private static readonly Dictionary<string, string> SkinToneMap = new(StringComparer.OrdinalIgnoreCase)
@@ -319,8 +328,7 @@ public static class PromptBuilder
         else if (hasShoeColor)
             parts.Add($"{Map(ClothingColorMap, shoeColor)} shoes");
 
-        if (fields.TryGetValue("accessory", out var accessory) && !string.IsNullOrWhiteSpace(accessory))
-            parts.Add(accessory);
+        parts.AddRange(GetAccessories(fields));
 
         return string.Join(", ", parts);
     }
@@ -373,11 +381,15 @@ public static class PromptBuilder
                 : mappedColor);
         }
 
-        if (fields.TryGetValue("accessory", out var accessory) && !string.IsNullOrWhiteSpace(accessory))
-            parts.Add(accessory);
+        parts.AddRange(GetAccessories(fields));
 
         return string.Join(", ", parts);
     }
+
+    private static IEnumerable<string> GetAccessories(IReadOnlyDictionary<string, string> fields) =>
+        AccessoryFieldNames
+            .Select(fieldName => fields.TryGetValue(fieldName, out var value) ? value : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value))!;
 
     private static string SummarizeScene(string paragraph)
     {

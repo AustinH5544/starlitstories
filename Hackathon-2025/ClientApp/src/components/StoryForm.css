@@ -125,6 +125,10 @@
     gap: 0.5rem;
 }
 
+.accessory-actions {
+    justify-content: flex-end;
+}
+
 .field-label {
     font-weight: 600;
     color: rgba(255, 255, 255, 0.9);
@@ -645,3 +649,28 @@
     color: rgba(255, 255, 255, 0.7);
     line-height: 1.4;
 }
+
+.add-accessory-btn {
+    align-self: flex-start;
+    padding: 0.75rem 1rem;
+    border: 1px dashed rgba(255, 255, 255, 0.35);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+    .add-accessory-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.55);
+        transform: translateY(-1px);
+    }
+
+    .add-accessory-btn:focus {
+        outline: none;
+        border-color: #a18cd1;
+        box-shadow: 0 0 0 3px rgba(161, 140, 209, 0.2);
+    }

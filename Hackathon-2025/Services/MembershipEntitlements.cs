@@ -9,6 +9,14 @@ public static class MembershipEntitlements
     private static readonly HashSet<string> FreeCharacterFields = new(StringComparer.OrdinalIgnoreCase)
     {
         "accessory",
+        "accessory2",
+        "accessory2Custom",
+        "accessory3",
+        "accessory3Custom",
+        "accessory4",
+        "accessory4Custom",
+        "accessory5",
+        "accessory5Custom",
         "accessoryCustom",
         "age",
         "ageCustom",
