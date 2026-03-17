@@ -404,7 +404,7 @@ const AboutPage = () => {
                             <a href="/support">Support</a>
                         </div>
 
-                        <div className="footer-links">
+                        <div className="footer-links footer-meta-links">
                             <div className="footer-column">
                                 <h4>Connect</h4>
                                 <div className="social-links">
