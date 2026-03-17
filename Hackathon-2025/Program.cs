@@ -266,6 +266,23 @@ app.UseResponseCompression();
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
 logger.LogInformation("CORS origins: {origins}", string.Join(", ", allowedOrigins));
 
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    try
+    {
+        await db.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogCritical(ex, "Failed to apply database migrations on startup.");
+        throw;
+    }
+}
+
 // =========================
 // Security headers / HTTPS
 // =========================
