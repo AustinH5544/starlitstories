@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import api from "../api";
 import { useAuth } from "../context/AuthContext";
@@ -58,6 +58,7 @@ const AdminPage = () => {
     const [showAllUsers, setShowAllUsers] = useState(false);
     const [showAllStories, setShowAllStories] = useState(false);
     const [showAllShares, setShowAllShares] = useState(false);
+    const [expandedStoryIds, setExpandedStoryIds] = useState(() => new Set());
     const [selectedUserId, setSelectedUserId] = useState(null);
     const [membershipDraft, setMembershipDraft] = useState("Free");
     const [bonusBooksDraft, setBonusBooksDraft] = useState("0");
@@ -142,6 +143,15 @@ const AdminPage = () => {
             console.error("Failed to load story for admin read", err);
             alert("Could not open that story.");
         }
+    };
+
+    const toggleStoryDetails = (storyId) => {
+        setExpandedStoryIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(storyId)) next.delete(storyId);
+            else next.add(storyId);
+            return next;
+        });
     };
 
     const selectUser = (entry) => {
@@ -438,51 +448,73 @@ const AdminPage = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {visibleStories.map((entry) => (
-                                                <tr key={entry.id}>
-                                                    <td>
-                                                        <div className="admin-cell-primary">{entry.title}</div>
-                                                        <div className="admin-cell-secondary">#{entry.id} | {entry.pageCount} pages | {entry.shareCount} shares</div>
-                                                        <div className="admin-story-request">
-                                                            <div className="admin-story-request-row">
-                                                                <span>Theme</span>
-                                                                <strong>{entry.requestTheme || "--"}</strong>
-                                                            </div>
-                                                            <div className="admin-story-request-row">
-                                                                <span>Lesson</span>
-                                                                <strong>{entry.requestLessonLearned || "None"}</strong>
-                                                            </div>
-                                                            <div className="admin-story-request-row">
-                                                                <span>Reading / Art</span>
-                                                                <strong>{[entry.requestReadingLevel, entry.requestArtStyle].filter(Boolean).join(" / ") || "--"}</strong>
-                                                            </div>
-                                                            <div className="admin-story-request-row">
-                                                                <span>Length</span>
-                                                                <strong>{entry.requestStoryLength || "--"}</strong>
-                                                            </div>
-                                                            <div className="admin-story-request-row">
-                                                                <span>Character</span>
-                                                                <strong>{formatCharacterSummary(entry.requestCharacters?.[0]) || "--"}</strong>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        <div className="admin-cell-primary">{entry.ownerUsername}</div>
-                                                        <div className="admin-cell-secondary">{entry.ownerEmail}</div>
-                                                    </td>
-                                                    <td>{entry.isGenerating ? "Generating" : "Ready"}</td>
-                                                    <td>{formatDateTime(entry.createdAt)}</td>
-                                                    <td>
-                                                        <button
-                                                            className="admin-link-button"
-                                                            onClick={() => handleReadStory(entry.id)}
-                                                            disabled={entry.isGenerating}
-                                                        >
-                                                            {entry.isGenerating ? "Waiting" : "Read"}
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {visibleStories.map((entry) => {
+                                                const isExpanded = expandedStoryIds.has(entry.id);
+
+                                                return (
+                                                    <Fragment key={entry.id}>
+                                                        <tr key={entry.id}>
+                                                            <td>
+                                                                <div className="admin-cell-primary">{entry.title}</div>
+                                                                <div className="admin-cell-secondary">#{entry.id} | {entry.pageCount} pages | {entry.shareCount} shares</div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="admin-story-request-toggle"
+                                                                    onClick={() => toggleStoryDetails(entry.id)}
+                                                                    aria-expanded={isExpanded}
+                                                                >
+                                                                    Request details
+                                                                </button>
+                                                            </td>
+                                                            <td>
+                                                                <div className="admin-cell-primary">{entry.ownerUsername}</div>
+                                                                <div className="admin-cell-secondary">{entry.ownerEmail}</div>
+                                                            </td>
+                                                            <td>{entry.isGenerating ? "Generating" : "Ready"}</td>
+                                                            <td>{formatDateTime(entry.createdAt)}</td>
+                                                            <td>
+                                                                <button
+                                                                    className="admin-link-button"
+                                                                    onClick={() => handleReadStory(entry.id)}
+                                                                    disabled={entry.isGenerating}
+                                                                >
+                                                                    {entry.isGenerating ? "Waiting" : "Read"}
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                        {isExpanded && (
+                                                            <tr className="admin-story-request-tr">
+                                                                <td colSpan="5" className="admin-story-request-cell">
+                                                                    <div className="admin-story-request">
+                                                                        <div className="admin-story-request-body">
+                                                                            <div className="admin-story-request-row">
+                                                                                <span>Theme</span>
+                                                                                <strong>{entry.requestTheme || "--"}</strong>
+                                                                            </div>
+                                                                            <div className="admin-story-request-row">
+                                                                                <span>Lesson</span>
+                                                                                <strong>{entry.requestLessonLearned || "None"}</strong>
+                                                                            </div>
+                                                                            <div className="admin-story-request-row">
+                                                                                <span>Reading / Art</span>
+                                                                                <strong>{[entry.requestReadingLevel, entry.requestArtStyle].filter(Boolean).join(" / ") || "--"}</strong>
+                                                                            </div>
+                                                                            <div className="admin-story-request-row">
+                                                                                <span>Length</span>
+                                                                                <strong>{entry.requestStoryLength || "--"}</strong>
+                                                                            </div>
+                                                                            <div className="admin-story-request-row">
+                                                                                <span>Character</span>
+                                                                                <strong>{formatCharacterSummary(entry.requestCharacters?.[0]) || "--"}</strong>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </Fragment>
+                                                );
+                                            })}
                                             {visibleStories.length === 0 && (
                                                 <tr>
                                                     <td colSpan="5" className="admin-empty-row">No stories matched that search.</td>
