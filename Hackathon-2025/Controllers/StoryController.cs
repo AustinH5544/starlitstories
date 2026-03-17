@@ -211,12 +211,12 @@ public class StoryController : ControllerBase
                     return;
                 }
 
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "text", Percent = 15, Message = "Writing your story…" });
-
                 StoryResult result;
                 try
                 {
-                    result = await scopedGenerator.GenerateFullStoryAsync(effectiveRequest);
+                    result = await scopedGenerator.GenerateFullStoryAsync(
+                        effectiveRequest,
+                        update => _progress.Publish(jobId, update));
                 }
                 catch
                 {
@@ -228,7 +228,7 @@ public class StoryController : ControllerBase
                 try
                 {
                     // Upload cover
-                    _progress.Publish(jobId, new ProgressUpdate { Stage = "image", Percent = 30, Message = "Preparing images…", Index = 0, Total = result.Pages.Count });
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "upload", Percent = 88, Message = "Saving your cover art...", Index = 0, Total = result.Pages.Count + 1 });
 
                     var coverFileName = $"{sUser.Email}-cover-{Guid.NewGuid()}.png";
                     var coverBlobUrl = await scopedBlob.UploadImageAsync(result.CoverImageUrl!, coverFileName);
@@ -246,19 +246,19 @@ public class StoryController : ControllerBase
                             pages[i] = pages[i] with { ImageUrl = blobUrl };
                         }
 
-                        var pct = 30 + (int)Math.Round(((i + 1) / (double)total) * 65); // 30 → 95
+                        var pct = 88 + (int)Math.Round(((i + 1) / (double)total) * 8); // 88 → 96
                         _progress.Publish(jobId, new ProgressUpdate
                         {
-                            Stage = "image",
-                            Percent = Math.Min(95, pct),
-                            Message = $"Generating images {i + 1}/{total}…",
-                            Index = i + 1,
-                            Total = total
+                            Stage = "upload",
+                            Percent = Math.Min(96, pct),
+                            Message = $"Saving artwork {i + 1}/{total}...",
+                            Index = i + 2,
+                            Total = total + 1
                         });
                     }
 
                     // Save to DB
-                    _progress.Publish(jobId, new ProgressUpdate { Stage = "db", Percent = 97, Message = "Saving your story…" });
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "db", Percent = 98, Message = "Saving your story..." });
 
                     story.Title = result.Title;
                     story.CoverImageUrl = result.CoverImageUrl;

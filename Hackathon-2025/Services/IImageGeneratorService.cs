@@ -2,10 +2,13 @@
 
 public interface IImageGeneratorService
 {
-    Task<List<string>> GenerateImagesAsync(List<string> prompts);
+    Task<List<string>> GenerateImagesAsync(
+        List<string> prompts,
+        Action<int, int>? onProgress = null);
 
     // Generate a base character image first, then all prompts in parallel as edits referencing it.
     Task<List<string>> GenerateImagesWithCharacterBaseAsync(
         List<string> prompts,
-        string characterBasePrompt);
+        string characterBasePrompt,
+        Action<int, int>? onProgress = null);
 }

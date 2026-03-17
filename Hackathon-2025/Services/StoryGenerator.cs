@@ -53,7 +53,9 @@ public class StoryGenerator : IStoryGeneratorService
         };
     }
 
-    public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
+    public async Task<StoryResult> GenerateFullStoryAsync(
+        StoryRequest request,
+        Action<ProgressUpdate>? onProgress = null)
     {
         // Normalize characters list so it's never null
         var characters = request.Characters ?? new List<CharacterSpec>();
@@ -223,6 +225,13 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
         httpRequest.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "story",
+            Percent = 15,
+            Message = "Writing your story..."
+        });
+
         var response = await _httpClient.SendAsync(httpRequest);
         response.EnsureSuccessStatusCode();
 
@@ -306,6 +315,13 @@ Put a line containing only --- between paragraphs. Do not include any other divi
             paragraphs[^1] = paragraphs[^1].TrimEnd() + "\n\nLesson: " + extractedLesson;
 
         // Image prompts strictly from scene paragraphs (no "Lesson:" line)
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "scene-prompts",
+            Percent = 28,
+            Message = "Planning each illustration..."
+        });
+
         var imagePromptTasks = paragraphsForImages.Select(p =>
             PromptBuilder.BuildImagePromptAsync(characters, p, _httpClient, _apiKey, request.ArtStyle));
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
@@ -313,6 +329,13 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
 
         // Build cover prompt — story-aware: LLM picks the most iconic scene from the full story.
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "cover-prompt",
+            Percent = 38,
+            Message = "Choosing the best cover moment..."
+        });
+
         var coverPrompt = await PromptBuilder.BuildCoverPromptAsync(
             characters, request.Theme, request.ReadingLevel, request.ArtStyle,
             paragraphsForImages, _httpClient, _apiKey);
@@ -322,13 +345,50 @@ Put a line containing only --- between paragraphs. Do not include any other divi
 
         // Generate: base character first (1 DALL-E 3 call), then all story images
         // (cover + pages) in parallel as gpt-image-1 edits referencing the base.
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "character-base",
+            Percent = 48,
+            Message = "Painting your character guide..."
+        });
+
         var allPrompts = new[] { coverPrompt }.Concat(imagePrompts).ToList();
-        var allImageUrls = await _imageService.GenerateImagesWithCharacterBaseAsync(allPrompts, charBasePrompt);
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "page-images",
+            Percent = 58,
+            Message = $"Illustrating your book (0/{allPrompts.Count})...",
+            Index = 0,
+            Total = allPrompts.Count
+        });
+
+        var allImageUrls = await _imageService.GenerateImagesWithCharacterBaseAsync(
+            allPrompts,
+            charBasePrompt,
+            (completed, total) =>
+            {
+                var percent = 58 + (int)Math.Round((completed / (double)Math.Max(1, total)) * 24);
+                onProgress?.Invoke(new ProgressUpdate
+                {
+                    Stage = "page-images",
+                    Percent = Math.Min(82, percent),
+                    Message = $"Illustrating your book ({completed}/{total})...",
+                    Index = completed,
+                    Total = total
+                });
+            });
 
         var coverExternalUrl = allImageUrls[0];
         var externalImageUrls = allImageUrls.Skip(1).ToList();
 
         // Title is independent — generate it in parallel would be ideal but keeping it simple here.
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "title",
+            Percent = 84,
+            Message = "Naming your story..."
+        });
+
         var title = await GenerateTitleAsync(characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
 
         // Assemble DTO pages (NOT EF entities) with image prompts included

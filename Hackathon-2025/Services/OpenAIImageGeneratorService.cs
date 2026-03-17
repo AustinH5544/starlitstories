@@ -18,10 +18,13 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         _logger = logger;
     }
 
-    public async Task<List<string>> GenerateImagesAsync(List<string> prompts)
+    public async Task<List<string>> GenerateImagesAsync(
+        List<string> prompts,
+        Action<int, int>? onProgress = null)
     {
         var results = new List<string>();
         string? referenceImageUrl = null;
+        var total = prompts.Count;
 
         for (int i = 0; i < prompts.Count; i++)
         {
@@ -41,6 +44,8 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
                 var dataUri = await GenerateSingleImageWithReferenceAsync(prompts[i], referenceImageUrl, null);
                 results.Add(dataUri);
             }
+
+            onProgress?.Invoke(i + 1, total);
         }
 
         return results;
@@ -164,7 +169,9 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
     });
 
     public async Task<List<string>> GenerateImagesWithCharacterBaseAsync(
-        List<string> prompts, string characterBasePrompt)
+        List<string> prompts,
+        string characterBasePrompt,
+        Action<int, int>? onProgress = null)
     {
         // Step 1: Generate the base character image using DALL-E 3.
         string characterUrl = await GenerateSingleImageAsync(characterBasePrompt);
@@ -175,10 +182,18 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         // Step 3: Fire all story images in parallel as gpt-image-1 edits.
         // SemaphoreSlim caps concurrency to avoid hitting OpenAI rate limits.
         var sem = new SemaphoreSlim(4);
+        var completed = 0;
+        var total = prompts.Count;
         var tasks = prompts.Select(async p =>
         {
             await sem.WaitAsync();
-            try { return await GenerateSingleImageWithReferenceAsync(p, characterUrl, characterBytes); }
+            try
+            {
+                var result = await GenerateSingleImageWithReferenceAsync(p, characterUrl, characterBytes);
+                var done = Interlocked.Increment(ref completed);
+                onProgress?.Invoke(done, total);
+                return result;
+            }
             finally { sem.Release(); }
         });
 

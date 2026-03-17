@@ -13,18 +13,23 @@ public class LocalImageGeneratorService : IImageGeneratorService
     }
 
     public Task<List<string>> GenerateImagesWithCharacterBaseAsync(
-        List<string> prompts, string characterBasePrompt)
-        => GenerateImagesAsync(prompts); // Local server has no edit/reference support; fall back to sequential.
+        List<string> prompts,
+        string characterBasePrompt,
+        Action<int, int>? onProgress = null)
+        => GenerateImagesAsync(prompts, onProgress); // Local server has no edit/reference support; fall back to sequential.
 
-    public async Task<List<string>> GenerateImagesAsync(List<string> prompts)
+    public async Task<List<string>> GenerateImagesAsync(
+        List<string> prompts,
+        Action<int, int>? onProgress = null)
     {
         var results = new List<string>();
+        var total = prompts.Count;
 
-        foreach (var prompt in prompts)
+        for (int i = 0; i < prompts.Count; i++)
         {
             var body = new
             {
-                prompt,
+                prompt = prompts[i],
                 guidance_scale = 7.5,
                 num_inference_steps = 25,
                 seed = 1337
@@ -39,6 +44,7 @@ public class LocalImageGeneratorService : IImageGeneratorService
             var json = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync());
             var base64 = json.RootElement.GetProperty("image_base64").GetString();
             results.Add("data:image/png;base64," + base64);
+            onProgress?.Invoke(i + 1, total);
         }
 
         return results;

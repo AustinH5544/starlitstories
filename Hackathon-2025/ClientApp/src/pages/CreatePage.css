@@ -953,11 +953,12 @@
 .progress-bar {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    background: linear-gradient(90deg, #7dd3fc, #38bdf8);
     transition: width 200ms ease-out;
 }
 
     .progress-bar.upload {
+        background: linear-gradient(90deg, #60a5fa, #38bdf8);
         /* first phase – slightly animated shimmer could be added later */
     }
 
@@ -969,12 +970,59 @@
         /* final stretch to 100% while response bytes arrive */
     }
 
+    .progress-bar.planning {
+        background: linear-gradient(90deg, #7dd3fc, #22d3ee);
+    }
+
+    .progress-bar.illustrating {
+        background: linear-gradient(90deg, #f59e0b, #f97316);
+    }
+
+    .progress-bar.saving {
+        background: linear-gradient(90deg, #34d399, #10b981);
+    }
+
     .progress-bar.done {
+        background: linear-gradient(90deg, #34d399, #22c55e);
         /* snap to 100% and hold briefly; handled in JS */
     }
 
+.progress-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.progress-step {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    color: rgba(255,255,255,0.72);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.38rem 0.55rem;
+    text-align: center;
+}
+
+.progress-step.active {
+    border-color: rgba(125,211,252,0.55);
+    background: rgba(56,189,248,0.16);
+    color: #f8fafc;
+}
+
+.progress-step.done {
+    border-color: rgba(52,211,153,0.45);
+    background: rgba(16,185,129,0.16);
+    color: #ecfdf5;
+}
+
 /* Responsive tweaks */
 @media (max-width: 768px) {
+    .progress-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .options-row {
         grid-template-columns: 1fr;
         gap: 0.5rem;

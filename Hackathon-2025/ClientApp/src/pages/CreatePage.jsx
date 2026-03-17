@@ -22,8 +22,9 @@ const CreatePage = () => {
     const [storyReady, setStoryReady] = useState(false);
     const [error, setError] = useState(null);
     const [progress, setProgress] = useState(0);
-    const [progressPhase, setProgressPhase] = useState("idle"); // "idle" | "upload" | "generating" | "download" | "done"
+    const [progressPhase, setProgressPhase] = useState("idle"); // "idle" | "upload" | "planning" | "illustrating" | "saving" | "done"
     const [progressHint, setProgressHint] = useState("");
+    const [progressStage, setProgressStage] = useState("idle");
     const [lastFormData, setLastFormData] = useState(null);
     const [waitActivity, setWaitActivity] = useState("game");
     const [isRedirectingToStory, setIsRedirectingToStory] = useState(false);
@@ -90,7 +91,33 @@ const CreatePage = () => {
         setProgress(0);
         setProgressPhase("idle");
         setProgressHint("");
+        setProgressStage("idle");
     };
+
+    const getProgressMeta = (stage) => {
+        const normalized = String(stage || "").toLowerCase();
+
+        if (!normalized || normalized === "idle") return { phase: "idle", step: 0 };
+        if (normalized.includes("upload")) return { phase: "saving", step: 4 };
+        if (normalized.includes("db") || normalized.includes("title")) return { phase: "saving", step: 4 };
+        if (normalized.includes("done")) return { phase: "done", step: 5 };
+        if (normalized.includes("page-images") || normalized.includes("character-base") || normalized.includes("image")) {
+            return { phase: "illustrating", step: 3 };
+        }
+        if (normalized.includes("scene") || normalized.includes("cover")) return { phase: "planning", step: 2 };
+        if (normalized.includes("story") || normalized.includes("text") || normalized.includes("start")) {
+            return { phase: "planning", step: 1 };
+        }
+
+        return { phase: "planning", step: 1 };
+    };
+
+    const progressSteps = [
+        { key: "story", label: "Story" },
+        { key: "scenes", label: "Scenes" },
+        { key: "artwork", label: "Artwork" },
+        { key: "saving", label: "Saving" },
+    ];
 
     /**
      * Try the SSE flow first; fall back to single-call if needed.
@@ -175,8 +202,9 @@ const CreatePage = () => {
     // ---- SSE runner ----
     const runSSE = (jobId) =>
         new Promise((resolve, reject) => {
-            setProgressPhase("generating");
-            setProgressHint("Creating your magical pages…");
+            setProgressPhase("planning");
+            setProgressStage("start");
+            setProgressHint("Starting your story...");
             setProgress((p) => Math.max(p, 5));
 
             safeClose(esRef.current);
@@ -189,14 +217,24 @@ const CreatePage = () => {
             const stageToPercent = (stage, index, total) => {
                 if (!stage) return null;
                 const s = String(stage).toLowerCase();
-                if (s.includes("text") || s.includes("chat")) return 10 + Math.min(30, (index ?? 1) * 10);
-                if (s.includes("image")) {
-                    if (!total || total <= 0) return 60;
+                if (s.includes("story") || s.includes("text")) return 15;
+                if (s.includes("scene")) return 28;
+                if (s.includes("cover")) return 38;
+                if (s.includes("character-base")) return 48;
+                if (s.includes("page-images")) {
+                    if (!total || total <= 0) return 58;
                     const done = Math.max(0, Math.min(total, index ?? 0));
                     const frac = done / total;
-                    return Math.round(30 + frac * 65); // 30 -> 95
+                    return Math.round(58 + frac * 24); // 58 -> 82
                 }
-                if (s.includes("db") || s.includes("save") || s.includes("persist")) return 97;
+                if (s.includes("title")) return 84;
+                if (s.includes("upload")) {
+                    if (!total || total <= 0) return 88;
+                    const done = Math.max(0, Math.min(total, index ?? 0));
+                    const frac = done / total;
+                    return Math.round(88 + frac * 8); // 88 -> 96
+                }
+                if (s.includes("db") || s.includes("save") || s.includes("persist")) return 98;
                 if (s.includes("finish") || s.includes("done") || s.includes("complete")) return 100;
                 return null;
             };
@@ -205,6 +243,10 @@ const CreatePage = () => {
                 try {
                     const data = JSON.parse(evt.data || "{}");
                     if (data.message) setProgressHint(data.message);
+                    if (data.stage) {
+                        setProgressStage(data.stage);
+                        setProgressPhase(getProgressMeta(data.stage).phase);
+                    }
 
                     // Backend sent an explicit error event — surface the real message.
                     if (data.stage === "error") {
@@ -283,6 +325,7 @@ const CreatePage = () => {
             if (!result) {
                 setError("We lost the live connection. Your story should be in your Profile.");
                 setProgressPhase("done");
+                setProgressStage("done");
                 setProgress(100);
                 setProgressHint("Done!");
                 return;
@@ -290,6 +333,7 @@ const CreatePage = () => {
         }
 
         setProgressPhase("done");
+        setProgressStage("done");
         setProgress(100);
         setProgressHint("Done!");
         setStory(result);
@@ -299,6 +343,7 @@ const CreatePage = () => {
     // ---- Single-call fallback ----
     const runSingleCallFallback = async (payload) => {
         setProgressPhase("upload");
+        setProgressStage("upload");
         setProgressHint("Uploading details…");
 
         const res = await api.post("/story/generate-full", payload, {
@@ -308,7 +353,8 @@ const CreatePage = () => {
                 setProgress(pct);
             },
             onDownloadProgress: (evt) => {
-                setProgressPhase("download");
+                setProgressPhase("saving");
+                setProgressStage("saving");
                 setProgressHint("Downloading your story…");
                 if (evt.total) {
                     const downloadedPortion = Math.round((evt.loaded / evt.total) * 30); // 70–100%
@@ -322,7 +368,8 @@ const CreatePage = () => {
 
         setProgress((p) => {
             if (p < 70) {
-                setProgressPhase("generating");
+                setProgressPhase("planning");
+                setProgressStage("story");
                 setProgressHint("Creating your magical pages…");
                 return 70;
             }
@@ -330,6 +377,7 @@ const CreatePage = () => {
         });
 
         setProgressPhase("done");
+        setProgressStage("done");
         setProgress(100);
         setProgressHint("Done!");
         setStory(res.data);
@@ -364,6 +412,8 @@ const CreatePage = () => {
         story.pages.length > 0 &&
         story.pages[0].text?.toLowerCase().startsWith("oops") === false &&
         !error;
+
+    const activeProgressStep = getProgressMeta(progressStage).step;
 
     useEffect(() => {
         if (!storyReady || !isValidStory) return;
@@ -535,6 +585,23 @@ const CreatePage = () => {
                                 aria-valuenow={progress}
                                 style={{ width: `${progress}%` }}
                             />
+                        </div>
+                        <div className="progress-steps" aria-hidden="true">
+                            {progressSteps.map((step, index) => {
+                                const stepNumber = index + 1;
+                                const state =
+                                    activeProgressStep >= stepNumber
+                                        ? activeProgressStep === stepNumber && progressPhase !== "done"
+                                            ? "active"
+                                            : "done"
+                                        : "";
+
+                                return (
+                                    <span key={step.key} className={`progress-step ${state}`.trim()}>
+                                        {step.label}
+                                    </span>
+                                );
+                            })}
                         </div>
                         <p className="loading-text">
                             <span className="loading-icon">✨</span>
