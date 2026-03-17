@@ -397,12 +397,12 @@ const AboutPage = () => {
                         {/*    <a href="/terms">Terms of Service</a>*/}
                         {/*</div>*/}
 
-                        {/*<div className="footer-column">*/}
-                        {/*    <h4>Resources</h4>*/}
-                        {/*    <a href="/blog">Blog</a>*/}
-                        {/*    <a href="/faq">FAQ</a>*/}
-                        {/*    <a href="/support">Support</a>*/}
-                        {/*</div>*/}
+                        <div className="footer-column">
+                            <h4>Resources</h4>
+                            <a href="/blog">Blog</a>
+                            <a href="/faq">FAQ</a>
+                            <a href="/support">Support</a>
+                        </div>
 
                         <div className="footer-links">
                             <div className="footer-column">

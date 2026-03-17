@@ -43,7 +43,7 @@ import ideaIcon from "../assets/parent-icons/idea.png"
 import heartIcon from "../assets/parent-icons/heart.png"
 
 const SHOW_COMPANY = false
-const SHOW_RESOURCES = false
+const SHOW_RESOURCES = true
 
 const artStyleShowcase = [
     {
@@ -644,7 +644,7 @@ const LandingPage = () => {
                         {SHOW_RESOURCES && (
                             <div className="footer-column">
                                 <h4>Resources</h4>
-                                {/*<a href="/blog">Blog</a>*/}
+                                <a href="/blog">Blog</a>
                                 <a href="/faq">FAQ</a>
                                 <a href="/support">Support</a>
                             </div>
