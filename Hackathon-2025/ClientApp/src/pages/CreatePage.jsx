@@ -27,7 +27,6 @@ const CreatePage = () => {
     const [progressStage, setProgressStage] = useState("idle");
     const [lastFormData, setLastFormData] = useState(null);
     const [waitActivity, setWaitActivity] = useState("game");
-    const [isRedirectingToStory, setIsRedirectingToStory] = useState(false);
 
     const { profile: userProfile, loading: profileLoading, error: profileError } = useUserProfile();
     const navigate = useNavigate();
@@ -146,7 +145,6 @@ const CreatePage = () => {
         setLastFormData(request);
         setIsLoading(true);
         setStoryReady(false);
-        setIsRedirectingToStory(false);
         setError(null);
         setStory(null);
         resetProgress();
@@ -427,12 +425,7 @@ const CreatePage = () => {
         posthog.capture('story_saved_to_library', {
             story_id: story.id,
         })
-        setIsRedirectingToStory(true);
-        const redirectTimer = setTimeout(() => {
-            navigate("/view", { state: { story } });
-        }, 1400);
-        return () => clearTimeout(redirectTimer);
-    }, [navigate, story, storyReady, isValidStory]);
+    }, [story, storyReady, isValidStory]);
 
     const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1;
 
@@ -552,11 +545,15 @@ const CreatePage = () => {
                             </button>
                         </div>
                     </div>
-                ) : (isLoading || isWaitDebug) ? (
+                ) : (isLoading || isWaitDebug || (storyReady && isValidStory)) ? (
                     <div className="loading-container">
-                        <h2 className="wait-title">Your story is being created...</h2>
+                        <h2 className="wait-title">
+                            {storyReady && isValidStory ? "Your story is ready!" : "Your story is being created..."}
+                        </h2>
                         <p className="wait-subtitle">
-                            Pick an activity while we finish your magical book.
+                            {storyReady && isValidStory
+                                ? "Keep playing or drawing as long as you want, then open your story when you're ready."
+                                : "Pick an activity while we finish your magical book."}
                         </p>
 
                         <div className="wait-activity-switch">
@@ -603,35 +600,42 @@ const CreatePage = () => {
                                 );
                             })}
                         </div>
-                        <p className="loading-text">
-                            <span className="loading-icon">✨</span>
-                            {progressHint || "Creating your magical story…"}
-                        </p>
-                        <p className="loading-subtext">
-                            This may take a few moments while our storytellers work their magic
-                        </p>
-                        <div className="wait-activity-panel">
-                            {waitActivity === "game" ? (
-                                <PaintingFlightGame />
+                        <div className="story-status-slot" aria-live="polite">
+                            {!storyReady || !isValidStory ? (
+                                <>
+                                    <p className="loading-text">
+                                        <span className="loading-icon" aria-hidden="true">*</span>
+                                        {progressHint || "Creating your magical story..."}
+                                    </p>
+                                    <p className="loading-subtext">
+                                        This may take a few moments while our storytellers work their magic
+                                    </p>
+                                </>
                             ) : (
-                                <DoodlePad height={280} lineWidth={5} strokeStyle="#1f2937" background="transparent" />
+                                <div className="story-ready-banner">
+                                    <div className="story-ready-copy">
+                                        <p className="story-ready-title">Your book is finished and saved to your library.</p>
+                                        <p className="story-ready-text">Open it now, or stay here and keep having fun first.</p>
+                                    </div>
+                                    <button className="view-story-button" onClick={() => navigate("/view", { state: { story } })}>
+                                        <span>View Your Story</span>
+                                    </button>
+                                </div>
                             )}
                         </div>
-                    </div>
-                ) : !storyReady || !isValidStory ? (
-                    <div className="create-form-wrapper">
-                        <StoryForm onSubmit={generateStory} />
+                        <div className="wait-activity-shell">
+                            <div className="wait-activity-panel">
+                                {waitActivity === "game" ? (
+                                    <PaintingFlightGame />
+                                ) : (
+                                    <DoodlePad height={280} lineWidth={5} strokeStyle="#1f2937" background="transparent" />
+                                )}
+                            </div>
+                        </div>
                     </div>
                 ) : (
-                    <div className="success-container">
-                        <div className="success-icon">🎉</div>
-                        <p className="success-text">
-                            {isRedirectingToStory ? "Your story is ready! Opening now..." : "Your story is ready!"}
-                        </p>
-                        <button className="view-story-button" onClick={() => navigate("/view", { state: { story } })}>
-                            <span className="button-icon">📖</span>
-                            <span>View Your Story</span>
-                        </button>
+                    <div className="create-form-wrapper">
+                        <StoryForm onSubmit={generateStory} />
                     </div>
                 )}
             </div>

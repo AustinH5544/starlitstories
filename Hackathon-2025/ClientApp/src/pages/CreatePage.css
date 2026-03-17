@@ -229,8 +229,17 @@
     box-shadow: 0 4px 14px rgba(251, 113, 133, 0.35);
 }
 
-.wait-activity-panel {
+.wait-activity-shell {
     margin-top: 1rem;
+}
+
+.wait-activity-panel {
+    margin-top: 0;
+}
+
+.story-status-slot {
+    min-height: 64px;
+    margin-top: 0.5rem;
 }
 
 /* Error states */
@@ -416,7 +425,58 @@
     color: #90ee90;
     font-size: 1.3rem;
     font-weight: 600;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.success-subtext {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 34rem;
+    margin: 0 auto 1.5rem;
+}
+
+.story-ready-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    background: rgba(14, 22, 54, 0.7);
+    border: 1px solid rgba(76, 175, 80, 0.28);
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(8px);
+    text-align: left;
+}
+
+.story-ready-copy {
+    flex: 1;
+}
+
+.story-ready-title,
+.story-ready-text {
+    margin: 0;
+}
+
+.story-ready-title {
+    color: #90ee90;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.story-ready-text {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.82rem;
+    line-height: 1.35;
+    margin-top: 0.15rem;
+}
+
+.story-ready-banner .view-story-button {
+    padding: 0.7rem 1rem;
+    font-size: 0.92rem;
+    box-shadow: 0 6px 16px rgba(161, 140, 209, 0.28);
 }
 
 /* View story button */
@@ -638,6 +698,12 @@
     .view-story-button {
         padding: 0.8rem 1.5rem;
         font-size: 1rem;
+    }
+
+    .story-ready-banner {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
     }
 
     .auth-required-prompt {
