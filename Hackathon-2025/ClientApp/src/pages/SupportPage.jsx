@@ -1,9 +1,84 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
-import { Link } from "react-router-dom"
 import { Helmet } from "react-helmet-async"
 import "./SupportPage.css"
+
+const SparklesIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2l1.76 4.74L18.5 8.5l-4.74 1.76L12 15l-1.76-4.74L5.5 8.5l4.74-1.76L12 2zm7 11l.94 2.56L22.5 16.5l-2.56.94L19 20l-.94-2.56-2.56-.94 2.56-.94L19 13zm-14 1l.94 2.56L8.5 17.5l-2.56.94L5 21l-.94-2.56-2.56-.94 2.56-.94L5 14z" />
+    </svg>
+)
+
+const MailIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 5h18a1 1 0 011 1v12a1 1 0 01-1 1H3a1 1 0 01-1-1V6a1 1 0 011-1zm0 2v.24l9 6.43 9-6.43V7H3zm18 11V9.7l-8.42 6.01a1 1 0 01-1.16 0L3 9.7V18h18z" />
+    </svg>
+)
+
+const ClockIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 5v4.59l3.3 3.3-1.42 1.41L11 12.41V7h2z" />
+    </svg>
+)
+
+const CheckCircleIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-1 14l-4-4 1.41-1.41L11 13.17l5.59-5.58L18 9l-7 7z" />
+    </svg>
+)
+
+const FormIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 3h9l5 5v13a1 1 0 01-1 1H6a2 2 0 01-2-2V5a2 2 0 012-2zm8 1.5V9h4.5L14 4.5zM8 12h8v-2H8v2zm0 4h8v-2H8v2z" />
+    </svg>
+)
+
+const ArrowIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12.29 6.71l1.42-1.42L20.41 12l-6.7 6.71-1.42-1.42L16.59 13H4v-2h12.59l-4.3-4.29z" />
+    </svg>
+)
+
+const supportHighlights = [
+    {
+        icon: ClockIcon,
+        title: "Fast follow-up",
+        text: "Most questions get a reply within one business day.",
+    },
+    {
+        icon: MailIcon,
+        title: "Real help",
+        text: "Tell us what happened and we will point you to the next step.",
+    },
+    {
+        icon: CheckCircleIcon,
+        title: "Story-friendly support",
+        text: "Account, billing, and story issues all come through one place.",
+    },
+]
+
+const contactMethods = [
+    {
+        icon: MailIcon,
+        title: "Email support",
+        detail: "support@StarlitStories.app",
+        note: "Best for account help, bug reports, and billing questions.",
+        href: "mailto:support@StarlitStories.app",
+    },
+    {
+        icon: ClockIcon,
+        title: "Response window",
+        detail: "Usually under 24 hours",
+        note: "Urgent issues are reviewed first when priority is marked high.",
+    },
+]
+
+const requestTips = [
+    "Tell us what you were trying to do.",
+    "Include the page or feature where the problem happened.",
+    "Share any error text you saw so we can reproduce it faster.",
+]
 
 const SupportPage = () => {
     const [formData, setFormData] = useState({
@@ -29,7 +104,6 @@ const SupportPage = () => {
         e.preventDefault()
         setIsSubmitting(true)
 
-        // Simulate form submission
         setTimeout(() => {
             setIsSubmitting(false)
             setShowSuccess(true)
@@ -42,7 +116,6 @@ const SupportPage = () => {
                 message: "",
             })
 
-            // Hide success message after 5 seconds
             setTimeout(() => setShowSuccess(false), 5000)
         }, 1000)
     }
@@ -69,30 +142,55 @@ const SupportPage = () => {
             <div className="clouds"></div>
 
             <div className="support-container">
-                <div className="support-header">
-                    <h1 className="support-title">Support Center</h1>
-                    <p className="support-subtitle">
-                        We're here to help! Get in touch with our support team or find answers to your questions.
-                    </p>
-
-                    <div className="status-banner">
-                        <span className="status-icon">✅</span>
-                        <strong>All systems operational</strong> - Our services are running smoothly
+                <header className="support-hero">
+                    <div className="support-hero-copy">
+                        <h1 className="support-title">We'll help you get back to story time</h1>
+                        <p className="support-subtitle">
+                            Whether you hit a bug, have an account question, or need help with a purchase, send us a note and we'll take it from there.
+                        </p>
                     </div>
-                </div>
+
+                    <div className="support-status-card">
+                        <div className="status-badge">
+                            <span className="status-badge-icon">
+                                <CheckCircleIcon />
+                            </span>
+                            All systems operational
+                        </div>
+                        <p>Story creation and account services are currently running normally.</p>
+                    </div>
+                </header>
+
+                <section className="support-highlights" aria-label="Support highlights">
+                    {supportHighlights.map(({ icon: Icon, title, text }) => (
+                        <article key={title} className="support-highlight-card">
+                            <span className="support-highlight-icon">
+                                <Icon />
+                            </span>
+                            <h2>{title}</h2>
+                            <p>{text}</p>
+                        </article>
+                    ))}
+                </section>
 
                 <div className="support-content">
-                    <div className="contact-form-section">
-                        <h2 className="section-title">
-                            <span>📝</span>
-                            Send us a Message
-                        </h2>
+                    <section className="support-panel support-form-panel">
+                        <div className="section-heading">
+                            <span className="section-heading-icon">
+                                <FormIcon />
+                            </span>
+                            <div>
+                                <h2>Send us a message</h2>
+                                <p>Fill out the form and we'll route it to the right place.</p>
+                            </div>
+                        </div>
 
                         <form className="contact-form" onSubmit={handleSubmit}>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Name *</label>
+                                    <label className="form-label" htmlFor="support-name">Name *</label>
                                     <input
+                                        id="support-name"
                                         type="text"
                                         name="name"
                                         className="form-input"
@@ -103,8 +201,9 @@ const SupportPage = () => {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Email *</label>
+                                    <label className="form-label" htmlFor="support-email">Email *</label>
                                     <input
+                                        id="support-email"
                                         type="email"
                                         name="email"
                                         className="form-input"
@@ -118,8 +217,9 @@ const SupportPage = () => {
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Category</label>
+                                    <label className="form-label" htmlFor="support-category">Category</label>
                                     <select
+                                        id="support-category"
                                         name="category"
                                         className="form-select"
                                         value={formData.category}
@@ -135,8 +235,9 @@ const SupportPage = () => {
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Priority</label>
+                                    <label className="form-label" htmlFor="support-priority">Priority</label>
                                     <select
+                                        id="support-priority"
                                         name="priority"
                                         className="form-select"
                                         value={formData.priority}
@@ -151,8 +252,9 @@ const SupportPage = () => {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Subject *</label>
+                                <label className="form-label" htmlFor="support-subject">Subject *</label>
                                 <input
+                                    id="support-subject"
                                     type="text"
                                     name="subject"
                                     className="form-input"
@@ -164,138 +266,102 @@ const SupportPage = () => {
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Message *</label>
+                                <label className="form-label" htmlFor="support-message">Message *</label>
                                 <textarea
+                                    id="support-message"
                                     name="message"
                                     className="form-textarea"
                                     value={formData.message}
                                     onChange={handleInputChange}
                                     required
-                                    placeholder="Please provide as much detail as possible about your issue or question..."
+                                    placeholder="Tell us what happened, what you expected, and anything else that will help us investigate."
                                 />
                             </div>
 
                             <button type="submit" className="submit-btn" disabled={isSubmitting}>
-                                {isSubmitting ? (
-                                    <>
-                                        <span>⏳</span>
-                                        <span>Sending...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>📤</span>
-                                        <span>Send Message</span>
-                                    </>
-                                )}
+                                <span className="submit-btn-icon">
+                                    {isSubmitting ? <ClockIcon /> : <ArrowIcon />}
+                                </span>
+                                <span>{isSubmitting ? "Sending..." : "Send message"}</span>
                             </button>
 
                             {showSuccess && (
-                                <div className="success-message">
-                                    <span>✅</span>
-                                    <strong>Message sent successfully!</strong>
-                                    <p>We'll get back to you within 24 hours.</p>
+                                <div className="success-message" role="status">
+                                    <span className="success-message-icon">
+                                        <CheckCircleIcon />
+                                    </span>
+                                    <div>
+                                        <strong>Message sent successfully.</strong>
+                                        <p>We'll get back to you within 24 hours.</p>
+                                    </div>
                                 </div>
                             )}
                         </form>
-                    </div>
+                    </section>
 
-                    <div className="contact-methods-section">
-                        <h2 className="section-title">
-                            <span>📞</span>
-                            Other Ways to Reach Us
-                        </h2>
-
-                        <div className="contact-methods">
-                            <a href="mailto:support@StarlitStories.app" className="contact-method">
-                                <div className="contact-icon">📧</div>
-                                <div className="contact-info">
-                                    <h4>Email Support</h4>
-                                    <p>support@StarlitStories.app</p>
-                                </div>
-                            </a>
-
-                            <div className="contact-method">
-                                <div className="contact-icon">💬</div>
-                                <div className="contact-info">
-                                    <h4>Live Chat</h4>
-                                    <p>Available 9 AM - 6 PM EST</p>
+                    <aside className="support-sidebar">
+                        <section className="support-panel support-contact-panel">
+                            <div className="section-heading">
+                                <span className="section-heading-icon">
+                                    <MailIcon />
+                                </span>
+                                <div>
+                                    <h2>Other ways to reach us</h2>
+                                    <p>Choose the channel that fits your question best.</p>
                                 </div>
                             </div>
 
-                            <div className="contact-method">
-                                <div className="contact-icon">📱</div>
-                                <div className="contact-info">
-                                    <h4>Phone Support</h4>
-                                    <p>1-800-COZY-PAGES</p>
+                            <div className="contact-methods">
+                                {contactMethods.map(({ icon: Icon, title, detail, note, href }) => {
+                                    const content = (
+                                        <>
+                                            <span className="contact-icon">
+                                                <Icon />
+                                            </span>
+                                            <div className="contact-info">
+                                                <h3>{title}</h3>
+                                                <p className="contact-detail">{detail}</p>
+                                                <p className="contact-note">{note}</p>
+                                            </div>
+                                        </>
+                                    )
+
+                                    return href ? (
+                                        <a key={title} href={href} className="contact-method">
+                                            {content}
+                                        </a>
+                                    ) : (
+                                        <div key={title} className="contact-method">
+                                            {content}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </section>
+
+                        <section className="support-panel support-tips-panel">
+                            <div className="section-heading">
+                                <span className="section-heading-icon">
+                                    <SparklesIcon />
+                                </span>
+                                <div>
+                                    <h2>What to include</h2>
+                                    <p>A few details help us solve issues much faster.</p>
                                 </div>
                             </div>
 
-                            <a
-                                href="https://twitter.com/StarlitStories"
-                                className="contact-method"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <div className="contact-icon">🐦</div>
-                                <div className="contact-info">
-                                    <h4>Twitter</h4>
-                                    <p>@StarlitStories</p>
-                                </div>
-                            </a>
-
-                            <a
-                                href="https://facebook.com/StarliStories"
-                                className="contact-method"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <div className="contact-icon">📘</div>
-                                <div className="contact-info">
-                                    <h4>Facebook</h4>
-                                    <p>StarlitStories Official</p>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="quick-help">
-                    <h2 className="section-title">
-                        <span>🚀</span>
-                        Quick Help & Resources
-                    </h2>
-
-                    <div className="help-links">
-                        <Link to="/faq" className="help-link">
-                            <span className="help-icon">❓</span>
-                            <span>FAQ</span>
-                        </Link>
-
-                        <a href="/user-guide" className="help-link">
-                            <span className="help-icon">📖</span>
-                            <span>User Guide</span>
-                        </a>
-
-                        <a href="/video-tutorials" className="help-link">
-                            <span className="help-icon">🎥</span>
-                            <span>Video Tutorials</span>
-                        </a>
-
-                        <a href="/community" className="help-link">
-                            <span className="help-icon">👥</span>
-                            <span>Community Forum</span>
-                        </a>
-
-                        <a href="/status" className="help-link">
-                            <span className="help-icon">📊</span>
-                            <span>System Status</span>
-                        </a>
-
-                        <a href="/api-docs" className="help-link">
-                            <span className="help-icon">⚙️</span>
-                            <span>API Documentation</span>
-                        </a>
-                    </div>
+                            <ul className="request-tips">
+                                {requestTips.map((tip) => (
+                                    <li key={tip}>
+                                        <span className="request-tip-icon">
+                                            <CheckCircleIcon />
+                                        </span>
+                                        <span>{tip}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    </aside>
                 </div>
             </div>
         </div>
