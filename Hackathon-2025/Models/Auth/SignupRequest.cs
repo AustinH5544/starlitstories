@@ -14,4 +14,7 @@ public sealed record SignupRequest
     public required string Password { get; init; }
 
     public MembershipPlan? Membership { get; init; }
+
+    [StringLength(2048)]
+    public string? TurnstileToken { get; init; }
 }

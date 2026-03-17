@@ -581,3 +581,34 @@
     list-style: disc;
     margin-left: 16px;
 }
+
+.human-check {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.human-check-frame {
+    display: flex;
+    justify-content: center;
+    padding: 0.85rem;
+    min-height: 86px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.human-check-frame.is-loading {
+    opacity: 0.75;
+}
+
+.human-check-frame.is-ready {
+    opacity: 1;
+}
+
+.human-check-help {
+    margin: 0;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.72);
+    text-align: center;
+}

@@ -1,10 +1,11 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Helmet } from "react-helmet-async"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
+import { TURNSTILE_SITE_KEY } from "../config"
 import "./SignupPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
@@ -30,6 +31,10 @@ const SignupPage = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [isUsernameFocused, setIsUsernameFocused] = useState(false);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState("");
+    const [turnstileReady, setTurnstileReady] = useState(!TURNSTILE_SITE_KEY);
+    const turnstileContainerRef = useRef(null);
+    const turnstileWidgetIdRef = useRef(null);
 
     const { login } = useAuth()
     const navigate = useNavigate()
@@ -46,6 +51,71 @@ const SignupPage = () => {
     const usernameRuleSet = { ...defaultUsernameRuleSet };
     const { requirements: usernameReqs, allMet: isUsernameValid } = checkUsername(username, usernameRuleSet);
     const usernameLabels = usernameRequirementLabels(usernameRuleSet);
+
+    useEffect(() => {
+        if (!TURNSTILE_SITE_KEY) {
+            return undefined;
+        }
+
+        let cancelled = false;
+        const scriptSrc = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+        const renderWidget = () => {
+            if (cancelled || !turnstileContainerRef.current || !window.turnstile || turnstileWidgetIdRef.current !== null) {
+                return;
+            }
+
+            turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+                sitekey: TURNSTILE_SITE_KEY,
+                theme: "dark",
+                callback: (token) => {
+                    setTurnstileToken(token);
+                    setStatus((prev) => prev === "Please complete the human verification challenge." ? "" : prev);
+                },
+                "expired-callback": () => setTurnstileToken(""),
+                "error-callback": () => {
+                    setTurnstileToken("");
+                    setStatus("Human verification could not load. Please refresh and try again.");
+                }
+            });
+
+            setTurnstileReady(true);
+        };
+
+        const handleLoad = () => renderWidget();
+        const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
+
+        if (window.turnstile) {
+            renderWidget();
+        } else if (existingScript) {
+            existingScript.addEventListener("load", handleLoad);
+        } else {
+            const script = document.createElement("script");
+            script.src = scriptSrc;
+            script.async = true;
+            script.defer = true;
+            script.addEventListener("load", handleLoad);
+            document.head.appendChild(script);
+        }
+
+        return () => {
+            cancelled = true;
+            const currentScript = document.querySelector(`script[src="${scriptSrc}"]`);
+            currentScript?.removeEventListener("load", handleLoad);
+
+            if (turnstileWidgetIdRef.current !== null && window.turnstile?.remove) {
+                window.turnstile.remove(turnstileWidgetIdRef.current);
+                turnstileWidgetIdRef.current = null;
+            }
+        };
+    }, []);
+
+    const resetTurnstile = () => {
+        setTurnstileToken("");
+        if (turnstileWidgetIdRef.current !== null && window.turnstile?.reset) {
+            window.turnstile.reset(turnstileWidgetIdRef.current);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -69,6 +139,10 @@ const SignupPage = () => {
             setStatus("Passwords don't match.");
             return;
         }
+        if (TURNSTILE_SITE_KEY && !turnstileToken) {
+            setStatus("Please complete the human verification challenge.");
+            return;
+        }
 
         setIsLoading(true);
         posthog.capture('signup_started', { signup_method: 'email' })
@@ -79,6 +153,7 @@ const SignupPage = () => {
                 email,
                 username: uname,
                 password,
+                turnstileToken,
             });
 
             if (data?.requiresVerification) {
@@ -128,6 +203,10 @@ const SignupPage = () => {
                     if (all.length) {
                         msg = all.join(" ");
                     }
+                }
+
+                if (msg.toLowerCase().includes("human verification")) {
+                    resetTurnstile();
                 }
 
                 setStatus(msg);
@@ -315,6 +394,18 @@ const SignupPage = () => {
                         <PasswordMatch confirmValue={confirm} isMatch={passwordsMatch} />
                     </div>
 
+                    {TURNSTILE_SITE_KEY && (
+                        <div className="human-check">
+                            <label>Human Check</label>
+                            <div className={`human-check-frame ${turnstileReady ? "is-ready" : "is-loading"}`}>
+                                <div ref={turnstileContainerRef} />
+                            </div>
+                            <p className="human-check-help">
+                                Complete the Cloudflare check so we can block automated signups.
+                            </p>
+                        </div>
+                    )}
+
                     {status && <div className="signup-status" aria-live="polite">{status}</div>}
 
                     <button
@@ -324,7 +415,8 @@ const SignupPage = () => {
                             isLoading ||
                             !isUsernameValid ||
                             !allRequirementsMet ||
-                            !passwordsMatch
+                            !passwordsMatch ||
+                            (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)
                         }
                         title={
                             !isUsernameValid

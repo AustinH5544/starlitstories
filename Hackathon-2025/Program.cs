@@ -70,6 +70,13 @@ builder.Services.AddOptions<AdminOptions>()
     .Bind(builder.Configuration.GetSection("Admin"))
     .ValidateOnStart();
 
+builder.Services.AddOptions<TurnstileOptions>()
+    .Bind(builder.Configuration.GetSection("Turnstile"))
+    .Validate(
+        o => !o.Enabled || !string.IsNullOrWhiteSpace(o.SecretKey),
+        "Turnstile:SecretKey must be set when Turnstile is enabled.")
+    .ValidateOnStart();
+
 builder.Services.Configure<CreditsOptions>(builder.Configuration.GetSection("Credits"));
 builder.Services.Configure<StoryOptions>(builder.Configuration.GetSection("Story"));
 
@@ -159,6 +166,7 @@ builder.Services.AddScoped<EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddScoped<IPeriodService, PeriodService>();
+builder.Services.AddScoped<ITurnstileService, TurnstileService>();
 builder.Services.AddSingleton<IAdminAccessService, AdminAccessService>();
 builder.Services.AddHealthChecks();
 
@@ -206,7 +214,7 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (ctx, token) =>
     {
         ctx.HttpContext.Response.Headers.RetryAfter = "60";
-        await ctx.HttpContext.Response.WriteAsync("Too many login attempts. Please try again shortly.", token);
+        await ctx.HttpContext.Response.WriteAsync("Too many requests. Please try again shortly.", token);
     };
 
     // per-IP limiter for login route (match in endpoint with RequireRateLimiting("login-ip"))
@@ -217,6 +225,17 @@ builder.Services.AddRateLimiter(options =>
         {
             PermitLimit = 10,
             Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        });
+    });
+
+    options.AddPolicy("signup-ip", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(10),
             QueueLimit = 0
         });
     });

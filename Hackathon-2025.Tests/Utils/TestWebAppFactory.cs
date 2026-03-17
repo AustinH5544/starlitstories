@@ -14,6 +14,14 @@ namespace Hackathon_2025.Tests.Utils;
 internal class TestWebAppFactory : WebApplicationFactory<Program>
 {
     public Mock<IEmailService> EmailMock { get; } = new();
+    public Mock<ITurnstileService> TurnstileMock { get; } = new();
+
+    public TestWebAppFactory()
+    {
+        TurnstileMock
+            .Setup(x => x.VerifyAsync(It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TurnstileVerificationResult.Passed());
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -33,7 +41,10 @@ internal class TestWebAppFactory : WebApplicationFactory<Program>
                 ["Billing:Provider"] = "stripe",
                 ["Stripe:SecretKey"] = "sk_test_dummy",
                 ["OpenAI:ApiKey"] = "test-openai-key",
-                ["App:AllowedCorsOrigins"] = "http://localhost:5173"
+                ["App:AllowedCorsOrigins"] = "http://localhost:5173",
+                ["Turnstile:Enabled"] = "true",
+                ["Turnstile:SiteKey"] = "test-site-key",
+                ["Turnstile:SecretKey"] = "test-secret-key"
             });
         });
 
@@ -47,6 +58,9 @@ internal class TestWebAppFactory : WebApplicationFactory<Program>
 
             services.RemoveAll<OpenAIClient>();
             services.AddSingleton(new OpenAIClient("test-openai-key"));
+
+            services.RemoveAll<ITurnstileService>();
+            services.AddSingleton<ITurnstileService>(TurnstileMock.Object);
 
             services.AddAuthentication(options =>
             {

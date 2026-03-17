@@ -25,6 +25,7 @@ export const APP_BASE_URL = stripTrailingSlash(
 // Optional
 export const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 export const ANALYTICS_SITE_ID = import.meta.env.VITE_ANALYTICS_SITE_ID;
+export const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY;
 export const CDN_BASE = import.meta.env.VITE_CDN_BASE
     ? stripTrailingSlash(import.meta.env.VITE_CDN_BASE)
     : undefined;
@@ -47,6 +48,7 @@ const cfg = {
     APP_BASE_URL,
     SENTRY_DSN,
     ANALYTICS_SITE_ID,
+    TURNSTILE_SITE_KEY,
     CDN_BASE,
     FEATURES,
     toAbs,

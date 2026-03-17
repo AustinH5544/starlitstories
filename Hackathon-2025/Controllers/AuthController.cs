@@ -22,19 +22,22 @@ public class AuthController : ControllerBase
     private readonly IConfiguration _config;
     private readonly IEmailService _emailService;
     private readonly IAdminAccessService _adminAccess;
+    private readonly ITurnstileService _turnstileService;
 
     public AuthController(
         AppDbContext db,
         IPasswordHasher<User> hasher,
         IConfiguration config,
         IEmailService emailService,
-        IAdminAccessService adminAccess)
+        IAdminAccessService adminAccess,
+        ITurnstileService turnstileService)
     {
         _db = db;
         _hasher = hasher;
         _config = config;
         _emailService = emailService;
         _adminAccess = adminAccess;
+        _turnstileService = turnstileService;
     }
 
     // Stronger default than before (8+ with letters and digits)
@@ -45,6 +48,7 @@ public class AuthController : ControllerBase
         p.Any(char.IsDigit);
 
     [HttpPost("signup")]
+    [EnableRateLimiting("signup-ip")]
     public async Task<IActionResult> Signup(SignupRequest request)
     {
         if (!IsPasswordValid(request.Password))
@@ -61,6 +65,13 @@ public class AuthController : ControllerBase
         var unameNorm = UsernameRules.Normalize(uname);
         if (await _db.Users.AnyAsync(u => u.UsernameNormalized == unameNorm))
             return BadRequest(new { message = "Username already in use." });
+
+        var turnstile = await _turnstileService.VerifyAsync(
+            request.TurnstileToken,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            HttpContext.RequestAborted);
+        if (!turnstile.Success)
+            return BadRequest(new { message = turnstile.ErrorMessage ?? "Human verification failed. Please try again." });
 
         var user = new User
         {
