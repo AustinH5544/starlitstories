@@ -605,7 +605,11 @@
 }
 
 .parents-section {
-    padding-bottom: 6rem;
+    padding-bottom: 7rem;
+}
+
+.parents-section .section-content {
+    max-width: 1380px;
 }
 
 .art-style-watercolor {
@@ -751,18 +755,23 @@
 
 .parents-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.5rem, 2.4vw, 2.5rem);
     margin-top: 1rem;
+    margin-bottom: 2.7rem;
 }
 
 .parent-card {
     background: white;
     border-radius: 15px;
-    padding: 2rem;
+    padding: clamp(2rem, 3vw, 3rem);
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
+    min-height: 260px;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
     .parent-card:hover {
@@ -783,6 +792,7 @@
 .parent-card p {
     color: #666;
     line-height: 1.6;
+    font-size: 1.02rem;
 }
 
 /* Kids Section / Testimonials */
@@ -1097,6 +1107,10 @@
     }
 
     .art-style-showcase { max-width: 740px; }
+
+    .parents-section .section-content {
+        max-width: 1200px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1121,6 +1135,15 @@
         max-width: 500px;
         margin-left: auto;
         margin-right: auto;
+    }
+
+    .parents-grid {
+        grid-template-columns: 1fr;
+        margin-bottom: 0;
+    }
+
+    .parent-card {
+        min-height: 0;
     }
 
     .art-style-preview-frame {
