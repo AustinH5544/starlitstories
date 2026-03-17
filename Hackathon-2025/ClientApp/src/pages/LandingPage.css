@@ -605,7 +605,11 @@
 }
 
 .parents-section {
-    padding-bottom: 6rem;
+    padding-bottom: 7rem;
+}
+
+.parents-section .section-content {
+    max-width: 1380px;
 }
 
 .art-style-watercolor {
@@ -751,18 +755,23 @@
 
 .parents-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.5rem, 2.4vw, 2.5rem);
     margin-top: 1rem;
+    margin-bottom: 2.7rem;
 }
 
 .parent-card {
     background: white;
     border-radius: 15px;
-    padding: 2rem;
+    padding: clamp(2rem, 3vw, 3rem);
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
+    min-height: 260px;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
     .parent-card:hover {
@@ -783,6 +792,7 @@
 .parent-card p {
     color: #666;
     line-height: 1.6;
+    font-size: 1.02rem;
 }
 
 /* Kids Section / Testimonials */
@@ -963,6 +973,10 @@
     align-items: flex-start;
 }
 
+.footer-meta-links {
+    justify-content: center;
+}
+
 
 /* Individual Columns */
 .footer-column {
@@ -1093,6 +1107,10 @@
     }
 
     .art-style-showcase { max-width: 740px; }
+
+    .parents-section .section-content {
+        max-width: 1200px;
+    }
 }
 
 @media (max-width: 768px) {
@@ -1119,6 +1137,15 @@
         margin-right: auto;
     }
 
+    .parents-grid {
+        grid-template-columns: 1fr;
+        margin-bottom: 0;
+    }
+
+    .parent-card {
+        min-height: 0;
+    }
+
     .art-style-preview-frame {
         max-width: 560px;
         min-height: 240px;
@@ -1136,6 +1163,52 @@
     .footer-content {
         flex-direction: column;
         gap: 2rem;
+        align-items: stretch;
+        text-align: center;
+    }
+
+    .footer-logo {
+        min-width: 0;
+    }
+
+    .footer-logo p {
+        max-width: none;
+        margin: 0 auto;
+    }
+
+    .footer-content > .footer-links {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.5rem 1rem;
+        align-items: start;
+    }
+
+    .footer-meta-links {
+        display: contents;
+    }
+
+    .footer-column {
+        align-items: center;
+        justify-self: center;
+        width: 100%;
+        max-width: 16rem;
+    }
+
+    .footer-column h4 {
+        margin-bottom: 1rem;
+    }
+
+    .footer-column > a:not(.social-link) {
+        margin-bottom: 0.65rem;
+    }
+
+    .social-links {
+        gap: 12px;
+    }
+
+    .footer-email {
+        overflow-wrap: anywhere;
     }
 
     .hero-section {
@@ -1160,6 +1233,24 @@
     .primary-button.large {
         padding: 0.8rem 1.8rem;
         font-size: 1.1rem;
+    }
+
+    .footer {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .footer-content > .footer-links {
+        grid-template-columns: 1fr;
+        gap: 1.35rem;
+    }
+
+    .footer-column {
+        max-width: none;
+    }
+
+    .footer-bottom {
+        margin-top: 2rem;
     }
 }
 
