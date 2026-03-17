@@ -136,7 +136,6 @@ public class AuthController : ControllerBase
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
 
-        // Do not reveal existence
         if (user is null)
             return Ok(new { message = "If an account with that email exists, we've sent a verification email." });
 
