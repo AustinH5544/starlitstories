@@ -1,9 +1,13 @@
+using Hackathon_2025.Data;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Hackathon_2025.Migrations
 {
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260317120000_AddStoryRequestMetadata")]
     public partial class AddStoryRequestMetadata : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
