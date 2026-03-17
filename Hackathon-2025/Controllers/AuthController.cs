@@ -40,7 +40,7 @@ public class AuthController : ControllerBase
         _turnstileService = turnstileService;
     }
 
-    // Stronger default than before (8+ with letters and digits)
+    // Stronger default (8+ with letters and digits)
     private static bool IsPasswordValid(string p) =>
         !string.IsNullOrWhiteSpace(p) &&
         p.Length >= 8 &&
