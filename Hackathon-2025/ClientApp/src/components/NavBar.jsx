@@ -13,7 +13,7 @@ const NavBar = () => {
     const [scrolled, setScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const BASE = import.meta.env.BASE_URL;
-    const avatarFile = user?.profileImage || localStorage.getItem("avatar") || null;
+    const avatarFile = user?.profileImage || (typeof window !== 'undefined' ? localStorage.getItem("avatar") : null) || null;
     const navAvatarSrc = avatarFile
         ? (avatarFile.startsWith("http")
             ? avatarFile

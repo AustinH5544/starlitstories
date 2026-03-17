@@ -25,7 +25,7 @@ const BlogPostPage = () => {
     return (
         <div className="blog-post-page">
             <Helmet>
-                <title>{post.title} | Starlit Stories</title>
+                <title>{`${post.title} | Starlit Stories`}</title>
                 <meta name="description" content={post.excerpt} />
                 <link rel="canonical" href={`https://starlitstories.app/blog/${post.slug}`} />
                 <meta property="og:title" content={`${post.title} | Starlit Stories`} />

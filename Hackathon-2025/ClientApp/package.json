@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:staging": "vite build --mode staging",
+    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist/server && node scripts/prerender.mjs",
+    "build:staging": "vite build --mode staging && vite build --ssr src/entry-server.jsx --outDir dist/server --mode staging && node scripts/prerender.mjs",
     "preview": "vite preview",
     "preview:staging": "npm run build:staging && vite preview",
     "lint": "eslint ."

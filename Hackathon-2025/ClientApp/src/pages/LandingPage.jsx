@@ -115,9 +115,10 @@ const artStyleShowcase = [
 ]
 
 const LandingPage = () => {
-    const disableFancy =
+    const disableFancy = typeof window !== 'undefined' && (
         window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
         window.matchMedia?.("(max-width: 1024px)").matches
+    )
 
     const navigate = useNavigate()
     const { user } = useAuth()

@@ -2,11 +2,11 @@
 import api from "../api";
 import posthog from '../analytics';
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem("token"));
+    const [token, setToken] = useState(typeof window !== 'undefined' ? localStorage.getItem("token") : null);
 
     // EXPECTS backend to return { token, email, username, membership, profileImage?, isAdmin? }
     const login = ({ token: jwt, email, username, membership, profileImage, isAdmin }) => {
