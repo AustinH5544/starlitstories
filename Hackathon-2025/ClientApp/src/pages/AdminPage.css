@@ -3,9 +3,9 @@
     width: 100%;
     padding: 120px 24px 56px;
     background:
-        radial-gradient(circle at top left, rgba(242, 174, 73, 0.22), transparent 28%),
-        radial-gradient(circle at top right, rgba(18, 100, 120, 0.18), transparent 30%),
-        linear-gradient(180deg, #f7f1e3 0%, #efe2c8 100%);
+        radial-gradient(circle at bottom left, rgba(242, 174, 73, 0.2), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(201, 150, 82, 0.14), transparent 32%),
+        linear-gradient(180deg, #e2d3ba 0%, #eadcc4 30%, #f7f1e3 100%);
     color: #1f2a30;
     overflow-x: hidden;
 }
@@ -123,6 +123,12 @@
 .admin-panel {
     padding: 20px;
     min-width: 0;
+}
+
+.admin-panel:has(.admin-share-list) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .admin-panel-head {
@@ -315,6 +321,11 @@
 .admin-share-list {
     display: grid;
     gap: 14px;
+    min-height: 620px;
+    max-height: 620px;
+    overflow: auto;
+    padding-right: 4px;
+    scrollbar-gutter: stable;
 }
 
 .admin-share-list.is-scrollable {
