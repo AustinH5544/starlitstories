@@ -6,6 +6,26 @@ import "./AdminPage.css";
 
 const DEFAULT_PREVIEW_COUNT = 6;
 
+const prettifyLabel = (value) =>
+    String(value ?? "")
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatCharacterSummary = (character) => {
+    if (!character) return "";
+
+    const details = Object.entries(character.descriptionFields || {})
+        .filter(([, value]) => String(value ?? "").trim())
+        .slice(0, 4)
+        .map(([key, value]) => `${prettifyLabel(key)}: ${value}`);
+
+    const header = [character.name, character.role].filter(Boolean).join(" | ");
+    return [header, ...details].filter(Boolean).join(" | ");
+};
+
 const formatDateTime = (value) => {
     if (!value) return "--";
     const date = new Date(value);
@@ -423,6 +443,28 @@ const AdminPage = () => {
                                                     <td>
                                                         <div className="admin-cell-primary">{entry.title}</div>
                                                         <div className="admin-cell-secondary">#{entry.id} | {entry.pageCount} pages | {entry.shareCount} shares</div>
+                                                        <div className="admin-story-request">
+                                                            <div className="admin-story-request-row">
+                                                                <span>Theme</span>
+                                                                <strong>{entry.requestTheme || "--"}</strong>
+                                                            </div>
+                                                            <div className="admin-story-request-row">
+                                                                <span>Lesson</span>
+                                                                <strong>{entry.requestLessonLearned || "None"}</strong>
+                                                            </div>
+                                                            <div className="admin-story-request-row">
+                                                                <span>Reading / Art</span>
+                                                                <strong>{[entry.requestReadingLevel, entry.requestArtStyle].filter(Boolean).join(" / ") || "--"}</strong>
+                                                            </div>
+                                                            <div className="admin-story-request-row">
+                                                                <span>Length</span>
+                                                                <strong>{entry.requestStoryLength || "--"}</strong>
+                                                            </div>
+                                                            <div className="admin-story-request-row">
+                                                                <span>Character</span>
+                                                                <strong>{formatCharacterSummary(entry.requestCharacters?.[0]) || "--"}</strong>
+                                                            </div>
+                                                        </div>
                                                     </td>
                                                     <td>
                                                         <div className="admin-cell-primary">{entry.ownerUsername}</div>

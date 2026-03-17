@@ -123,11 +123,6 @@ const NavBar = () => {
                             <Link to="/create" className={location.pathname === "/create" ? "active" : ""}>
                                 Create Story
                             </Link>
-                            {user?.isAdmin && (
-                                <Link to="/admin" className={location.pathname === "/admin" ? "active" : ""}>
-                                    Admin
-                                </Link>
-                            )}
                             <Link to="/about" onClick={handleAboutClick}
                                 className={location.pathname === "/about" ? "active" : ""}>
                                 About

@@ -27,6 +27,7 @@ public class StoryController : ControllerBase
     private readonly IQuotaService _quota;
     private readonly IPeriodService _period;
     private readonly ILogger<StoryController> _logger;
+    private static readonly JsonSerializerOptions StoryRequestJsonOptions = new(JsonSerializerDefaults.Web);
 
     public StoryController(
         IStoryGeneratorService storyService,
@@ -75,7 +76,13 @@ public class StoryController : ControllerBase
             Title = PendingStoryTitle,
             CoverImageUrl = PendingStoryCoverUrl,
             CreatedAt = now,
-            UserId = user.Id
+            UserId = user.Id,
+            RequestTheme = effectiveRequest.Theme?.Trim(),
+            RequestReadingLevel = effectiveRequest.ReadingLevel?.Trim(),
+            RequestArtStyle = effectiveRequest.ArtStyle?.Trim(),
+            RequestStoryLength = effectiveRequest.StoryLength?.Trim(),
+            RequestLessonLearned = effectiveRequest.LessonLearned?.Trim(),
+            RequestCharactersJson = SerializeCharacters(effectiveRequest.Characters)
         };
 
         try
@@ -164,7 +171,13 @@ public class StoryController : ControllerBase
             Title = PendingStoryTitle,
             CoverImageUrl = PendingStoryCoverUrl,
             CreatedAt = now,
-            UserId = user.Id
+            UserId = user.Id,
+            RequestTheme = effectiveRequest.Theme?.Trim(),
+            RequestReadingLevel = effectiveRequest.ReadingLevel?.Trim(),
+            RequestArtStyle = effectiveRequest.ArtStyle?.Trim(),
+            RequestStoryLength = effectiveRequest.StoryLength?.Trim(),
+            RequestLessonLearned = effectiveRequest.LessonLearned?.Trim(),
+            RequestCharactersJson = SerializeCharacters(effectiveRequest.Characters)
         };
 
         try
@@ -454,5 +467,15 @@ public class StoryController : ControllerBase
             StoryLength = requested,
             PageCount = lengthToCount[requested]
         };
+    }
+
+    private static string? SerializeCharacters(List<CharacterSpec>? characters)
+    {
+        if (characters is null || characters.Count == 0)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(characters, StoryRequestJsonOptions);
     }
 }

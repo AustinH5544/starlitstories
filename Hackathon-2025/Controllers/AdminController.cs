@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using Hackathon_2025.Data;
+using Hackathon_2025.Models;
 using Hackathon_2025.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Hackathon_2025.Controllers;
 
@@ -12,6 +14,8 @@ namespace Hackathon_2025.Controllers;
 [Authorize]
 public class AdminController : ControllerBase
 {
+    private static readonly JsonSerializerOptions StoryRequestJsonOptions = new(JsonSerializerDefaults.Web);
+
     public sealed record UpdateUserAdminRequest
     {
         public string? Membership { get; init; }
@@ -89,7 +93,13 @@ public class AdminController : ControllerBase
                 ownerUsername = s.User.Username,
                 pageCount = s.Pages.Count,
                 isGenerating = !s.Pages.Any(),
-                shareCount = s.Shares.Count
+                shareCount = s.Shares.Count,
+                requestTheme = s.RequestTheme,
+                requestReadingLevel = s.RequestReadingLevel,
+                requestArtStyle = s.RequestArtStyle,
+                requestStoryLength = s.RequestStoryLength,
+                requestLessonLearned = s.RequestLessonLearned,
+                requestCharactersJson = s.RequestCharactersJson
             })
             .ToListAsync();
 
@@ -142,7 +152,24 @@ public class AdminController : ControllerBase
                 revokedShares
             },
             recentUsers,
-            recentStories,
+            recentStories = recentStories.Select(s => new
+            {
+                s.Id,
+                s.Title,
+                s.CreatedAt,
+                s.UserId,
+                s.ownerEmail,
+                s.ownerUsername,
+                s.pageCount,
+                s.isGenerating,
+                s.shareCount,
+                s.requestTheme,
+                s.requestReadingLevel,
+                s.requestArtStyle,
+                s.requestStoryLength,
+                s.requestLessonLearned,
+                requestCharacters = DeserializeCharacters(s.requestCharactersJson)
+            }),
             recentShares = shares
         });
     }
@@ -189,6 +216,12 @@ public class AdminController : ControllerBase
                 s.CreatedAt,
                 ownerEmail = s.User.Email,
                 ownerUsername = s.User.Username,
+                requestTheme = s.RequestTheme,
+                requestReadingLevel = s.RequestReadingLevel,
+                requestArtStyle = s.RequestArtStyle,
+                requestStoryLength = s.RequestStoryLength,
+                requestLessonLearned = s.RequestLessonLearned,
+                requestCharactersJson = s.RequestCharactersJson,
                 IsGenerating = !s.Pages.Any(),
                 Pages = s.Pages
                     .OrderBy(p => p.Id)
@@ -202,7 +235,23 @@ public class AdminController : ControllerBase
             return NotFound();
         }
 
-        return Ok(story);
+        return Ok(new
+        {
+            story.Id,
+            story.Title,
+            story.CoverImageUrl,
+            story.CreatedAt,
+            story.ownerEmail,
+            story.ownerUsername,
+            story.requestTheme,
+            story.requestReadingLevel,
+            story.requestArtStyle,
+            story.requestStoryLength,
+            story.requestLessonLearned,
+            requestCharacters = DeserializeCharacters(story.requestCharactersJson),
+            story.IsGenerating,
+            story.Pages
+        });
     }
 
     [HttpPatch("users/{id:int}")]
@@ -280,5 +329,29 @@ public class AdminController : ControllerBase
             isAdmin = _adminAccess.IsAdmin(User),
             email
         });
+    }
+
+    private static IReadOnlyList<object> DeserializeCharacters(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return Array.Empty<object>();
+        }
+
+        try
+        {
+            var characters = JsonSerializer.Deserialize<List<CharacterSpec>>(json, StoryRequestJsonOptions) ?? new();
+            return characters.Select(c => new
+            {
+                c.Role,
+                c.Name,
+                c.IsAnimal,
+                c.DescriptionFields
+            }).Cast<object>().ToList();
+        }
+        catch
+        {
+            return Array.Empty<object>();
+        }
     }
 }

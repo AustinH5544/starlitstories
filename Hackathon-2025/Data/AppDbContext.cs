@@ -99,6 +99,21 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(500);
 
+            e.Property(s => s.RequestTheme)
+                .HasMaxLength(200);
+
+            e.Property(s => s.RequestReadingLevel)
+                .HasMaxLength(64);
+
+            e.Property(s => s.RequestArtStyle)
+                .HasMaxLength(64);
+
+            e.Property(s => s.RequestStoryLength)
+                .HasMaxLength(32);
+
+            e.Property(s => s.RequestLessonLearned)
+                .HasMaxLength(500);
+
             e.Property(s => s.CreatedAt)
                 .IsRequired();
 
