@@ -16,105 +16,140 @@ const FAQPage = () => {
             category: "General",
             question: "What is Starlit Stories?",
             answer:
-                "Starlit Stories is an AI-powered storytelling platform that creates personalized children's stories with beautiful illustrations. Simply provide character details, themes, and preferences, and our AI will generate a unique story just for you.",
+                "Starlit Stories is an AI-powered platform that generates personalized, illustrated children's storybooks in minutes. You describe your child's character — name, appearance, outfit, and more — choose a theme and a lesson you'd like the story to carry, and our AI writes and illustrates a one-of-a-kind adventure starring them.",
         },
         {
             id: 2,
             category: "General",
-            question: "How does the AI story generation work?",
+            question: "Who is Starlit Stories designed for?",
             answer:
-                "Our AI uses advanced language models to create engaging narratives based on your inputs. You can specify characters, settings, themes, and story length. The AI then crafts a coherent, age-appropriate story with accompanying illustrations.",
+                "Starlit Stories is designed for parents, grandparents, and caregivers of children roughly ages 3–12, though anyone is welcome to create a story. The stories are age-appropriate, imaginative, and safe — no scary themes, no inappropriate content.",
         },
         {
             id: 3,
-            category: "Account",
-            question: "Do I need to create an account to use Starlit Stories?",
+            category: "General",
+            question: "Is there a mobile app?",
             answer:
-                "Yes, you need to create a free account to save your stories, access your story library, and use our story generation features. Registration is quick and only requires an email address.",
+                "Starlit Stories is currently web-only and works great in any modern browser on phones, tablets, and computers. A native app may be on the way — if you'd like to see one, let us know through our support page!",
         },
         {
             id: 4,
-            category: "Account",
-            question: "How do I verify my email address?",
+            category: "General",
+            question: "How can I share my stories with family and friends?",
             answer:
-                "After signing up, check your email for a verification link from Starlit Stories. Click the link to verify your account. If you don't see the email, check your spam folder or request a new verification email from your profile page.",
+                "Every story gets a unique public link you can send to anyone — no account required to view it. This works on all plans, including Free. Pro and Premium subscribers can also download a print-ready PDF to save or print at home.",
         },
         {
             id: 5,
             category: "Stories",
             question: "How long does it take to generate a story?",
             answer:
-                "Story generation typically takes 30-60 seconds, depending on the complexity and length requested. Image generation may take an additional 15-30 seconds per illustration.",
-        },
-        {
-            id: 6,
-            category: "Stories",
-            question: "Can I edit or customize my generated stories?",
-            answer:
-                "Currently, stories are generated as complete works. However, you can create new variations by adjusting your character descriptions, themes, or story prompts and generating a new story.",
+                "Most stories are ready in about 1–3 minutes. Generation time can vary slightly depending on how busy our servers are. You'll see a real-time progress indicator while your story is being created, so you always know where things stand.",
         },
         {
             id: 7,
             category: "Stories",
-            question: "What age groups are the stories suitable for?",
+            question: "What art styles can I choose from?",
             answer:
-                "Our stories are primarily designed for children ages 3-12. You can specify the target age range when creating a story, and our AI will adjust the vocabulary, themes, and complexity accordingly.",
+                "Paid plans (Pro and Premium) can choose from 11 distinct art styles: Watercolor, Comic Book, Crayon, Paper Cut, Toy 3D, Pixel Art, Ink Wash, Gouache, Pastel, Line Art, and Clay. Free plan stories are illustrated in Watercolor.",
         },
         {
             id: 8,
-            category: "Billing",
-            question: "What's included in the free plan?",
+            category: "Stories",
+            question: "How much can I customize the character?",
             answer:
-                "The free plan includes 3 story generations per month, basic character customization, and access to your story library. Stories include simple illustrations and are perfect for trying out the platform.",
+                "You can customize your character's name, age, skin tone, eye color, hair, and full outfit. You can also save characters to reuse across future stories without filling everything in again.",
         },
         {
             id: 9,
-            category: "Billing",
-            question: "What are the premium plan benefits?",
+            category: "Stories",
+            question: "Can I choose a theme or moral for the story?",
             answer:
-                "Premium plans offer unlimited story generation, advanced character customization, high-quality illustrations, priority generation speed, and the ability to download stories as PDFs.",
+                "Yes! When creating a story you pick a theme (like a cozy village adventure or a space exploration) and an optional lesson or moral — things like kindness, courage, perseverance, or friendship. The AI weaves your choices naturally into the narrative.",
         },
         {
             id: 10,
-            category: "Billing",
-            question: "Can I cancel my subscription anytime?",
+            category: "Stories",
+            question: "Are my stories saved permanently?",
             answer:
-                "Yes, you can cancel your subscription at any time from your account settings. You'll continue to have premium access until the end of your current billing period.",
+                "Yes. Every story you generate is saved permanently to your library on your profile page. You can read, share, or download them any time.",
         },
         {
             id: 11,
-            category: "Technical",
-            question: "What browsers are supported?",
+            category: "Stories",
+            question: "Can I create stories in languages other than English?",
             answer:
-                "Starlit Stories works best on modern browsers including Chrome, Firefox, Safari, and Edge. We recommend keeping your browser updated for the best experience.",
+                "Currently, Starlit Stories generates stories in English only. We'd love to add more languages in the future — if that's important to you, please let us know via our support page.",
         },
         {
             id: 12,
-            category: "Technical",
-            question: "Can I download my stories?",
+            category: "Account",
+            question: "Do I need an account to use Starlit Stories?",
             answer:
-                "Premium subscribers can download their stories as high-quality PDF files, perfect for printing or sharing. Free users can view and share stories online through our platform.",
+                "Yes — a free account is required to create and save stories. Signing up only takes your email address and a password. Anyone with a share link can read a story without an account.",
         },
         {
             id: 13,
-            category: "Technical",
-            question: "Is my data secure and private?",
+            category: "Account",
+            question: "How do I verify my email address?",
             answer:
-                "Yes, we take privacy seriously. Your stories and personal information are encrypted and stored securely. We never share your content with third parties, and you maintain full ownership of your generated stories.",
+                "After signing up, we'll send a verification link to the email address you registered with. Click it to activate your account. If you don't see the email, check your spam folder. You can also request a new verification email from the login page.",
         },
         {
             id: 14,
-            category: "Stories",
-            question: "Can I create stories in different languages?",
+            category: "Billing",
+            question: "What's included in the Free plan?",
             answer:
-                "Currently, Starlit Stories generates stories in English. We're working on adding support for additional languages in future updates.",
+                "The Free plan lets you create 1 story per month, save 1 character, and generates stories in the Watercolor art style. It's a great way to try Starlit Stories with no commitment.",
         },
         {
             id: 15,
-            category: "General",
-            question: "How can I share my stories with others?",
+            category: "Billing",
+            question: "What do Pro and Premium plans include?",
             answer:
-                "You can share your stories by sending a direct link to family and friends. Premium users can also download PDFs to share via email or print physical copies.",
+                "Pro ($4/month) gives you 5 stories per month, 5 saved characters, and all 11 art styles. Premium ($8/month) gives you 11 stories per month, 10 saved characters, all art styles, and print-ready PDF downloads.",
+        },
+        {
+            id: 16,
+            category: "Billing",
+            question: "What are add-on story credits?",
+            answer:
+                "If you run out of your monthly stories, you can purchase one-time add-on credit packs: +5 credits for $4, or +11 credits for $8. Unlike subscription stories, add-on credits never expire — they stay in your account until you use them.",
+        },
+        {
+            id: 17,
+            category: "Billing",
+            question: "Do unused monthly stories roll over?",
+            answer:
+                "Subscription stories (those included with your Free, Pro, or Premium plan) reset each month and do not roll over. Add-on credits you've purchased are separate and never expire.",
+        },
+        {
+            id: 18,
+            category: "Billing",
+            question: "Can I cancel my subscription?",
+            answer:
+                "Yes, at any time. Open your profile page and use the Manage Subscription button to access the Stripe customer portal, where you can cancel. You'll keep your plan benefits through the end of your current billing period.",
+        },
+        {
+            id: 19,
+            category: "Billing",
+            question: "Can I downgrade to a lower plan?",
+            answer:
+                "Yes. Open your profile page and use the Manage Subscription button to access the Stripe customer portal, where you can switch to a lower plan. Changes take effect at the start of your next billing period.",
+        },
+        {
+            id: 20,
+            category: "Technical",
+            question: "What browsers are supported?",
+            answer:
+                "Starlit Stories works on any modern browser — Chrome, Firefox, Safari, and Edge on desktop and mobile. We recommend keeping your browser up to date for the best experience.",
+        },
+        {
+            id: 21,
+            category: "Technical",
+            question: "Is my data secure?",
+            answer:
+                "Yes. Your account information and stories are encrypted in transit and stored securely. We do not sell or share your personal data or story content with third parties. You retain full ownership of everything you create.",
         },
     ]
 
