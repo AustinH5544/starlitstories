@@ -44,6 +44,7 @@ import heartIcon from "../assets/parent-icons/heart.png"
 
 const SHOW_COMPANY = false
 const SHOW_RESOURCES = true
+const SHOW_TESTIMONIALS = false
 
 const artStyleShowcase = [
     {
@@ -520,7 +521,8 @@ const LandingPage = () => {
                     </div>
                 </section>
 
-                {/* Kids Love It Section */}
+                {/* Kids Love It Section — hidden until we have real reviews/stats */}
+                {SHOW_TESTIMONIALS && (
                 <section className="section kids-section">
                     <div className={`section-content ${isVisible.testimonials ? "slide-up" : ""}`}>
                         <h2 className="section-title">Kids Can't Get Enough!</h2>
@@ -579,6 +581,7 @@ const LandingPage = () => {
                         </div>
                     </div>
                 </section>
+                )}
             </div>
 
             {/* Call to Action Section */}
