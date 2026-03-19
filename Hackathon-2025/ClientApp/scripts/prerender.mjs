@@ -17,7 +17,12 @@ const routes = [
   '/signup',
   '/support',
   '/blog',
+  '/blog/personalized-bedtime-storybooks',
+  '/blog/ai-story-generator-for-kids',
+  '/blog/personalized-childrens-books',
   '/blog/personalized-bedtime-stories',
+  '/blog/bedtime-story-ideas-for-kids',
+  '/blog/how-ai-story-generators-help-kids-love-reading',
 ]
 
 // React 19 renders <title>, <meta>, <link>, <script> inline in renderToString output.

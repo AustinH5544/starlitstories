@@ -16,7 +16,7 @@ Every story is unique, and every child becomes the hero.
 
 ## Start Your Child's Story Tonight
 
-Create your first personalized storybook for free at [Starlit Stories](https://starlitstories.app/signup).
+Create your first personalized storybook for free at [Starlit Stories](/signup).
     `.trim()
 }
 

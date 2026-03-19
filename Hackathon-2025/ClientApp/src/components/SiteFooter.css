@@ -1,0 +1,147 @@
+.footer {
+    background: #0c1445;
+    color: white;
+    padding: 2.25rem 2rem 0.6rem;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 3rem;
+}
+
+.footer-logo {
+    flex: 1;
+    min-width: 250px;
+}
+
+.footer-logo .logo {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.footer-logo p {
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 300px;
+}
+
+.footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3rem;
+    align-items: flex-start;
+}
+
+.footer-meta-links {
+    justify-content: center;
+}
+
+.footer-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.footer-column h4 {
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.footer-column h4:after {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 2px;
+    background: #a18cd1;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.footer-column > a:not(.social-link) {
+    display: block;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 0.8rem;
+    transition: color 0.2s ease;
+}
+
+.footer-column > a:not(.social-link):hover,
+.footer-column a:hover {
+    color: white;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.social-link {
+    width: 42px;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    margin-bottom: 0;
+    text-decoration: none;
+}
+
+.social-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+}
+
+.social-link:hover {
+    transform: translateY(-4px) scale(1.05);
+    background: rgba(255, 215, 120, 0.12);
+    box-shadow: 0 0 8px rgba(255, 215, 120, 0.6), 0 0 18px rgba(255, 215, 120, 0.4);
+}
+
+.footer-bottom {
+    max-width: 1200px;
+    margin: 1.5rem auto 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .footer {
+        padding: 1.9rem 1.5rem 0.6rem;
+    }
+
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 2rem;
+    }
+
+    .footer-logo {
+        min-width: unset;
+    }
+
+    .footer-logo p {
+        max-width: none;
+    }
+
+    .footer-links,
+    .footer-meta-links {
+        justify-content: center;
+    }
+}

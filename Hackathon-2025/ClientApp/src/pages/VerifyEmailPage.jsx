@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useSearchParams, useNavigate, Link } from "react-router-dom"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import "./VerifyEmailPage.css"
@@ -86,6 +87,10 @@ const VerifyEmailPage = () => {
 
     return (
         <div className="verify-email-page">
+            <Helmet>
+                <title>Verify Email | Starlit Stories</title>
+                <meta name="robots" content="noindex, follow" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>

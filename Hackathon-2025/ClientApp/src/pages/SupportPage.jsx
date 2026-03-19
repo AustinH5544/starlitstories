@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Helmet } from "react-helmet-async"
+import SiteFooter from "../components/SiteFooter"
 import "./SupportPage.css"
 
 const SparklesIcon = () => (
@@ -364,6 +365,7 @@ const SupportPage = () => {
                     </aside>
                 </div>
             </div>
+            <SiteFooter />
         </div>
     )
 }

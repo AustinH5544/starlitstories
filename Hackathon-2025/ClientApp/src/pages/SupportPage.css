@@ -8,7 +8,7 @@
     --support-coral: #ff8f70;
     --support-sky: #73c7ff;
     min-height: 100vh;
-    padding: 7rem 0 4rem;
+    padding: 7rem 0 0;
     background:
         radial-gradient(circle at top, rgba(255, 234, 179, 0.14), transparent 28%),
         radial-gradient(circle at 20% 20%, rgba(115, 199, 255, 0.16), transparent 20%),
@@ -46,7 +46,7 @@
 
 .support-container {
     max-width: 1180px;
-    margin: 0 auto;
+    margin: 0 auto 3rem;
     padding: 0 1.5rem;
     position: relative;
     z-index: 1;
@@ -507,7 +507,7 @@
 
 @media (max-width: 768px) {
     .support-page {
-        padding: 6rem 0 3rem;
+        padding: 6rem 0 0;
     }
 
     .support-container {

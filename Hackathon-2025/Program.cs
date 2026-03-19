@@ -398,74 +398,25 @@ app.MapGet("/sitemap.xml", async (AppDbContext db, IConfiguration cfg) =>
 {
     var baseUrl = (cfg["Site:BaseUrl"] ?? "https://starlitstories.app").TrimEnd('/');
 
-    // Static routes you want indexed:
+    // Static routes that currently exist and should be indexed.
     var staticUrls = new[]
     {
         $"{baseUrl}/",
-        $"{baseUrl}/stories",
-        $"{baseUrl}/pricing",
         $"{baseUrl}/about",
-        $"{baseUrl}/contact"
+        $"{baseUrl}/faq",
+        $"{baseUrl}/support",
+        $"{baseUrl}/blog",
+        $"{baseUrl}/blog/personalized-bedtime-storybooks",
+        $"{baseUrl}/blog/ai-story-generator-for-kids",
+        $"{baseUrl}/blog/personalized-childrens-books",
+        $"{baseUrl}/blog/personalized-bedtime-stories",
+        $"{baseUrl}/blog/bedtime-story-ideas-for-kids",
+        $"{baseUrl}/blog/how-ai-story-generators-help-kids-love-reading",
+        $"{baseUrl}/signup"
     };
 
     var allUrls = new List<(string loc, DateTime? lastmod)>();
     allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
-
-    // Variant A: StoryShare table (Token + optional IsPublic/IsListed + ExpiresAt)
-    bool addedShares = false;
-    try
-    {
-        var shares = await db.Set<StoryShare>()
-            .AsNoTracking()
-            .Include(s => s.Story) // if you need UpdatedAt from Story
-            .Where(s =>
-                s.Token != null &&
-                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
-                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
-            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
-            .Select(s => new
-            {
-                Url = $"{baseUrl}/s/{s.Token}",
-                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
-            })
-            .ToListAsync();
-
-        if (shares.Count > 0)
-        {
-            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
-            addedShares = true;
-        }
-    }
-    catch
-    {
-        // if StoryShare doesn't exist, we fall back to Variant B
-    }
-
-    // Variant B: token on Story (ShareToken + IsPublic)
-    if (!addedShares)
-    {
-        try
-        {
-            var stories = await db.Set<Story>()
-                .AsNoTracking()
-                .Where(s =>
-                    EF.Property<string?>(s, "ShareToken") != null &&
-                    (EF.Property<bool?>(s, "IsPublic") ?? true))
-                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
-                .Select(s => new
-                {
-                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
-                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
-                })
-                .ToListAsync();
-
-            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
-        }
-        catch
-        {
-            // neither variant present; serve static routes only
-        }
-    }
 
     // Return index if we exceed max per file
     if (allUrls.Count > MaxUrlsPerFile)
@@ -495,62 +446,21 @@ app.MapGet("/sitemaps/sitemap-{index}.xml", async (int index, AppDbContext db, I
     var staticUrls = new[]
     {
         $"{baseUrl}/",
-        $"{baseUrl}/stories",
-        $"{baseUrl}/pricing",
         $"{baseUrl}/about",
-        $"{baseUrl}/contact"
+        $"{baseUrl}/faq",
+        $"{baseUrl}/support",
+        $"{baseUrl}/blog",
+        $"{baseUrl}/blog/personalized-bedtime-storybooks",
+        $"{baseUrl}/blog/ai-story-generator-for-kids",
+        $"{baseUrl}/blog/personalized-childrens-books",
+        $"{baseUrl}/blog/personalized-bedtime-stories",
+        $"{baseUrl}/blog/bedtime-story-ideas-for-kids",
+        $"{baseUrl}/blog/how-ai-story-generators-help-kids-love-reading",
+        $"{baseUrl}/signup"
     };
 
     var allUrls = new List<(string loc, DateTime? lastmod)>();
     allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
-
-    bool addedShares = false;
-    try
-    {
-        var shares = await db.Set<StoryShare>()
-            .AsNoTracking()
-            .Include(s => s.Story)
-            .Where(s =>
-                s.Token != null &&
-                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
-                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
-            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
-            .Select(s => new
-            {
-                Url = $"{baseUrl}/s/{s.Token}",
-                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
-            })
-            .ToListAsync();
-
-        if (shares.Count > 0)
-        {
-            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
-            addedShares = true;
-        }
-    }
-    catch { }
-
-    if (!addedShares)
-    {
-        try
-        {
-            var stories = await db.Set<Story>()
-                .AsNoTracking()
-                .Where(s =>
-                    EF.Property<string?>(s, "ShareToken") != null &&
-                    (EF.Property<bool?>(s, "IsPublic") ?? true))
-                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
-                .Select(s => new
-                {
-                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
-                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
-                })
-                .ToListAsync();
-
-            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
-        }
-        catch { }
-    }
 
     var skip = index * MaxUrlsPerFile;
     var page = allUrls.Skip(skip).Take(MaxUrlsPerFile).ToList();

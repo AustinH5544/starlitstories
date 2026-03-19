@@ -1,6 +1,7 @@
 import { useParams, Link } from "react-router-dom"
 import { Helmet } from "react-helmet-async"
 import ReactMarkdown from "react-markdown"
+import SiteFooter from "../components/SiteFooter"
 import posts from "../content/blog/index.js"
 import "./BlogPostPage.css"
 
@@ -22,6 +23,29 @@ const BlogPostPage = () => {
         )
     }
 
+    const articleSchema = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": post.title,
+        "description": post.excerpt,
+        "image": "https://starlitstories.app/og-image.png",
+        "datePublished": post.date,
+        "dateModified": post.date,
+        "author": {
+            "@type": "Organization",
+            "name": "Starlit Stories",
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "Starlit Stories",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://starlitstories.app/og-image.png",
+            },
+        },
+        "mainEntityOfPage": `https://starlitstories.app/blog/${post.slug}`,
+    }
+
     return (
         <div className="blog-post-page">
             <Helmet>
@@ -38,13 +62,11 @@ const BlogPostPage = () => {
                 <meta name="twitter:title" content={`${post.title} | Starlit Stories`} />
                 <meta name="twitter:description" content={post.excerpt} />
                 <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+                <script type="application/ld+json">{JSON.stringify(articleSchema)}</script>
             </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>
-            <div className="sprinkle"></div>
-            <div className="sprinkle2"></div>
-            <div className="sprinkle3"></div>
             <div className="blog-post-container">
                 <Link to="/blog" className="blog-post-back">← Back to Blog</Link>
                 <article className="blog-post-article">
@@ -55,6 +77,7 @@ const BlogPostPage = () => {
                     </div>
                 </article>
             </div>
+            <SiteFooter />
         </div>
     )
 }

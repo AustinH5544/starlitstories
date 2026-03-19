@@ -5,7 +5,7 @@
     min-height: 100vh;
     width: 100%;
     overflow-x: hidden;
-    padding: calc(64px + 2.5rem) 0 4rem;
+    padding: calc(64px + 2.5rem) 0 0;
 }
 
 /* ── Starry background (mirrors Login/Landing) ───────── */
@@ -55,7 +55,7 @@
 
 .faq-container {
     max-width: 800px;
-    margin: 0 auto;
+    margin: 0 auto 3rem;
     padding: 0 2rem;
     position: relative;
     z-index: 1;
@@ -334,7 +334,7 @@
 
 @media (max-width: 768px) {
     .faq-page {
-        padding: calc(56px + 2rem) 0 3rem;
+        padding: calc(56px + 2rem) 0 0;
     }
 
     .faq-container {

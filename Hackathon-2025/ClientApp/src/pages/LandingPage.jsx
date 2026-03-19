@@ -1,10 +1,11 @@
 ﻿"use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import posthog from "../analytics"
 import { Helmet } from "react-helmet-async"
+import SiteFooter from "../components/SiteFooter"
 import "./LandingPage.css"
 
 const webAppSchema = {
@@ -25,13 +26,20 @@ const orgSchema = {
     "name": "Starlit Stories",
     "url": "https://starlitstories.app",
     "logo": "https://starlitstories.app/og-image.png",
-    "sameAs": []
+    "sameAs": [
+        "https://instagram.com/starlitstoriesapp",
+        "https://facebook.com/profile.php?id=61587218416327",
+        "https://x.com/starlitapp"
+    ]
 }
 
-import instagramIcon from "../assets/social/instagram.png";
-import facebookIcon from "../assets/social/facebook.png";
-import twitterIcon from "../assets/social/twitter.png";
-import xIcon from "../assets/social/x.png";
+const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Starlit Stories",
+    "url": "https://starlitstories.app",
+    "description": "Personalized bedtime stories and illustrated storybooks where your child is the hero."
+}
 
 import writeIcon from "../assets/step-icons/write.png";
 import magicIcon from "../assets/step-icons/magic.png"
@@ -42,8 +50,6 @@ import refreshIcon from "../assets/parent-icons/refresh.png"
 import ideaIcon from "../assets/parent-icons/idea.png"
 import heartIcon from "../assets/parent-icons/heart.png"
 
-const SHOW_COMPANY = false
-const SHOW_RESOURCES = true
 const SHOW_TESTIMONIALS = false
 
 const artStyleShowcase = [
@@ -260,6 +266,7 @@ const LandingPage = () => {
                 <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
                 <script type="application/ld+json">{JSON.stringify(webAppSchema)}</script>
                 <script type="application/ld+json">{JSON.stringify(orgSchema)}</script>
+                <script type="application/ld+json">{JSON.stringify(websiteSchema)}</script>
             </Helmet>
             {/* Hero Section */}
             <section className="hero-section">
@@ -555,6 +562,37 @@ const LandingPage = () => {
                     </div>
                 </section>
 
+                <section className="section">
+                    <div className={`section-content ${isVisible.parents ? "fade-in" : ""}`}>
+                        <h2 className="section-title">Explore Popular Story Types</h2>
+                        <div className="parents-grid">
+                            <article className="parent-card">
+                                <h3>Personalized Bedtime Storybooks</h3>
+                                <p>Learn why personalized bedtime storybooks help children feel more connected to reading and bedtime routines.</p>
+                                <Link to="/blog/personalized-bedtime-storybooks" className="parent-card-link">Explore this guide</Link>
+                            </article>
+
+                            <article className="parent-card">
+                                <h3>AI Story Generator for Kids</h3>
+                                <p>See how an AI story generator for kids can help families create fresh, child-centered adventures in minutes.</p>
+                                <Link to="/blog/ai-story-generator-for-kids" className="parent-card-link">Explore this guide</Link>
+                            </article>
+
+                            <article className="parent-card">
+                                <h3>Personalized Children's Books</h3>
+                                <p>Discover how custom children's books online can turn familiar reading time into something more meaningful.</p>
+                                <Link to="/blog/personalized-childrens-books" className="parent-card-link">Explore this guide</Link>
+                            </article>
+
+                            <article className="parent-card">
+                                <h3>Read More Tips on the Blog</h3>
+                                <p>Browse bedtime story ideas, reading tips, and practical guides for making Starlit Stories part of your routine.</p>
+                                <Link to="/blog" className="parent-card-link">Visit the blog</Link>
+                            </article>
+                        </div>
+                    </div>
+                </section>
+
                 {/* Kids Love It Section — hidden until we have real reviews/stats */}
                 {SHOW_TESTIMONIALS && (
                 <section className="section kids-section">
@@ -660,69 +698,7 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* Footer */}
-            <footer className="footer">
-                <div className="footer-content">
-                    <div className="footer-logo">
-                        <span className="logo">Starlit Stories</span>
-                        <p>Making bedtime magical, one story at a time</p>
-                    </div>
-
-                    <div className="footer-links">
-                        {SHOW_COMPANY && (
-                            <div className="footer-column">
-                                <h4>Company</h4>
-                                <a href="/about">About Us</a>
-                                <a href="/contact">Contact</a>
-                                <a href="/privacy">Privacy Policy</a>
-                                <a href="/terms">Terms of Service</a>
-                            </div>
-                        )}
-
-                        {SHOW_RESOURCES && (
-                            <div className="footer-column">
-                                <h4>Resources</h4>
-                                <a href="/blog">Blog</a>
-                                <a href="/faq">FAQ</a>
-                                <a href="/support">Support</a>
-                            </div>
-                        )}
-
-                        <div className="footer-links footer-meta-links">
-                            <div className="footer-column">
-                                <h4>Connect</h4>
-                                <div className="social-links">
-                                    <a href="https://instagram.com/starlitstoriesapp" target="_blank" rel="noopener noreferrer"
-                                        className="social-link" aria-label="Instagram">
-                                        <img src={instagramIcon} alt="Instagram" className="social-icon" />
-                                    </a>
-
-                                    <a href="https://facebook.com/profile.php?id=61587218416327" target="_blank" rel="noopener noreferrer"
-                                        className="social-link" aria-label="Facebook">
-                                        <img src={facebookIcon} alt="Facebook" className="social-icon" />
-                                    </a>
-
-                                    <a href="https://x.com/starlitapp" target="_blank" rel="noopener noreferrer"
-                                        className="social-link" aria-label="X">
-                                        <img src={xIcon} alt="X" className="social-icon" />
-                                    </a>
-                                </div>
-                            </div>
-
-                            <div className="footer-column contact-column">
-                                <h4>Need help?</h4>
-                                <a href="mailto:support@starlitstories.app" className="footer-email">
-                                    support@starlitstories.app
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="footer-bottom">
-                    <p>© 2025 Starlit Stories. All rights reserved.</p>
-                </div>
-            </footer>
+            <SiteFooter />
         </div>
     )
 }

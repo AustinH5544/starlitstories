@@ -167,6 +167,7 @@ const LoginPage = () => {
                 <meta name="twitter:title" content="Log In | Starlit Stories" />
                 <meta name="twitter:description" content="Log in to your Starlit Stories account to create and manage your personalized children's storybooks." />
                 <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+                <meta name="robots" content="noindex, follow" />
             </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>

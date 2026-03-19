@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Helmet } from "react-helmet-async"
+import SiteFooter from "../components/SiteFooter"
 import "./FAQPage.css"
 
 const FAQPage = () => {
@@ -163,6 +164,19 @@ const FAQPage = () => {
         return matchesSearch && matchesFilter
     })
 
+    const faqSchema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faqData.map((faq) => ({
+            "@type": "Question",
+            "name": faq.question,
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer,
+            },
+        })),
+    }
+
     const toggleItem = (id) => {
         const newOpenItems = new Set(openItems)
         if (newOpenItems.has(id)) {
@@ -189,6 +203,7 @@ const FAQPage = () => {
                 <meta name="twitter:title" content="Frequently Asked Questions | Starlit Stories" />
                 <meta name="twitter:description" content="Got questions about Starlit Stories? Find answers about how personalized AI storybooks work, pricing, and how to get started." />
                 <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+                <script type="application/ld+json">{JSON.stringify(faqSchema)}</script>
             </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
@@ -260,6 +275,7 @@ const FAQPage = () => {
                     </Link>
                 </div>
             </div>
+            <SiteFooter />
         </div>
     )
 }

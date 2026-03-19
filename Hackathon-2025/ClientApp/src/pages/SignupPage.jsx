@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Helmet } from "react-helmet-async"
+import SiteFooter from "../components/SiteFooter"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
@@ -442,6 +443,7 @@ const SignupPage = () => {
                     </p>
                 </div>
             </div>
+            <SiteFooter />
         </div>
     )
 }

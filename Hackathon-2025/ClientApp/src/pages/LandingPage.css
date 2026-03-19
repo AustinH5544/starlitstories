@@ -795,6 +795,18 @@
     font-size: 1.02rem;
 }
 
+.parent-card-link {
+    margin-top: auto;
+    padding-top: 1.2rem;
+    color: #6c43b8;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.parent-card-link:hover {
+    color: #4c2d92;
+}
+
 /* Kids Section / Testimonials */
 /*.kids-section {
     background: white;

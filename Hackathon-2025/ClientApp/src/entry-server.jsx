@@ -12,6 +12,7 @@ import SignupPage from './pages/SignupPage'
 import SupportPage from './pages/SupportPage'
 import BlogPage from './pages/BlogPage'
 import BlogPostPage from './pages/BlogPostPage'
+import SeoTopicPage from './pages/SeoTopicPage'
 
 const mockAuth = { user: null, setUser: () => {}, token: null, login: () => {}, logout: () => {} }
 
@@ -29,7 +30,13 @@ export async function render(url) {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/blog" element={<BlogPage />} />
+            <Route path="/blog/personalized-bedtime-storybooks" element={<SeoTopicPage slug="personalized-bedtime-storybooks" />} />
+            <Route path="/blog/ai-story-generator-for-kids" element={<SeoTopicPage slug="ai-story-generator-for-kids" />} />
+            <Route path="/blog/personalized-childrens-books" element={<SeoTopicPage slug="personalized-childrens-books" />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="/personalized-bedtime-storybooks" element={<SeoTopicPage slug="personalized-bedtime-storybooks" />} />
+            <Route path="/ai-story-generator-for-kids" element={<SeoTopicPage slug="ai-story-generator-for-kids" />} />
+            <Route path="/personalized-childrens-books" element={<SeoTopicPage slug="personalized-childrens-books" />} />
           </Routes>
         </StaticRouter>
       </AuthContext.Provider>
