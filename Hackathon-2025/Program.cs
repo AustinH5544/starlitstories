@@ -248,7 +248,8 @@ builder.Services.AddControllers()
     .AddJsonOptions(opts =>
         opts.JsonSerializerOptions.Converters.Add(
             new System.Text.Json.Serialization.JsonStringEnumConverter()));
-// builder.Services.AddEndpointsApiExplorer(); // only needed if you add Swagger later
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 
 // =========================
@@ -291,6 +292,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseHttpsRedirection();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // =========================
 // Security headers
