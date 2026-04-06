@@ -294,6 +294,17 @@ public class StoryController : ControllerBase
                     throw;
                 }
             }
+            catch (SuspiciousImageGenerationException ex)
+            {
+                _logger.LogWarning(ex, "Story generation job {JobId} failed quality checks after retry", jobId);
+                _progress.Publish(jobId, new ProgressUpdate
+                {
+                    Stage = "error",
+                    Percent = 100,
+                    Message = "One of the illustrations failed our quality check twice. No credits were used. Please try generating the story again.",
+                    Done = true
+                });
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Story generation job {JobId} failed", jobId);
