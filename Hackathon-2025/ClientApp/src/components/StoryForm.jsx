@@ -3,6 +3,7 @@
 import { Fragment, useState, useEffect, useRef } from "react"
 import { useAuth } from "../context/AuthContext"
 import api from "../api"
+import usePublicConfig from "../hooks/usePublicConfig"
 import "./StoryForm.css"
 
 import themeIcon from "../assets/ui-icons/theme.png"
@@ -235,8 +236,8 @@ const StoryForm = ({ onSubmit }) => {
     const [isSavingCharacter, setIsSavingCharacter] = useState(false)
     const [isDeletingCharacter, setIsDeletingCharacter] = useState(false)
 
-    const [lengthHintEnabled, setLengthHintEnabled] = useState(false)
-    const API_BASE = import.meta.env.VITE_API_BASE ?? ""
+    const { config: publicConfig } = usePublicConfig()
+    const lengthHintEnabled = !!publicConfig.lengthHintEnabled
     const [storyLength, setStoryLength] = useState("short")
 
     const clearValidationMessage = (event) => {
@@ -279,20 +280,6 @@ const StoryForm = ({ onSubmit }) => {
             { value: "long", label: "Long (about 12 pages)" },
         ],
     }
-
-    useEffect(() => {
-        const url = `${API_BASE}/api/config`
-        fetch(url, { credentials: "omit" })
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`)
-                return res.json()
-            })
-            .then(data => setLengthHintEnabled(!!data.lengthHintEnabled))
-            .catch(err => {
-                console.error("Failed to load /api/config:", err)
-                setLengthHintEnabled(false)
-            })
-    }, [API_BASE])
 
     const availableLengths = lengthOptionsByMembership[membership] || lengthOptionsByMembership.free
     const isLengthAllowed = (v) => availableLengths.some(o => o.value === v)

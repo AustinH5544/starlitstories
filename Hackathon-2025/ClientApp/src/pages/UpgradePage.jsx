@@ -5,6 +5,7 @@ import { Helmet } from "react-helmet-async"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import api from "../api"
+import usePublicConfig from "../hooks/usePublicConfig"
 import "./UpgradePage.css"
 
 const UpgradePage = () => {
@@ -12,12 +13,14 @@ const UpgradePage = () => {
     const navigate = useNavigate()
     const [selectedPlan, setSelectedPlan] = useState("")
     const [isProcessing, setIsProcessing] = useState(false)
+    const { config: publicConfig } = usePublicConfig()
+    const pricing = publicConfig.pricing || {}
 
     const plans = [
         {
             id: "free",
             name: "Free",
-            price: "$0/month",
+            price: pricing.free?.price || "$0/month",
             icon: "📖",
             description: "Perfect for trying out our service",
             features: [
@@ -31,7 +34,10 @@ const UpgradePage = () => {
         {
             id: "pro",
             name: "Pro",
-            price: "$4/month",
+            price: pricing.pro?.price || "$4.99/month",
+            originalPrice: pricing.pro?.originalPrice || null,
+            saleHint: pricing.pro?.saleHint || null,
+            badge: pricing.pro?.badgeText || null,
             icon: "✨",
             description: "Great for regular storytelling",
             features: [
@@ -46,7 +52,9 @@ const UpgradePage = () => {
         {
             id: "premium",
             name: "Premium",
-            price: "$8/month",
+            price: pricing.premium?.price || "$9.99/month",
+            originalPrice: pricing.premium?.originalPrice || null,
+            saleHint: pricing.premium?.saleHint || null,
             icon: "🌟",
             description: "Perfect for families who love stories",
             features: [
@@ -57,7 +65,7 @@ const UpgradePage = () => {
                 "Print-ready format",
                 "Priority support queue",
             ],
-            badge: "Most Popular",
+            badge: pricing.premium?.badgeText || "Most Popular",
             disabled: user?.membership === "premium",
         },
     ]
@@ -190,6 +198,12 @@ const UpgradePage = () => {
                                 <div className="plan-icon">{plan.icon}</div>
                                 <h3>{plan.name}</h3>
                                 <p className="plan-price">{plan.price}</p>
+                                {plan.originalPrice && (
+                                    <p className="plan-description">Usually {plan.originalPrice}</p>
+                                )}
+                                {plan.saleHint && (
+                                    <p className="plan-description">{plan.saleHint}</p>
+                                )}
                                 <p className="plan-description">{plan.description}</p>
 
                                 <ul className="plan-features">

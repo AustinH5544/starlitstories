@@ -66,6 +66,35 @@ builder.Services.AddOptions<AppOptions>()
     .Bind(builder.Configuration.GetSection("App"))
     .ValidateOnStart();
 
+builder.Services.AddOptions<BillingOptions>()
+    .Bind(builder.Configuration.GetSection("Billing"))
+    .Validate(
+        o =>
+        {
+            if (!o.LaunchSale.Enabled) return true;
+
+            var mode = (o.LaunchSale.DiscountMode ?? string.Empty).Trim().ToLowerInvariant();
+            if (mode is not ("forever" or "months")) return false;
+
+            if (string.IsNullOrWhiteSpace(o.LaunchSale.ProSalePrice) ||
+                string.IsNullOrWhiteSpace(o.LaunchSale.PremiumSalePrice))
+            {
+                return false;
+            }
+
+            if (mode == "forever")
+            {
+                return !string.IsNullOrWhiteSpace(o.LaunchSale.ProCouponIdForever) &&
+                       !string.IsNullOrWhiteSpace(o.LaunchSale.PremiumCouponIdForever);
+            }
+
+            return o.LaunchSale.DurationInMonths > 0 &&
+                   !string.IsNullOrWhiteSpace(o.LaunchSale.ProCouponIdLimited) &&
+                   !string.IsNullOrWhiteSpace(o.LaunchSale.PremiumCouponIdLimited);
+        },
+        "Billing:LaunchSale must define valid mode, both sale display prices, and plan-specific coupon configuration when enabled.")
+    .ValidateOnStart();
+
 builder.Services.AddOptions<AdminOptions>()
     .Bind(builder.Configuration.GetSection("Admin"))
     .ValidateOnStart();

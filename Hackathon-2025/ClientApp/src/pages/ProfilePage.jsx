@@ -7,6 +7,7 @@ import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
+import usePublicConfig from "../hooks/usePublicConfig"
 import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 import { publicBase } from "../utils/urls";
@@ -69,6 +70,7 @@ const ProfilePage = () => {
     const { search } = useLocation();
     const [flash, setFlash] = useState("");
     const [billing, setBilling] = useState(null);
+    const { config: publicConfig } = usePublicConfig();
 
     const [storiesPage, setStoriesPage] = useState(1);
     const [storiesTotal, setStoriesTotal] = useState(0);
@@ -303,7 +305,14 @@ const ProfilePage = () => {
         const q = new URLSearchParams(search);
         if (q.get("upgraded") === "1") {
             const plan = q.get("plan");
-            const planPrices = { pro: 4, premium: 8 }
+            const parseDisplayPrice = (value) => {
+                const match = String(value || "").match(/(\d+(?:\.\d+)?)/);
+                return match ? Number(match[1]) : undefined;
+            };
+            const planPrices = {
+                pro: parseDisplayPrice(publicConfig?.pricing?.pro?.price) ?? 4.99,
+                premium: parseDisplayPrice(publicConfig?.pricing?.premium?.price) ?? 9.99,
+            };
             posthog.capture('subscription_started', {
                 plan_name: plan,
                 plan_price: planPrices[plan],
@@ -317,7 +326,7 @@ const ProfilePage = () => {
             setFlash("Credits added! 🎉");
             window.history.replaceState({}, "", "/profile");
         }
-    }, [search]);
+    }, [search, publicConfig]);
 
     // Buy credits (same API as UpgradePage)
     const buyCredits = async (pack /* "plus5" | "plus11" */) => {

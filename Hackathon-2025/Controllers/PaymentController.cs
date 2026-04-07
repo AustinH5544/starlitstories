@@ -49,6 +49,9 @@ namespace Hackathon_2025.Controllers
         [Authorize] // you rely on user claims
         public async Task<IActionResult> CreateCheckoutSession([FromBody] CheckoutRequest request)
         {
+            if (request.Membership == MembershipPlan.Free)
+                return BadRequest("The Free plan does not require checkout.");
+
             // request.Membership is enum now; no null/empty check needed
             var userIdStr =
                 User.FindFirst("sub")?.Value ??
@@ -58,13 +61,25 @@ namespace Hackathon_2025.Controllers
             if (!int.TryParse(userIdStr, out var userId))
                 return Unauthorized("No user id claim on the request.");
 
+            var user = await _db.Users.FindAsync(userId);
+            if (user is null)
+                return Unauthorized("User not found.");
+
+            var currentStatus = (user.PlanStatus ?? string.Empty).Trim().ToLowerInvariant();
+            var hasActiveOrManagedSubscription =
+                !string.IsNullOrWhiteSpace(user.BillingSubscriptionRef) &&
+                currentStatus is not ("canceled" or "incomplete_expired");
+
+            if (hasActiveOrManagedSubscription)
+            {
+                return Conflict("Your account already has a Stripe subscription. Use the billing portal to change plans.");
+            }
+
             // Prefer email from claim; fall back to DB
             var email = User.FindFirst("email")?.Value;
             if (string.IsNullOrWhiteSpace(email))
             {
-                var userFromDb = await _db.Users.FindAsync(userId);
-                if (userFromDb is null) return Unauthorized("User not found.");
-                email = userFromDb.Email;
+                email = user.Email;
             }
 
             var baseUrl = (_app.BaseUrl ?? "http://localhost:5173").TrimEnd('/');

@@ -4,12 +4,22 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Helmet } from "react-helmet-async"
 import SiteFooter from "../components/SiteFooter"
+import usePublicConfig from "../hooks/usePublicConfig"
 import "./FAQPage.css"
 
 const FAQPage = () => {
     const [searchTerm, setSearchTerm] = useState("")
     const [activeFilter, setActiveFilter] = useState("All")
     const [openItems, setOpenItems] = useState(new Set())
+    const { config: publicConfig } = usePublicConfig()
+    const pricing = publicConfig.pricing || {}
+    const proPrice = pricing.pro?.price || "$4.99/month"
+    const premiumPrice = pricing.premium?.price || "$9.99/month"
+    const proOriginalPrice = pricing.pro?.originalPrice
+    const premiumOriginalPrice = pricing.premium?.originalPrice
+    const paidPlansLine = pricing.pro?.isOnSale || pricing.premium?.isOnSale
+        ? `Pro is currently ${proPrice}${proOriginalPrice ? ` (normally ${proOriginalPrice})` : ""}, and Premium is currently ${premiumPrice}${premiumOriginalPrice ? ` (normally ${premiumOriginalPrice})` : ""}. Both plans keep the same included stories, saved characters, and features.`
+        : `Pro (${proPrice}) gives you 5 stories per month, 5 saved characters, and all 11 art styles. Premium (${premiumPrice}) gives you 11 stories per month, 10 saved characters, all art styles, and print-ready PDF downloads.`
 
     const faqData = [
         {
@@ -108,7 +118,9 @@ const FAQPage = () => {
             category: "Billing",
             question: "What do Pro and Premium plans include?",
             answer:
-                "Pro ($4/month) gives you 5 stories per month, 5 saved characters, and all 11 art styles. Premium ($8/month) gives you 11 stories per month, 10 saved characters, all art styles, and print-ready PDF downloads.",
+                pricing.pro?.isOnSale || pricing.premium?.isOnSale
+                    ? `${paidPlansLine} Pro includes 5 stories per month, 5 saved characters, and all 11 art styles. Premium includes 11 stories per month, 10 saved characters, all art styles, and print-ready PDF downloads.`
+                    : paidPlansLine,
         },
         {
             id: 16,

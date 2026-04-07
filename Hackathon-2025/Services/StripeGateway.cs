@@ -14,6 +14,7 @@ public class StripeGateway : IPaymentGateway
 {
     private readonly StripeOptions _cfg;
     private readonly AppOptions _app;
+    private readonly BillingOptions _billing;
     private readonly AppDbContext _db;
     private readonly ILogger<StripeGateway> _log;
     private readonly StripeClient _client;
@@ -21,12 +22,14 @@ public class StripeGateway : IPaymentGateway
     public StripeGateway(
         IOptions<StripeOptions> cfg,
         IOptions<AppOptions> app,
+        IOptions<BillingOptions> billing,
         AppDbContext db,
         ILogger<StripeGateway> log,
         StripeClient client)
     {
         _cfg = cfg.Value;
         _app = app.Value;
+        _billing = billing.Value;
         _db = db;
         _log = log;
         _client = client;
@@ -46,6 +49,35 @@ public class StripeGateway : IPaymentGateway
     private bool IsAllowedAddon(string priceId) =>
         priceId == _cfg.PriceIdAddon5 || priceId == _cfg.PriceIdAddon11;
 
+    private List<Checkout.SessionDiscountOptions>? BuildLaunchSaleDiscounts(string planKey)
+    {
+        var sale = _billing.LaunchSale;
+        if (!sale.Enabled)
+            return null;
+
+        var mode = (sale.DiscountMode ?? string.Empty).Trim().ToLowerInvariant();
+        var plan = (planKey ?? string.Empty).Trim().ToLowerInvariant();
+        var couponId = (plan, mode) switch
+        {
+            ("pro", "forever") => sale.ProCouponIdForever,
+            ("pro", "months") => sale.ProCouponIdLimited,
+            ("premium", "forever") => sale.PremiumCouponIdForever,
+            ("premium", "months") => sale.PremiumCouponIdLimited,
+            _ => throw new InvalidOperationException($"Unsupported Billing:LaunchSale:DiscountMode '{sale.DiscountMode}'.")
+        };
+
+        if (string.IsNullOrWhiteSpace(couponId))
+            throw new InvalidOperationException($"Billing:LaunchSale is enabled, but no coupon ID is configured for plan '{planKey}' and mode '{sale.DiscountMode}'.");
+
+        return new List<Checkout.SessionDiscountOptions>
+        {
+            new()
+            {
+                Coupon = couponId
+            }
+        };
+    }
+
     // ---------- Subscriptions ----------
 
     public async Task<CheckoutSession> CreateCheckoutSessionAsync(
@@ -62,6 +94,7 @@ public class StripeGateway : IPaymentGateway
             PaymentMethodTypes = new List<string> { "card" },
             LineItems = new List<Checkout.SessionLineItemOptions> { lineItem },
             Mode = "subscription",
+            Discounts = BuildLaunchSaleDiscounts(planKey),
             CustomerEmail = userEmail,
             ClientReferenceId = userId.ToString(),
             Metadata = new Dictionary<string, string?>
