@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Helmet } from "react-helmet-async"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
@@ -15,6 +15,7 @@ const UpgradePage = () => {
     const [isProcessing, setIsProcessing] = useState(false)
     const { config: publicConfig } = usePublicConfig()
     const pricing = publicConfig.pricing || {}
+    const upgradeActionsRef = useRef(null)
 
     const plans = [
         {
@@ -121,6 +122,25 @@ const UpgradePage = () => {
         const currentPlan = plans.find((p) => p.id === user?.membership)
         return currentPlan?.features || []
     }
+
+    useEffect(() => {
+        if (!selectedPlan || selectedPlan === "free") return
+        if (typeof window === "undefined") return
+        if (!window.matchMedia("(max-width: 768px)").matches) return
+
+        const frame = window.requestAnimationFrame(() => {
+            const top = upgradeActionsRef.current?.getBoundingClientRect().top
+            if (typeof top !== "number") return
+
+            const y = window.scrollY + top - 40
+            window.scrollTo({
+                top: Math.max(0, y),
+                behavior: "smooth",
+            })
+        })
+
+        return () => window.cancelAnimationFrame(frame)
+    }, [selectedPlan])
 
     if (!user) {
         return (
@@ -232,7 +252,7 @@ const UpgradePage = () => {
                 </div>
 
                 {selectedPlan && selectedPlan !== "free" && (
-                    <div className="upgrade-actions">
+                    <div className="upgrade-actions" ref={upgradeActionsRef}>
                         <div className="upgrade-summary">
                             <h3>Ready to upgrade to {plans.find((p) => p.id === selectedPlan)?.name}?</h3>
                             <p>You'll be redirected to our secure payment processor to complete your upgrade.</p>
