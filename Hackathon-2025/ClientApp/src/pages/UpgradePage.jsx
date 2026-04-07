@@ -36,14 +36,16 @@ const UpgradePage = () => {
             name: "Pro",
             price: pricing.pro?.price || "$4.99/month",
             originalPrice: pricing.pro?.originalPrice || null,
+            isOnSale: !!pricing.pro?.isOnSale,
             saleHint: pricing.pro?.saleHint || null,
             badge: pricing.pro?.badgeText || null,
             icon: "✨",
-            description: "Great for regular storytelling",
+            description: "Built for families ready to make storytime a regular ritual",
             features: [
                 "5 stories per month",
                 "5 saved characters",
                 "Advanced character creation",
+                "10 additional art styles",
                 "High-quality illustrations",
                 "Download & share",
             ],
@@ -54,16 +56,18 @@ const UpgradePage = () => {
             name: "Premium",
             price: pricing.premium?.price || "$9.99/month",
             originalPrice: pricing.premium?.originalPrice || null,
+            isOnSale: !!pricing.premium?.isOnSale,
             saleHint: pricing.premium?.saleHint || null,
             icon: "🌟",
-            description: "Perfect for families who love stories",
+            description: "Best for families who want the fullest creative library",
             features: [
                 "11 stories per month",
                 "10 saved characters",
                 "Advanced character creation",
-                "Premium illustrations",
+                "10 additional art styles",
+                "High-quality illustrations",
+                "Download & share",
                 "Print-ready format",
-                "Priority support queue",
             ],
             badge: pricing.premium?.badgeText || "Most Popular",
             disabled: user?.membership === "premium",
@@ -189,20 +193,27 @@ const UpgradePage = () => {
                             <div
                                 key={plan.id}
                                 className={`plan-card ${selectedPlan === plan.id ? "selected" : ""} ${plan.disabled ? "disabled" : ""
-                                    } ${plan.badge ? "premium" : ""}`}
+                                    } ${plan.badge ? "premium" : ""} ${plan.isOnSale ? "on-sale" : ""}`}
                                 onClick={() => !plan.disabled && setSelectedPlan(plan.id)}
                             >
                                 {plan.badge && <div className="plan-badge">{plan.badge}</div>}
-                                {plan.disabled && user.membership === plan.id && <div className="current-badge">Current Plan</div>}
+                                {plan.disabled && user.membership === plan.id && (
+                                    <div className={`current-badge ${plan.badge ? "with-sale-badge" : ""}`}>Current Plan</div>
+                                )}
 
                                 <div className="plan-icon">{plan.icon}</div>
                                 <h3>{plan.name}</h3>
-                                <p className="plan-price">{plan.price}</p>
-                                {plan.originalPrice && (
-                                    <p className="plan-description">Usually {plan.originalPrice}</p>
+                                <div className="plan-pricing">
+                                    {plan.isOnSale && plan.originalPrice && (
+                                        <p className="plan-price-original">{plan.originalPrice}</p>
+                                    )}
+                                    <p className={`plan-price ${plan.isOnSale ? "sale-price" : ""}`}>{plan.price}</p>
+                                </div>
+                                {plan.isOnSale && (
+                                    <p className="plan-sale-copy">Limited-time pricing for new subscribers.</p>
                                 )}
                                 {plan.saleHint && (
-                                    <p className="plan-description">{plan.saleHint}</p>
+                                    <p className="plan-sale-hint">{plan.saleHint}</p>
                                 )}
                                 <p className="plan-description">{plan.description}</p>
 
