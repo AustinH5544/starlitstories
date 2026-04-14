@@ -59,6 +59,7 @@ export default function StoryViewerPage({ mode = "private" }) {
 
     const [showFeedback, setShowFeedback] = useState(false);
     const [feedbackSent, setFeedbackSent] = useState(false);
+    const estimatedReadMinutes = Math.max(1, Math.round((story?.pages?.length ?? 0) * 0.625));
 
     // ===== Book Mode & Flip =====
     const [bookMode, setBookMode] = useState(() => localStorage.getItem("bookMode") === "1");
@@ -868,7 +869,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                                         <p className="story-info">A magical adventure awaits!</p>
                                         <div className="story-stats">
                                             <span className="stat"><span className="stat-icon">📄</span>{story.pages.length} pages</span>
-                                            <span className="stat"><span className="stat-icon">⏱️</span>~{Math.ceil(story.pages.length * 1.5)} min read</span>
+                                            <span className="stat"><span className="stat-icon">⏱️</span>~{estimatedReadMinutes} min read</span>
                                         </div>
                                     </div>
                                 </div>
