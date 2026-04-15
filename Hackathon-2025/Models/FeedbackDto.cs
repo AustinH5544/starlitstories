@@ -14,6 +14,7 @@ public sealed class FeedbackDto
     public string? IllustrationsOff { get; set; }
     public string? Navigation { get; set; }
     public int? ActualReadMin { get; set; }
+    public string? StoryLength { get; set; }
     public string? StoryFlow { get; set; }
     public string? EncounteredBugs { get; set; }
     public string? Bugs { get; set; }

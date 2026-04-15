@@ -58,6 +58,7 @@ public class FeedbackController : ControllerBase
             Row("Illustration Satisfaction", dto.IllustrationsSatisfaction);
             Row("Illustration Follow-up", dto.IllustrationsOff);
             Row("Navigation", dto.Navigation);
+            Row("Story Length", dto.StoryLength);
             Row("Story Flow", dto.StoryFlow);
             Row("Encountered Bugs", dto.EncounteredBugs);
             Row("Performance", dto.Performance);

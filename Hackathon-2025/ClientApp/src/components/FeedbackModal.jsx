@@ -17,6 +17,7 @@ export default function FeedbackModal({
         illustrationsOff: "",
         navigation: "",
         actualReadMin: "",
+        storyLength: "",
         storyFlow: "",
         encounteredBugs: "",
         bugs: "",
@@ -200,6 +201,15 @@ export default function FeedbackModal({
                                         <option>Started strong, lost me</option>
                                         <option>Felt rushed</option>
                                         <option>Felt slow</option>
+                                    </select>
+                                </label>
+                                <label className="label" style={{ gridColumn: "1 / -1" }}>
+                                    How did the story length feel?
+                                    <select className="select" value={form.storyLength} onChange={update("storyLength")}>
+                                        <option value="" disabled hidden>Select…</option>
+                                        <option>Too short</option>
+                                        <option>Just right</option>
+                                        <option>Too long</option>
                                     </select>
                                 </label>
                             </div>
