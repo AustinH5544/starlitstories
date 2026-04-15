@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./FeedbackModal.css";
 import api from "../api";
 
@@ -11,16 +11,22 @@ export default function FeedbackModal({
 }) {
     const [form, setForm] = useState({
         enjoyment: "",
-        personalization: "",
-        illustrations: "",
+        promptMatch: "",
+        charactersMatch: "",
+        promptCharactersOff: "",
+        illustrationsSatisfaction: "",
+        illustrationsOff: "",
         navigation: "",
-        readTimeAccuracy: "",
         actualReadMin: "",
+        storyFlow: "",
+        encounteredBugs: "",
         bugs: "",
         performance: "",
         likes: "",
         improvements: "",
-        futureInterest: "",
+        nextFeature: "",
+        readWith: "",
+        createAgainLikelihood: "",
         name: "",
         email: "",
     });
@@ -33,6 +39,16 @@ export default function FeedbackModal({
         const pages = Number(storyMeta?.pageCount || 0);
         return Math.max(1, Math.ceil(pages * 1.5));
     }, [storyMeta]);
+
+    const promptOrCharactersNeedsFollowup = useMemo(() => (
+        form.promptMatch === "Not really" || form.charactersMatch === "Not really"
+    ), [form.promptMatch, form.charactersMatch]);
+
+    const illustrationsNeedsFollowup = useMemo(() => (
+        form.illustrationsSatisfaction === "Mixed feelings" || form.illustrationsSatisfaction === "Not satisfied"
+    ), [form.illustrationsSatisfaction]);
+
+    const showBugDetails = form.encounteredBugs === "Yes";
 
     useEffect(() => {
         if (!open) return;
@@ -62,6 +78,9 @@ export default function FeedbackModal({
                 estReadMin,
                 ...form,
                 actualReadMin: form.actualReadMin === "" ? null : Number(form.actualReadMin),
+                promptCharactersOff: promptOrCharactersNeedsFollowup ? form.promptCharactersOff : null,
+                illustrationsOff: illustrationsNeedsFollowup ? form.illustrationsOff : null,
+                bugs: showBugDetails ? form.bugs : null,
                 notify: emailTargets,
             };
 
@@ -100,7 +119,6 @@ export default function FeedbackModal({
                     </div>
 
                     <form className="feedback-form" onSubmit={submit}>
-                        {/* Story Experience */}
                         <div className="section">
                             <h3>Story Experience</h3>
                             <div className="grid-2">
@@ -112,14 +130,15 @@ export default function FeedbackModal({
                                         onChange={update("enjoyment")}
                                     >
                                         <option value="" disabled hidden>Select…</option>
-                                        {[1, 2, 3, 4, 5].map(n => (
+                                        {[1, 2, 3, 4, 5].map((n) => (
                                             <option key={n} value={n}>{n} ⭐</option>
                                         ))}
                                     </select>
+                                    <span className="field-note">1 = Didn&apos;t enjoy it, 5 = Loved it</span>
                                 </label>
                                 <label className="label">
-                                    Matched your prompt/characters?
-                                    <select className="select" value={form.personalization} onChange={update("personalization")}>
+                                    Did the story match what you described?
+                                    <select className="select" value={form.promptMatch} onChange={update("promptMatch")}>
                                         <option value="" disabled hidden>Select…</option>
                                         <option>Yes, very much</option>
                                         <option>Somewhat</option>
@@ -127,11 +146,75 @@ export default function FeedbackModal({
                                     </select>
                                 </label>
                                 <label className="label">
-                                    Illustrations fit the story?
-                                    <select className="select" value={form.illustrations} onChange={update("illustrations")}>
+                                    Matched your characters?
+                                    <select className="select" value={form.charactersMatch} onChange={update("charactersMatch")}>
+                                        <option value="" disabled hidden>Select…</option>
+                                        <option>Yes, very much</option>
+                                        <option>Somewhat</option>
+                                        <option>Not really</option>
+                                    </select>
+                                </label>
+                                {promptOrCharactersNeedsFollowup && (
+                                    <label className="label" style={{ gridColumn: "1 / -1" }}>
+                                        What felt off?
+                                        <textarea className="textarea" value={form.promptCharactersOff} onChange={update("promptCharactersOff")} />
+                                    </label>
+                                )}
+                                <label className="label" style={{ gridColumn: "1 / -1" }}>
+                                    How satisfied were you with the illustrations?
+                                    <select className="select" value={form.illustrationsSatisfaction} onChange={update("illustrationsSatisfaction")}>
+                                        <option value="" disabled hidden>Select…</option>
+                                        <option>Loved them</option>
+                                        <option>Pretty good</option>
+                                        <option>Mixed feelings</option>
+                                        <option>Not satisfied</option>
+                                    </select>
+                                </label>
+                                {illustrationsNeedsFollowup && (
+                                    <label className="label" style={{ gridColumn: "1 / -1" }}>
+                                        What felt off about the illustrations?
+                                        <textarea className="textarea" value={form.illustrationsOff} onChange={update("illustrationsOff")} />
+                                    </label>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="section">
+                            <h3>Read Time & Flow</h3>
+                            <div className="grid-2">
+                                <label className="label">
+                                    About how many minutes did it take to read the story?
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        className="input"
+                                        value={form.actualReadMin}
+                                        onChange={update("actualReadMin")}
+                                        placeholder={String(estReadMin)}
+                                    />
+                                </label>
+                                <label className="label">
+                                    How did the story feel to read?
+                                    <select className="select" value={form.storyFlow} onChange={update("storyFlow")}>
+                                        <option value="" disabled hidden>Select…</option>
+                                        <option>Engaging throughout</option>
+                                        <option>Started strong, lost me</option>
+                                        <option>Felt rushed</option>
+                                        <option>Felt slow</option>
+                                    </select>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="section">
+                            <h3>Bugs & Performance</h3>
+                            <div className="grid-2">
+                                <label className="label">
+                                    Did you encounter any bugs or glitches?
+                                    <select className="select" value={form.encounteredBugs} onChange={update("encounteredBugs")}>
                                         <option value="" disabled hidden>Select…</option>
                                         <option>Yes</option>
-                                        <option>Somewhat</option>
                                         <option>No</option>
                                     </select>
                                 </label>
@@ -144,44 +227,13 @@ export default function FeedbackModal({
                                         <option>Hard to read or navigate</option>
                                     </select>
                                 </label>
-                            </div>
-                        </div>
-
-                        {/* Read Time & Flow */}
-                        <div className="section">
-                            <h3>Read Time & Flow</h3>
-                            <div className="grid-2">
-                                <label className="label">
-                                    Was the estimated read time accurate?
-                                    <select className="select" value={form.readTimeAccuracy} onChange={update("readTimeAccuracy")}>
-                                        <option value="" disabled hidden>Select…</option>
-                                        <option>Yes, pretty close</option>
-                                        <option>Slightly off</option>
-                                        <option>Not at all accurate</option>
-                                    </select>
-                                </label>
-                                <label className="label">
-                                    How long did it actually take? (min)
-                                    <input
-                                        type="number" min="0" step="1"
-                                        className="input"
-                                        value={form.actualReadMin}
-                                        onChange={update("actualReadMin")}
-                                        placeholder={String(estReadMin)}
-                                    />
-                                </label>
-                            </div>
-                        </div>
-
-                        {/* Bugs & Performance */}
-                        <div className="section">
-                            <h3>Bugs & Performance</h3>
-                            <div className="grid-2">
+                                {showBugDetails && (
+                                    <label className="label" style={{ gridColumn: "1 / -1" }}>
+                                        Any bugs or glitches? (include steps to reproduce if possible)
+                                        <textarea className="textarea" value={form.bugs} onChange={update("bugs")} />
+                                    </label>
+                                )}
                                 <label className="label" style={{ gridColumn: "1 / -1" }}>
-                                    Any bugs or glitches? (include steps to reproduce if possible)
-                                    <textarea className="textarea" value={form.bugs} onChange={update("bugs")} />
-                                </label>
-                                <label className="label">
                                     Site performance
                                     <select className="select" value={form.performance} onChange={update("performance")}>
                                         <option value="" disabled hidden>Select…</option>
@@ -193,7 +245,6 @@ export default function FeedbackModal({
                             </div>
                         </div>
 
-                        {/* Final Thoughts */}
                         <div className="section">
                             <h3>Final Thoughts</h3>
                             <div className="grid-1">
@@ -206,20 +257,39 @@ export default function FeedbackModal({
                                     <textarea className="textarea" value={form.improvements} onChange={update("improvements")} />
                                 </label>
                                 <label className="label">
-                                    Interested in future features (e.g., narration)?
-                                    <select className="select" value={form.futureInterest} onChange={update("futureInterest")}>
+                                    Who did you read this with?
+                                    <select className="select" value={form.readWith} onChange={update("readWith")}>
                                         <option value="" disabled hidden>Select…</option>
-                                        <option>Yes</option>
-                                        <option>Maybe</option>
-                                        <option>No</option>
+                                        <option>Alone</option>
+                                        <option>With my child</option>
+                                        <option>Other</option>
+                                    </select>
+                                </label>
+                                <label className="label">
+                                    How likely are you to create another story?
+                                    <select className="select" value={form.createAgainLikelihood} onChange={update("createAgainLikelihood")}>
+                                        <option value="" disabled hidden>Select…</option>
+                                        <option>Definitely</option>
+                                        <option>Probably</option>
+                                        <option>Not sure yet</option>
+                                        <option>Unlikely</option>
+                                    </select>
+                                </label>
+                                <label className="label">
+                                    If we could add one of these features next, which would be most valuable to you?
+                                    <select className="select" value={form.nextFeature} onChange={update("nextFeature")}>
+                                        <option value="" disabled hidden>Select…</option>
+                                        <option>Audio narration</option>
+                                        <option>Printable keepsake version</option>
+                                        <option>Multiple language options</option>
                                     </select>
                                 </label>
                             </div>
                         </div>
 
-                        {/* Optional Contact */}
                         <div className="section">
                             <h3>Optional Contact</h3>
+                            <p className="feedback-note">Leave your contact info if you&apos;d be open to a quick follow-up conversation.</p>
                             <div className="grid-2">
                                 <label className="label">
                                     Name (optional)
