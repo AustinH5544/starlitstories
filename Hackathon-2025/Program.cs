@@ -269,6 +269,17 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    options.AddPolicy("feedback-ip", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 3,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0
+        });
+    });
+
     // Optional: a light global limiter
     // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(...)
 });

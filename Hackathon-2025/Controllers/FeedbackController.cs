@@ -1,13 +1,16 @@
 ﻿using Hackathon_2025.Models;
 using Hackathon_2025.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Text;
 
 namespace Hackathon_2025.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("feedback-ip")]
 public class FeedbackController : ControllerBase
 {
     private readonly ILogger<FeedbackController> _logger;
@@ -32,11 +35,9 @@ public class FeedbackController : ControllerBase
 
         try
         {
-            var targets = (dto.Notify is { Length: > 0 })
-                ? dto.Notify
-                : new[] { "austintylerdevelopment@gmail.com", "support@starlitstories.app" };
+            var targets = GetFeedbackRecipients();
 
-            var subject = $"⭐ Starlit Feedback — {dto.StoryTitle ?? "Untitled"} (Enjoyment {dto.Enjoyment}/5)";
+            var subject = SafeSubject($"Starlit Feedback - {dto.StoryTitle ?? "Untitled"} (Enjoyment {dto.Enjoyment}/5)");
 
             var sb = new StringBuilder();
             sb.AppendLine("<html><body style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto;'>");
@@ -44,7 +45,7 @@ public class FeedbackController : ControllerBase
             sb.AppendLine("<table style='border-collapse:collapse;width:100%;font-size:14px;'>");
 
             void Row(string label, object? value)
-                => sb.AppendLine($"<tr><td style='padding:6px 8px;font-weight:600;width:40%;border-bottom:1px solid #eee;'>{label}</td><td style='padding:6px 8px;border-bottom:1px solid #eee;'>{value}</td></tr>");
+                => sb.AppendLine($"<tr><td style='padding:6px 8px;font-weight:600;width:40%;border-bottom:1px solid #eee;'>{WebUtility.HtmlEncode(label)}</td><td style='padding:6px 8px;border-bottom:1px solid #eee;'>{WebUtility.HtmlEncode(Convert.ToString(value))}</td></tr>");
 
             Row("Story", $"{dto.StoryTitle} (ID: {dto.StoryId})");
             Row("Pages", dto.PageCount);
@@ -66,7 +67,7 @@ public class FeedbackController : ControllerBase
             Row("Read With", dto.ReadWith);
             Row("Create Another Story", dto.CreateAgainLikelihood);
             Row("Most Valuable Next Feature", dto.NextFeature);
-            Row("Reporter", $"{dto.Name} &lt;{dto.Email}&gt;");
+            Row("Reporter", $"{dto.Name} <{dto.Email}>");
             sb.AppendLine("</table>");
             sb.AppendLine("<p style='margin-top:20px;color:#6b7280;font-size:13px;'>This message was auto-sent from the feedback form on starlitstories.app.</p>");
             sb.AppendLine("</body></html>");
@@ -86,5 +87,35 @@ public class FeedbackController : ControllerBase
             _logger.LogError(ex, "Failed to process feedback");
             return StatusCode(500, new { error = "Feedback email failed." });
         }
+    }
+
+    private string[] GetFeedbackRecipients()
+    {
+        var recipients = _config.GetSection("Feedback:Recipients").Get<string[]>() ?? Array.Empty<string>();
+        var recipientsCsv = _config["Feedback:RecipientsCsv"];
+
+        var configured = recipients
+            .Concat(ParseCsv(recipientsCsv))
+            .Select(email => email.Trim())
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return configured.Length > 0
+            ? configured
+            : new[] { "austintylerdevelopment@gmail.com", "support@starlitstories.app" };
+    }
+
+    private static IEnumerable<string> ParseCsv(string? raw)
+    {
+        return string.IsNullOrWhiteSpace(raw)
+            ? Array.Empty<string>()
+            : raw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static string SafeSubject(string subject)
+    {
+        return subject.Replace("\r", " ", StringComparison.Ordinal)
+            .Replace("\n", " ", StringComparison.Ordinal);
     }
 }

@@ -6,7 +6,6 @@ export default function FeedbackModal({
     open,
     onClose,
     storyMeta = { id: null, title: "", pageCount: 0, estReadMin: null },
-    emailTargets = ["austintylerdevelopment@gmail.com", "support@starlitstories.app"],
     onSubmitted,
 }) {
     const [form, setForm] = useState({
@@ -81,7 +80,6 @@ export default function FeedbackModal({
                 promptCharactersOff: promptOrCharactersNeedsFollowup ? form.promptCharactersOff : null,
                 illustrationsOff: illustrationsNeedsFollowup ? form.illustrationsOff : null,
                 bugs: showBugDetails ? form.bugs : null,
-                notify: emailTargets,
             };
 
             await api.post("/feedback", payload);

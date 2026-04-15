@@ -1027,7 +1027,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                     pageCount: story?.pages?.length ?? 0,
                     estReadMin: Math.ceil((story?.pages?.length ?? 0) * 1.5),
                 }}
-                emailTargets={["support@starlitstories.app"]}
                 onSubmitted={() => {
                     setFeedbackSent(true);
                     if (story?.id) localStorage.setItem(`fb:${story.id}`, "1");

@@ -25,5 +25,4 @@ public sealed class FeedbackDto
     public string? CreateAgainLikelihood { get; set; }
     public string? Name { get; set; }
     public string? Email { get; set; }
-    public string[]? Notify { get; set; } // optional override from client
 }
