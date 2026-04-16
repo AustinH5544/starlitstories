@@ -104,7 +104,7 @@ public class FeedbackController : ControllerBase
 
         return configured.Length > 0
             ? configured
-            : new[] { "austintylerdevelopment@gmail.com", "support@starlitstories.app" };
+            : new[] { "austintylerdevelopment@gmail.com" };
     }
 
     private static IEnumerable<string> ParseCsv(string? raw)
