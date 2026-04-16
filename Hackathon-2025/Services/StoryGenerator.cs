@@ -65,6 +65,9 @@ public class StoryGenerator : IStoryGeneratorService
         // SINGLE SOURCE OF TRUTH: page count from config only
         int pageCount = _config.GetValue<int?>("Story:DefaultParagraphs") ?? 10;
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
+        const string ChildSafetyRule =
+            "Follow fundamental child-safety guidance: do not normalize risky, secretive, or unsupervised behavior for children. " +
+            "If a theme or lesson touches on safety, model age-appropriate choices such as staying aware, using caution, asking a trusted adult for help, and following caregiver guidance.";
 
         // ----- System prompt depends on whether a lesson is required -----
         string systemContent;
@@ -74,6 +77,7 @@ public class StoryGenerator : IStoryGeneratorService
                 "You are a creative children's story writer. " +
                 "Never describe physical appearance. " +
                 "Use only the provided character names and roles; do not invent other named characters. " +
+                ChildSafetyRule + " " +
                 "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
         }
         else
@@ -82,6 +86,7 @@ public class StoryGenerator : IStoryGeneratorService
                 "You are a creative children's story writer. " +
                 "Never describe physical appearance. " +
                 "Use only the provided character names and roles; do not invent other named characters. " +
+                ChildSafetyRule + " " +
                 "If any moral or takeaway emerges, keep it subtle and do NOT add any explicit line that starts with 'Lesson:'.";
         }
 
@@ -188,6 +193,7 @@ Rules:
 - Do not invent new named characters.
 {introLine}
 - Keep each page to 1–3 sentences.
+- {ChildSafetyRule}
 
 {style.AudienceLine}
 Use a {style.Tone} tone. Prefer {style.SentenceRule}
