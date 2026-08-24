@@ -34,7 +34,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         {
             if (i == 0 || referenceImageUrl == null)
             {
-                // First image (or single-image calls like cover): use DALL-E 3.
+                // First image (or single-image calls like cover): use gpt-image-2.
                 var url = await GenerateSingleImageAsync(prompts[i]);
                 results.Add(url);
 
@@ -44,7 +44,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
             }
             else
             {
-                // Pages 2+: use gpt-image-1 edits with page 1 as the character reference.
+                // Pages 2+: use gpt-image-2 edits with page 1 as the character reference.
                 var dataUri = await GenerateSingleImageWithReferenceAsync(prompts[i], referenceImageUrl, null);
                 results.Add(dataUri);
             }
@@ -55,7 +55,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         return results;
     }
 
-    // --- DALL-E 3 path (page 1 + cover) ---------------------------------------
+    // --- gpt-image-2 path (page 1 + cover) -------------------------------------
 
     private async Task<string> GenerateSingleImageAsync(string originalPrompt)
     {
@@ -65,8 +65,8 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         const int maxAttempts = 4;
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            using var msg = BuildDallE3Request(workingPrompt);
-            _logger.LogInformation("PROMPT[image->dall-e-3] attempt={Attempt} len={Len}\n{Prompt}\n",
+            using var msg = BuildImageGenerationRequest(workingPrompt);
+            _logger.LogInformation("PROMPT[image->gpt-image-2] attempt={Attempt} len={Len}\n{Prompt}\n",
                 attempt, workingPrompt.Length, workingPrompt);
 
             string? raw = null;
@@ -83,12 +83,13 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
 
                 if (res.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("RESULT[image<-dall-e-3] ReqId={ReqId} bytes={Bytes}",
+                    _logger.LogInformation("RESULT[image<-gpt-image-2] ReqId={ReqId} bytes={Bytes}",
                         reqId, raw.Length);
 
                     using var stream = new MemoryStream(Encoding.UTF8.GetBytes(raw));
                     using var json = await JsonDocument.ParseAsync(stream);
-                    return json.RootElement.GetProperty("data")[0].GetProperty("url").GetString()!;
+                    var b64 = json.RootElement.GetProperty("data")[0].GetProperty("b64_json").GetString()!;
+                    return "data:image/png;base64," + b64;
                 }
 
                 _logger.LogError("OpenAI images error {Status}. Attempt={Attempt} ReqId={ReqId} PromptLen={Len}. Body={Body}",
@@ -143,15 +144,15 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         throw new InvalidOperationException("GenerateSingleImageAsync: exhausted all attempts.");
     }
 
-    private HttpRequestMessage BuildDallE3Request(string prompt)
+    private HttpRequestMessage BuildImageGenerationRequest(string prompt)
     {
         var body = new
         {
-            model = "dall-e-3",
+            model = "gpt-image-2",
             prompt,
             n = 1,
             size = "1024x1024",
-            style = "vivid"
+            quality = "low"
         };
 
         var msg = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/images/generations");
@@ -160,7 +161,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         return msg;
     }
 
-    // --- gpt-image-1 edits path (pages 2+) ------------------------------------
+    // --- gpt-image-2 edits path (pages 2+) ------------------------------------
 
     // Dedicated client for the edits endpoint — avoids TLS connection-reuse issues
     // (Windows Schannel SEC_E_MESSAGE_ALTERED) when mixing JSON and multipart on the same pool.
@@ -177,13 +178,13 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         string characterBasePrompt,
         Action<int, int>? onProgress = null)
     {
-        // Step 1: Generate the base character image using DALL-E 3.
+        // Step 1: Generate the base character image using gpt-image-2.
         string characterUrl = await GenerateSingleImageAsync(characterBasePrompt);
 
         // Step 2: Download the character bytes once; all parallel edits share the exact payload.
         var referenceImage = await DownloadReferenceImageAsync(characterUrl);
 
-        // Step 3: Fire all story images in parallel as gpt-image-1 edits.
+        // Step 3: Fire all story images in parallel as gpt-image-2 edits.
         // SemaphoreSlim caps concurrency to avoid hitting OpenAI rate limits.
         var sem = new SemaphoreSlim(4);
         var completed = 0;
@@ -217,15 +218,14 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         var forceSuspiciousFailure = _config.GetValue<bool>("ImageGeneration:ForceSuspiciousImageFailure");
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            _logger.LogInformation("PROMPT[image->gpt-image-1-edit] attempt={Attempt} len={Len}\n{Prompt}\n",
+            _logger.LogInformation("PROMPT[image->gpt-image-2-edit] attempt={Attempt} len={Len}\n{Prompt}\n",
                 attempt, prompt.Length, prompt);
 
             // MultipartFormDataContent must be rebuilt on each retry — it's read once.
             using var content = new MultipartFormDataContent();
-            content.Add(new StringContent("gpt-image-1-mini"), "model");
+            content.Add(new StringContent("gpt-image-2"), "model");
             content.Add(new StringContent(prompt), "prompt");
-            content.Add(new StringContent("medium"), "quality");
-            content.Add(new StringContent("low"), "input_fidelity");
+            content.Add(new StringContent("low"), "quality");
             content.Add(new StringContent("1024x1024"), "size");
 
             var imageContent = new ByteArrayContent(referenceImage.Bytes);
@@ -244,7 +244,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
 
                 if (res.IsSuccessStatusCode)
                 {
-                    _logger.LogInformation("RESULT[image<-gpt-image-1-edit] bytes={Bytes} refContentType={RefContentType} refFile={RefFile}",
+                    _logger.LogInformation("RESULT[image<-gpt-image-2-edit] bytes={Bytes} refContentType={RefContentType} refFile={RefFile}",
                         raw.Length, referenceImage.ContentType, referenceImage.FileName);
 
                     using var json = JsonDocument.Parse(raw);
@@ -261,7 +261,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
                                 {
                                     _logger.LogWarning(
                                         "Suspicious edit image detected. Model={Model} PromptLen={PromptLen} Width={Width} Height={Height} AvgBrightness={AvgBrightness:F2} StdDev={StdDev:F2} NearBlackRatio={NearBlackRatio:P1} Forced={Forced}",
-                                        "gpt-image-1-mini",
+                                        "gpt-image-2",
                                         prompt.Length,
                                         stats.Width,
                                         stats.Height,
@@ -275,7 +275,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
                                         suspiciousRetryCount++;
                                         _logger.LogWarning(
                                             "Retrying suspiciously dark image. Model={Model} Retry={Retry}/{MaxRetries} PromptLen={PromptLen} Forced={Forced}",
-                                            "gpt-image-1-mini",
+                                            "gpt-image-2",
                                             suspiciousRetryCount,
                                             maxSuspiciousRetries,
                                             prompt.Length,
@@ -291,7 +291,7 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
                                 {
                                     _logger.LogInformation(
                                         "Edit image stats. Model={Model} PromptLen={PromptLen} Width={Width} Height={Height} AvgBrightness={AvgBrightness:F2} StdDev={StdDev:F2} NearBlackRatio={NearBlackRatio:P1}",
-                                        "gpt-image-1-mini",
+                                        "gpt-image-2",
                                         prompt.Length,
                                         stats.Width,
                                         stats.Height,
@@ -303,14 +303,14 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
                         }
                         catch (FormatException ex)
                         {
-                            _logger.LogWarning(ex, "Could not decode gpt-image-1 edit base64 response for analysis.");
+                            _logger.LogWarning(ex, "Could not decode gpt-image-2 edit base64 response for analysis.");
                         }
                     }
 
                     return "data:image/png;base64," + b64;
                 }
 
-                _logger.LogError("gpt-image-1 edits error {Status}. Attempt={Attempt} PromptLen={Len}. Body={Body}",
+                _logger.LogError("gpt-image-2 edits error {Status}. Attempt={Attempt} PromptLen={Len}. Body={Body}",
                     status, attempt, prompt.Length, raw);
 
                 if (attempt < maxAttempts && IsTransient(status))
@@ -345,6 +345,9 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
 
     private async Task<ReferenceImagePayload> DownloadReferenceImageAsync(string imageUrl)
     {
+        if (imageUrl.StartsWith("data:", StringComparison.Ordinal))
+            return BuildReferenceFromDataUri(imageUrl);
+
         using var res = await _editsClient.GetAsync(imageUrl, HttpCompletionOption.ResponseHeadersRead);
         res.EnsureSuccessStatusCode();
 
@@ -354,6 +357,24 @@ public class OpenAIImageGeneratorService : IImageGeneratorService
         var fileName = BuildReferenceFileName(safeContentType);
 
         _logger.LogInformation("Loaded reference image for edits. ContentType={ContentType} Bytes={Bytes} FileName={FileName}",
+            safeContentType, bytes.Length, fileName);
+
+        return new ReferenceImagePayload(bytes, safeContentType, fileName);
+    }
+
+    private ReferenceImagePayload BuildReferenceFromDataUri(string dataUri)
+    {
+        var commaIndex = dataUri.IndexOf(',');
+        if (commaIndex < 0)
+            throw new InvalidOperationException("Malformed data URI for reference image.");
+
+        var header = dataUri[5..commaIndex];
+        var mediaType = header.Split(';')[0];
+        var safeContentType = NormalizeImageContentType(mediaType);
+        var bytes = Convert.FromBase64String(dataUri[(commaIndex + 1)..]);
+        var fileName = BuildReferenceFileName(safeContentType);
+
+        _logger.LogInformation("Loaded inline reference image for edits. ContentType={ContentType} Bytes={Bytes} FileName={FileName}",
             safeContentType, bytes.Length, fileName);
 
         return new ReferenceImagePayload(bytes, safeContentType, fileName);

@@ -349,8 +349,8 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         // Build the base character prompt used as the shared reference image.
         var charBasePrompt = PromptBuilder.BuildBaseCharacterPrompt(characters, request.ArtStyle);
 
-        // Generate: base character first (1 DALL-E 3 call), then all story images
-        // (cover + pages) in parallel as gpt-image-1 edits referencing the base.
+        // Generate: base character first (1 gpt-image-2 call), then all story images
+        // (cover + pages) in parallel as gpt-image-2 edits referencing the base.
         onProgress?.Invoke(new ProgressUpdate
         {
             Stage = "character-base",
