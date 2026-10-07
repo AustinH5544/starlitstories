@@ -116,18 +116,17 @@ public class StoryController : ControllerBase
             var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl!, coverFileName);
             result = result with { CoverImageUrl = coverBlobUrl };
 
-            // Upload page images
-            var pages = result.Pages.ToList();
-            var uploadTasks = pages.Select(async (p, i) =>
+            // Upload page images in parallel; each task returns its updated page (never mutate the list being enumerated)
+            var uploadTasks = result.Pages.Select(async (p, i) =>
             {
-                if (!string.IsNullOrEmpty(p.ImageUrl))
-                {
-                    var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
-                    var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
-                    pages[i] = p with { ImageUrl = blobUrl };
-                }
+                if (string.IsNullOrEmpty(p.ImageUrl))
+                    return p;
+
+                var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
+                var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
+                return p with { ImageUrl = blobUrl };
             }).ToList();
-            await Task.WhenAll(uploadTasks);
+            var pages = (await Task.WhenAll(uploadTasks)).ToList();
 
             pendingStory.Title = result.Title;
             pendingStory.CoverImageUrl = result.CoverImageUrl;

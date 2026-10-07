@@ -42,20 +42,17 @@ internal sealed class FakeBlobUploadService : IBlobUploadService
 {
     public ConcurrentBag<string> Uploaded { get; } = new();
 
-    // Real uploads always await network I/O before returning, and StoryController relies on that:
-    // it writes to the page list it is still enumerating. Yield first so the fake behaves the same.
-    public async Task<string> UploadImageAsync(string imageUrl, string fileName)
+    // Completes synchronously on purpose: this is the harshest timing for callers that upload pages in parallel.
+    public Task<string> UploadImageAsync(string imageUrl, string fileName)
     {
-        await Task.Yield();
         Uploaded.Add(fileName);
-        return $"https://blob.test/{fileName}";
+        return Task.FromResult($"https://blob.test/{fileName}");
     }
 
-    public async Task<string> UploadBase64ImageAsync(string base64Data, string fileName)
+    public Task<string> UploadBase64ImageAsync(string base64Data, string fileName)
     {
-        await Task.Yield();
         Uploaded.Add(fileName);
-        return $"https://blob.test/{fileName}";
+        return Task.FromResult($"https://blob.test/{fileName}");
     }
 
     public Task DeleteByUrlAsync(string blobUrl) => Task.CompletedTask;
