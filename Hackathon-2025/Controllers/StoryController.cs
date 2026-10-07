@@ -20,7 +20,7 @@ public class StoryController : ControllerBase
 
     private readonly IStoryGeneratorService _storyService;
     private readonly AppDbContext _db;
-    private readonly BlobUploadService _blobService;
+    private readonly IBlobUploadService _blobService;
     private readonly IProgressBroker _progress;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOptionsSnapshot<StoryOptions> _storyOpts;
@@ -32,7 +32,7 @@ public class StoryController : ControllerBase
     public StoryController(
         IStoryGeneratorService storyService,
         AppDbContext db,
-        BlobUploadService blobService,
+        IBlobUploadService blobService,
         IProgressBroker progress,
         IServiceScopeFactory scopeFactory,
         IOptionsSnapshot<StoryOptions> storyOpts,
@@ -203,7 +203,7 @@ public class StoryController : ControllerBase
             {
                 using var scope = _scopeFactory.CreateScope();
                 var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var scopedBlob = scope.ServiceProvider.GetRequiredService<BlobUploadService>();
+                var scopedBlob = scope.ServiceProvider.GetRequiredService<IBlobUploadService>();
                 var scopedGenerator = scope.ServiceProvider.GetRequiredService<IStoryGeneratorService>();
                 var sUser = await scopedDb.Users.FirstOrDefaultAsync(u => u.Id == user.Id);
                 if (sUser is null)
