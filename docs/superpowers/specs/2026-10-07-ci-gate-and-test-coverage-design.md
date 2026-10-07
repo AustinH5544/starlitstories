@@ -114,7 +114,7 @@ No bypass switch. A failing test blocks the deploy.
 ### Not tested (deliberately)
 Real email delivery, OpenAI HTTP calls, Azure Blob I/O, Key Vault (thin wrappers over external services); no new trivial model-property tests.
 
-**Expected size:** about 120–150 new tests (suite ~170–200), whole suite under ~2 minutes including the SQL Server container.
+**Expected size:** about 200 new test results (suite ~240–250 results, since each data-driven row counts), whole suite under ~2 minutes including the SQL Server container.
 
 ## 4. Frontend lint cleanup
 
@@ -144,10 +144,27 @@ Bugs found by tests are reported to the user with a proposed fix; nothing change
 ## Done when
 
 - CI blocks deploys on failing build, tests or lint, for both `staging` and `main`, and runs checks on PRs.
-- ~170–200 tests pass locally and in CI, with the SQL Server tests running (not skipped) in CI.
+- ~240–250 test results pass locally and in CI, with the SQL Server tests running (not skipped) in CI.
 - `staging` is deployed and healthy.
 - The user has a list of any bugs found, with proposed fixes.
 
+## Corrections made while writing the plan
+
+These supersede the matching lines above; the plan (`docs/superpowers/plans/2026-10-07-ci-gate-and-test-coverage.md`) follows them.
+
+- **Free users with add-on credits:** the code blocks Free users after one story *even with add-on credits* (`StoryController.EnsureCapacityAndReserveCreditAsync`). The Tier 1 line "with add-on credit → succeeds" applies to Pro/Premium only; for Free the test pins current behavior (403) as an open question.
+- **PromptBuilder "lesson guards":** these live inside `StoryGenerator`, wired directly to OpenAI, so they're not unit-testable without network. Dropped from Tier 3. `CleanForModel` is private and covered only indirectly.
+- **Feedback:** only validation and the rate limit are tested. The success path uses the concrete `EmailService` (real SMTP/ACS), so testing it would need another production change.
+- **`IImageGeneratorService` fake:** not needed. The fake story generator replaces its only consumer.
+- **Second build-metadata change:** `InternalsVisibleTo("Hackathon-2025.Tests")` in the API csproj, so `PngImageInspector` (internal) can be tested. No runtime effect.
+- **`/readyz` and `/api/warmup`:** run `SELECT 1`, which the in-memory provider can't, so they're tested in the SqlServer category only.
+- **Test isolation:** the test assembly runs methods in parallel and every factory used to share one in-memory DB name (`"tests-db"`). The new factory gives each instance its own database.
+- **Not tested (timing-dependent):** two simultaneous story requests from the same user could both pass the quota check (read-then-write without a lock or concurrency token). Reported as an open question, not tested, because a test would be flaky.
+
 ## Open questions (decide when reached; don't block the work)
 
-- **Share link expiry cap:** `ShareController` accepts any positive `days` from the client with no maximum. Keep unlimited, or cap (e.g. 365)? The test documents current behavior until decided.
+- **Share link expiry cap:** `ShareController` accepts any positive `days` from the client with no maximum, and a huge value (~3,000,000) overflows `DateTime` and throws (500). Keep unlimited, or cap (e.g. 365)? A cap fixes both. Tests document current behavior until decided.
+- **Free users holding add-on credits** (possible after a Premium→Free downgrade, since carryover keeps the balance) can't use them. Intended, or should add-ons be spendable on Free?
+- **Prompt fallback is unreachable:** in `PromptBuilder.BuildImagePromptAsync` and `BuildCoverPromptAsync`, the retry loop's `catch when (attempt < maxAttempts)` lets the last exception escape, so the keyword/static fallback after the loop never runs. Both are used by `StoryGenerator`, so two OpenAI scene-call failures fail the whole story (credit refunded) instead of falling back. Proposed fix: catch on every attempt and fall through to the fallback after the loop. Tests pin current behavior (`..._OpenQuestion`) until approved.
+- **Concurrent story requests** (double-click / two tabs) may both pass the quota check. Proposed fix: add a concurrency token (rowversion) on `User`, or an atomic conditional update when reserving credit.
+- **Avatar accepts any absolute URL** (`ProfileController.UpdateAvatar`). Intended (custom avatars), or restrict to presets/your own CDN? Documented by a test.
