@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react"
 import { Helmet } from "react-helmet-async"
 import api from "../api"
@@ -687,6 +687,10 @@ const ProfilePage = () => {
                         </div>
                     )}
                 </div>
+
+                <p className="profile-help">
+                    Questions about your plan or a story? <Link to="/support">Contact support</Link>
+                </p>
 
                 {/* Premium-only Buy Credits — only shown when the user is out of stories */}
                 {isPremium && !usageLoading && usage?.remaining === 0 && (
