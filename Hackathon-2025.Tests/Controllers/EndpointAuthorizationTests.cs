@@ -76,6 +76,7 @@ public class EndpointAuthorizationTests
     [DataRow("GET", "/api/users/me/usage")]
     [DataRow("POST", "/api/story/generate-full")]
     [DataRow("POST", "/api/story/generate-full/start")]
+    [DataRow("DELETE", "/api/story/1")]
     [DataRow("GET", "/api/saved-character/me")]
     [DataRow("GET", "/api/admin/dashboard")]
     [DataRow("POST", "/api/payments/create-checkout-session")]

@@ -55,5 +55,14 @@ internal sealed class FakeBlobUploadService : IBlobUploadService
         return Task.FromResult($"https://blob.test/{fileName}");
     }
 
-    public Task DeleteByUrlAsync(string blobUrl) => Task.CompletedTask;
+    public ConcurrentBag<string> Deleted { get; } = new();
+    public Exception? ThrowOnDelete { get; set; }
+
+    public Task DeleteByUrlAsync(string blobUrl)
+    {
+        if (ThrowOnDelete is not null)
+            throw ThrowOnDelete;
+        Deleted.Add(blobUrl);
+        return Task.CompletedTask;
+    }
 }

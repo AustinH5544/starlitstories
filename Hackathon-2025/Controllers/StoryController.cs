@@ -18,6 +18,9 @@ public class StoryController : ControllerBase
     private const string PendingStoryTitle = "Your story is being generated...";
     private const string PendingStoryCoverUrl = "/story-generating-cover.png";
 
+    // A page-less story younger than this is still being generated; older ones are stuck drafts.
+    private static readonly TimeSpan GenerationWindow = TimeSpan.FromMinutes(30);
+
     private readonly IStoryGeneratorService _storyService;
     private readonly AppDbContext _db;
     private readonly IBlobUploadService _blobService;
@@ -353,6 +356,46 @@ public class StoryController : ControllerBase
         var result = _progress.GetResult(jobId, userId);
         if (result is null) return NotFound();
         return Ok(result);
+    }
+
+    [Authorize]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var user = await GetAndValidateUserAsync();
+        if (user is null) return Unauthorized("Invalid or missing user.");
+
+        var story = await _db.Stories
+            .Include(s => s.Pages)
+            .Include(s => s.Shares)
+            .FirstOrDefaultAsync(s => s.Id == id && s.UserId == user.Id);
+
+        if (story is null) return NotFound("Story not found.");
+
+        // Deleting a draft mid-generation would make the background job lose track of the reserved credit.
+        if (story.Pages.Count == 0 && DateTime.UtcNow - story.CreatedAt < GenerationWindow)
+            return Conflict("This story is still being generated. Try again once it's finished.");
+
+        var imageUrls = story.Pages
+            .Select(p => p.ImageUrl)
+            .Prepend(story.CoverImageUrl)
+            // Only real blob URLs; drafts point at a shared static placeholder that must never be deleted.
+            .Where(url => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                          && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
+            .Distinct()
+            .ToList();
+
+        _db.Stories.Remove(story); // pages and shares are loaded, so they're removed with it
+        await _db.SaveChangesAsync();
+
+        // Best-effort image cleanup; the story is already gone, so a storage failure must not surface.
+        foreach (var url in imageUrls)
+        {
+            try { await _blobService.DeleteByUrlAsync(url!); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Could not delete image {Url} for story {StoryId}", url, id); }
+        }
+
+        return NoContent();
     }
 
     [HttpGet("ping")]
