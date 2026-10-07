@@ -1,6 +1,7 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Models.Auth;
+using Hackathon_2025.Services;
 using Hackathon_2025.Tests.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
