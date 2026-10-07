@@ -280,6 +280,18 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    // Public support contact form: room for a follow-up or two, tight enough to stop mail flooding.
+    options.AddPolicy("support-ip", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0
+        });
+    });
+
     // Optional: a light global limiter
     // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(...)
 });

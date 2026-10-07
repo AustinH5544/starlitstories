@@ -17,6 +17,7 @@ public class EndpointAuthorizationTests
     private static readonly string[] AllowedPublic =
     {
         "post /api/auth/signup",
+        "post /api/support",
         "post /api/auth/verify-email",
         "post /api/auth/resend-verification",
         "post /api/auth/login",

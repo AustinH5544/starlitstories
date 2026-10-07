@@ -1,8 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Helmet } from "react-helmet-async"
 import SiteFooter from "../components/SiteFooter"
+import TurnstileWidget from "../components/TurnstileWidget"
+import api from "../api"
+import { useAuth } from "../context/AuthContext"
+import { TURNSTILE_SITE_KEY } from "../config"
+
+const SUPPORT_EMAIL = "support@starlitstories.app"
 import "./SupportPage.css"
 
 const SparklesIcon = () => (
@@ -92,6 +98,20 @@ const SupportPage = () => {
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [showSuccess, setShowSuccess] = useState(false)
+    const [errorMessage, setErrorMessage] = useState("")
+    const [turnstileToken, setTurnstileToken] = useState("")
+    const [turnstileReset, setTurnstileReset] = useState(0)
+    const { user } = useAuth() || {}
+
+    // Signed-in visitors shouldn't have to retype who they are.
+    useEffect(() => {
+        if (!user) return
+        setFormData((prev) => ({
+            ...prev,
+            name: prev.name || user.username || "",
+            email: prev.email || user.email || "",
+        }))
+    }, [user])
 
     const handleInputChange = (e) => {
         const { name, value } = e.target
@@ -103,22 +123,38 @@ const SupportPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-        setIsSubmitting(true)
+        setShowSuccess(false)
+        setErrorMessage("")
 
-        setTimeout(() => {
-            setIsSubmitting(false)
+        if (TURNSTILE_SITE_KEY && !turnstileToken) {
+            setErrorMessage("Please complete the human verification check below.")
+            return
+        }
+
+        setIsSubmitting(true)
+        try {
+            await api.post("/support", { ...formData, turnstileToken })
             setShowSuccess(true)
-            setFormData({
-                name: "",
-                email: "",
+            // Keep name and email for a follow-up message; clear the rest.
+            setFormData((prev) => ({
+                ...prev,
                 category: "",
                 priority: "medium",
                 subject: "",
                 message: "",
-            })
-
-            setTimeout(() => setShowSuccess(false), 5000)
-        }, 1000)
+            }))
+            setTimeout(() => setShowSuccess(false), 8000)
+        } catch (err) {
+            setErrorMessage(
+                err?.response?.status === 429
+                    ? `You've sent several messages in a short time. Please wait a few minutes, or email us at ${SUPPORT_EMAIL}.`
+                    : err?.response?.data?.message || `We couldn't send your message. Please email us at ${SUPPORT_EMAIL}.`
+            )
+        } finally {
+            setIsSubmitting(false)
+            // Turnstile tokens are single-use, so every attempt needs a fresh check.
+            setTurnstileReset((n) => n + 1)
+        }
     }
 
     return (
@@ -280,6 +316,13 @@ const SupportPage = () => {
                                 />
                             </div>
 
+                            <TurnstileWidget
+                                className="support-human-check"
+                                onToken={setTurnstileToken}
+                                onError={setErrorMessage}
+                                resetSignal={turnstileReset}
+                            />
+
                             <button type="submit" className="submit-btn" disabled={isSubmitting}>
                                 <span className="submit-btn-icon">
                                     {isSubmitting ? <ClockIcon /> : <ArrowIcon />}
@@ -295,6 +338,19 @@ const SupportPage = () => {
                                     <div>
                                         <strong>Message sent successfully.</strong>
                                         <p>We'll get back to you within 24 hours.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {errorMessage && (
+                                <div className="error-message" role="alert">
+                                    <div>
+                                        <strong>Your message wasn't sent.</strong>
+                                        <p>{errorMessage}</p>
+                                        <p>
+                                            You can always reach us at{" "}
+                                            <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+                                        </p>
                                     </div>
                                 </div>
                             )}
