@@ -107,12 +107,12 @@ public class EmailService : IEmailService
         await SendEmailAsync(email, subject, body);
     }
 
-    private async Task<bool> SendEmailAsync(string to, string subject, string body, bool throwOnError = false)
+    private async Task<bool> SendEmailAsync(string to, string subject, string body, bool throwOnError = false, string? replyToOverride = null)
     {
         try
         {
             var fromEmail = _config["Email:FromEmail"];
-            var replyTo = _config["Email:ReplyTo"];             // optional
+            var replyTo = string.IsNullOrWhiteSpace(replyToOverride) ? _config["Email:ReplyTo"] : replyToOverride; // optional
             var provider = (_config["Email:Provider"] ?? "").ToLowerInvariant();
             var acsConnString = _config["Email:ConnectionString"];
 
@@ -209,9 +209,9 @@ public class EmailService : IEmailService
         }
     }
 
-    public async Task SendCustomEmailAsync(string to, string subject, string htmlBody)
+    public async Task SendCustomEmailAsync(string to, string subject, string htmlBody, string? replyTo = null)
     {
-        await SendEmailAsync(to, subject, htmlBody, throwOnError: true);
+        await SendEmailAsync(to, subject, htmlBody, throwOnError: true, replyToOverride: replyTo);
     }
 
     // very small helper; can replace with something fancier
