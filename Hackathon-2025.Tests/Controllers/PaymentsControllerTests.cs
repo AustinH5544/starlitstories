@@ -1,345 +1,226 @@
-﻿//using Microsoft.VisualStudio.TestTools.UnitTesting;
-//using Hackathon_2025.Controllers;
-//using Hackathon_2025.Models;
-//using Hackathon_2025.Data;
-//using Hackathon_2025.Services;
-//using Microsoft.AspNetCore.Mvc;
-//using Microsoft.EntityFrameworkCore;
-//using Microsoft.Extensions.Options;
-//using Microsoft.Extensions.Logging;
-//using Moq;
-//using System.Threading.Tasks;
-//using System;
-//using System.Security.Claims;
-//using Microsoft.AspNetCore.Http;
-//using Stripe.Checkout;
-//using Hackathon_2025.Options;
+using System.Net;
+using System.Net.Http.Json;
+using Hackathon_2025.Models;
+using Hackathon_2025.Services;
+using Hackathon_2025.Tests.Utils;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Moq;
+using Stripe;
 
-//namespace Hackathon_2025.Tests.Controllers;
+namespace Hackathon_2025.Tests.Controllers;
 
-//[TestClass]
-//public class PaymentsControllerTests
-//{
-//    private Mock<IPaymentGateway> _mockGateway = null!;
-//    private Mock<IQuotaService> _mockQuota = null!;
-//    private Mock<IPeriodService> _mockPeriod = null!;
-//    private Mock<ILogger<PaymentsController>> _mockLogger = null!;
-//    private IOptions<StripeOptions> _stripeOptions = null!;
-//    private IOptions<AppOptions> _appOptions = null!;
-//    private AppDbContext _db = null!;
-//    private PaymentsController _controller = null!;
+[TestClass]
+public class PaymentsControllerTests
+{
+    private TestWebAppFactory _factory = null!;
 
-//    private DefaultHttpContext _http = null!;
+    [TestInitialize]
+    public void Init() => _factory = new TestWebAppFactory();
 
-//    [TestInitialize]
-//    public void Setup()
-//    {
-//        var options = new DbContextOptionsBuilder<AppDbContext>()
-//            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-//            .Options;
-//        _db = new AppDbContext(options);
+    [TestCleanup]
+    public void Cleanup() => _factory.Dispose();
 
-//        _mockGateway = new Mock<IPaymentGateway>();
-//        _mockQuota = new Mock<IQuotaService>();
-//        _mockPeriod = new Mock<IPeriodService>();
-//        _mockLogger = new Mock<ILogger<PaymentsController>>();
+    // ---------- create-checkout-session ----------
 
-//        _stripeOptions = Options.Create(new StripeOptions
-//        {
-//            SecretKey = "sk_test",
-//            PublishableKey = "pk_test",
-//            WebhookSecret = "whsec_test",
-//            PriceIdPro = "price_pro",
-//            PriceIdPremium = "price_premium",
-//            PriceIdAddon5 = "price_addon5",
-//            PriceIdAddon11 = "price_addon11"
-//        });
+    [TestMethod]
+    public async Task Checkout_Requires_Login()
+    {
+        var resp = await _factory.AnonymousClient().PostAsJsonAsync("/api/payments/create-checkout-session", new { membership = "Pro" });
+        Assert.AreEqual(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
 
-//        _appOptions = Options.Create(new AppOptions
-//        {
-//            BaseUrl = "http://localhost:5173",
-//            AllowedCorsOrigins = "http://localhost:5173"
-//        });
+    [TestMethod]
+    public async Task Checkout_For_Free_Plan_Is_Rejected()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser());
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/payments/create-checkout-session", new { membership = "Free" });
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
 
-//        _controller = new PaymentsController(
-//            _mockGateway.Object,
-//            _db,
-//            _mockQuota.Object,
-//            _mockPeriod.Object,
-//            _stripeOptions,
-//            _appOptions,
-//            _mockLogger.Object
-//        );
+    [TestMethod]
+    public async Task Checkout_With_Existing_Active_Subscription_Is_Conflict()
+    {
+        var user = TestData.NewUser(MembershipPlan.Pro);
+        user.BillingSubscriptionRef = "sub_1";
+        user.PlanStatus = "active";
+        await _factory.SeedAsync(user);
 
-//        // Authenticated user with id=1 and email claim
-//        _http = new DefaultHttpContext();
-//        var user = new ClaimsPrincipal(new ClaimsIdentity(new[]
-//        {
-//            new Claim(ClaimTypes.NameIdentifier, "1"),
-//            new Claim("email", "test@example.com")
-//        }, "mock"));
-//        _http.User = user;
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/payments/create-checkout-session", new { membership = "Premium" });
 
-//        _controller.ControllerContext = new ControllerContext
-//        {
-//            HttpContext = _http
-//        };
+        Assert.AreEqual(HttpStatusCode.Conflict, resp.StatusCode);
+    }
 
-//        // Seed user
-//        _db.Users.Add(new User
-//        {
-//            Id = 1,
-//            Email = "test@example.com",
-//            Membership = "premium",
-//            PlanKey = "premium",
-//            PlanStatus = "active",
-//            CurrentPeriodStartUtc = DateTime.UtcNow.AddDays(-1),
-//            CurrentPeriodEndUtc = DateTime.UtcNow.AddDays(29),
-//            AddOnBalance = 0,
-//            BooksGenerated = 0
-//        });
-//        _db.SaveChanges();
-//    }
+    [TestMethod]
+    public async Task Checkout_After_Canceled_Subscription_Is_Allowed()
+    {
+        var user = TestData.NewUser();
+        user.BillingSubscriptionRef = "sub_old";
+        user.PlanStatus = "canceled";
+        await _factory.SeedAsync(user);
+        _factory.PaymentGatewayMock
+            .Setup(g => g.CreateCheckoutSessionAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new CheckoutSession("https://checkout.test/s2"));
 
-//    [TestMethod]
-//    public async Task CreateCheckoutSession_ValidMembership_ReturnsCheckoutUrl()
-//    {
-//        // Arrange
-//        var request = new CheckoutRequest { Membership = "premium" };
-//        _mockGateway
-//            .Setup(g => g.CreateCheckoutSessionAsync(
-//                It.IsAny<int>(), It.IsAny<string>(), "premium",
-//                It.IsAny<string>(), It.IsAny<string>()))
-//            .ReturnsAsync(new Session { Url = "https://session.example/abc" });
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/payments/create-checkout-session", new { membership = "Pro" });
 
-//        // Act
-//        var result = await _controller.CreateCheckoutSession(request) as OkObjectResult;
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+    }
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        dynamic payload = result.Value!;
-//        Assert.AreEqual("https://session.example/abc", (string)payload.checkoutUrl);
-//    }
+    [TestMethod]
+    public async Task Checkout_Passes_Plan_And_Return_Urls_To_Gateway()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser());
+        _factory.PaymentGatewayMock
+            .Setup(g => g.CreateCheckoutSessionAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new CheckoutSession("https://checkout.test/s1"));
 
-//    [TestMethod]
-//    public async Task CreateCheckoutSession_MissingMembership_ReturnsBadRequest()
-//    {
-//        // Arrange
-//        var request = new CheckoutRequest { Membership = "" };
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/payments/create-checkout-session", new { membership = "Pro" });
 
-//        // Act
-//        var result = await _controller.CreateCheckoutSession(request) as BadRequestObjectResult;
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        Assert.AreEqual("https://checkout.test/s1", (await resp.ReadJsonAsync()).GetProperty("checkoutUrl").GetString());
+        _factory.PaymentGatewayMock.Verify(g => g.CreateCheckoutSessionAsync(
+            user.Id, user.Email, "Pro",
+            "https://app.test/profile?upgraded=1&plan=pro",
+            "https://app.test/upgrade?cancelled=1"), Times.Once);
+    }
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        Assert.AreEqual("Membership is required.", result.Value);
-//    }
+    // ---------- buy-credits ----------
 
-//    [TestMethod]
-//    public async Task BuyCredits_ValidRequest_ReturnsCheckoutUrl()
-//    {
-//        // Arrange
-//        var request = new BuyCreditsRequest { Pack = "plus5", Quantity = 2 };
+    [TestMethod]
+    public async Task BuyCredits_Is_Premium_Only()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 5));
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/payments/buy-credits", new { pack = "Plus5", quantity = 1 });
+        Assert.AreEqual((HttpStatusCode)403, resp.StatusCode);
+    }
 
-//        // Policy: allow purchase regardless of remaining base quota
-//        _mockQuota.Setup(q => q.BaseQuotaFor(It.IsAny<string>())).Returns(0);
-//        _mockQuota.Setup(q => q.RequirePremiumForAddons()).Returns(false);
-//        _mockQuota.Setup(q => q.OnlyAllowPurchaseWhenExhausted()).Returns(false);
+    [TestMethod]
+    public async Task BuyCredits_Requires_Base_Quota_To_Be_Used_Up()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Premium, booksGenerated: 3));
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/payments/buy-credits", new { pack = "Plus5", quantity = 1 });
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
 
-//        _mockPeriod.Setup(p => p.IsPeriodBoundary(It.IsAny<User>(), It.IsAny<DateTime>()))
-//                   .Returns(false);
+    [TestMethod]
+    public async Task BuyCredits_Exhausted_Premium_Gets_Checkout_For_The_Right_Price()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Premium, booksGenerated: 11));
+        _factory.PaymentGatewayMock
+            .Setup(g => g.CreateOneTimeCheckoutAsync(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(new CheckoutSession("https://checkout.test/credits"));
 
-//        _mockGateway
-//            .Setup(g => g.CreateOneTimeCheckoutAsync(
-//                1, "test@example.com", _stripeOptions.Value.PriceIdAddon5, 2,
-//                It.IsAny<string>(), It.IsAny<string>()))
-//            .ReturnsAsync(new Session { Url = "https://buy.example/xyz" });
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/payments/buy-credits", new { pack = "Plus11", quantity = 2 });
 
-//        // Act
-//        var result = await _controller.BuyCredits(request) as OkObjectResult;
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        _factory.PaymentGatewayMock.Verify(g => g.CreateOneTimeCheckoutAsync(
+            user.Id, user.Email, TestWebAppFactory.PriceIdAddon11, 2,
+            "https://app.test/profile?credits=1", "https://app.test/profile?cancelled=1"), Times.Once);
+    }
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        dynamic payload = result.Value!;
-//        Assert.AreEqual("https://buy.example/xyz", (string)payload.checkoutUrl);
-//    }
+    // ---------- portal / subscription / cancel ----------
 
-//    [TestMethod]
-//    public async Task BuyCredits_UnknownPack_ReturnsBadRequest()
-//    {
-//        // Arrange
-//        var request = new BuyCreditsRequest { Pack = "nope" };
+    [TestMethod]
+    public async Task BillingPortal_Without_Customer_Is_BadRequest()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser());
+        _factory.PaymentGatewayMock.Setup(g => g.CreatePortalSessionAsync(user.Id))
+            .ThrowsAsync(new InvalidOperationException("No Stripe customer on file."));
 
-//        // Act
-//        var result = await _controller.BuyCredits(request) as BadRequestObjectResult;
+        var resp = await _factory.ClientFor(user.Id).GetAsync("/api/payments/billing/portal");
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        Assert.AreEqual("Unknown credit pack.", result.Value);
-//    }
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
 
-//    [TestMethod]
-//    public async Task BuyCredits_RequirePremiumGate_Returns403_WhenUserNotPremium()
-//    {
-//        // Arrange: downgrade user to free
-//        var u = await _db.Users.FirstAsync(x => x.Id == 1);
-//        u.Membership = "free";
-//        _db.SaveChanges();
+    [TestMethod]
+    public async Task BillingPortal_Returns_Url()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        _factory.PaymentGatewayMock.Setup(g => g.CreatePortalSessionAsync(user.Id))
+            .ReturnsAsync(new PortalSession("https://portal.test/p1"));
 
-//        var request = new BuyCreditsRequest { Pack = "plus5", Quantity = 1 };
+        var resp = await _factory.ClientFor(user.Id).GetAsync("/api/payments/billing/portal");
 
-//        _mockQuota.Setup(q => q.RequirePremiumForAddons()).Returns(true);
-//        _mockQuota.Setup(q => q.OnlyAllowPurchaseWhenExhausted()).Returns(false);
-//        _mockQuota.Setup(q => q.BaseQuotaFor("free")).Returns(0);
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        Assert.AreEqual("https://portal.test/p1", (await resp.ReadJsonAsync()).GetProperty("url").GetString());
+    }
 
-//        // Act
-//        var result = await _controller.BuyCredits(request) as ObjectResult;
+    [TestMethod]
+    public async Task Subscription_Returns_Stored_Billing_State()
+    {
+        var user = TestData.NewUser(MembershipPlan.Pro);
+        user.PlanStatus = "active";
+        user.BillingSubscriptionRef = "sub_9";
+        user.BillingCustomerRef = "cus_9";
+        await _factory.SeedAsync(user);
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        Assert.AreEqual(403, result.StatusCode);
-//        Assert.AreEqual("Add-on credits are only available to premium members. Please upgrade first.", result.Value);
-//    }
+        var resp = await _factory.ClientFor(user.Id).GetAsync("/api/payments/subscription");
 
-//    [TestMethod]
-//    public async Task BuyCredits_OnlyAllowWhenExhausted_ReturnsBadRequest_WhenBaseRemaining()
-//    {
-//        // Arrange
-//        var u = await _db.Users.FirstAsync(x => x.Id == 1);
-//        u.Membership = "premium";
-//        u.BooksGenerated = 1; // base quota 3 => remaining 2
-//        _db.SaveChanges();
+        var sub = (await resp.ReadJsonAsync()).GetProperty("subscription");
+        Assert.AreEqual("active", sub.GetProperty("status").GetString());
+        Assert.AreEqual("pro", sub.GetProperty("planKey").GetString());
+        Assert.AreEqual("sub_9", sub.GetProperty("subscriptionRef").GetString());
+        Assert.AreEqual("cus_9", sub.GetProperty("customerRef").GetString());
+    }
 
-//        var request = new BuyCreditsRequest { Pack = "plus5", Quantity = 1 };
+    [TestMethod]
+    public async Task Cancel_Without_Subscription_Is_BadRequest()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser());
+        _factory.PaymentGatewayMock.Setup(g => g.CancelAtPeriodEndAsync(user.Id))
+            .ThrowsAsync(new InvalidOperationException("No active subscription."));
 
-//        _mockQuota.Setup(q => q.RequirePremiumForAddons()).Returns(false);
-//        _mockQuota.Setup(q => q.OnlyAllowPurchaseWhenExhausted()).Returns(true);
-//        _mockQuota.Setup(q => q.BaseQuotaFor("premium")).Returns(3);
+        var resp = await _factory.ClientFor(user.Id).PostAsync("/api/payments/cancel", content: null);
 
-//        // Act
-//        var result = await _controller.BuyCredits(request) as BadRequestObjectResult;
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        Assert.AreEqual("You still have 2 base story slot(s) remaining this period.", result.Value);
-//    }
+    [TestMethod]
+    public async Task Cancel_Schedules_Cancellation_Through_Gateway()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        _factory.PaymentGatewayMock.Setup(g => g.CancelAtPeriodEndAsync(user.Id)).Returns(Task.CompletedTask);
 
-//    [TestMethod]
-//    public async Task BillingPortal_ReturnsUrl()
-//    {
-//        // Arrange
-//        _mockGateway.Setup(g => g.CreatePortalSessionAsync(1))
-//                    .ReturnsAsync(new PortalSession { Url = "https://portal.example/port" });
+        var resp = await _factory.ClientFor(user.Id).PostAsync("/api/payments/cancel", content: null);
 
-//        // Act
-//        var result = await _controller.BillingPortal() as OkObjectResult;
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        _factory.PaymentGatewayMock.Verify(g => g.CancelAtPeriodEndAsync(user.Id), Times.Once);
+    }
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        dynamic payload = result.Value!;
-//        Assert.AreEqual("https://portal.example/port", (string)payload.url);
-//    }
+    // ---------- webhook paths that never reach the database ----------
 
-//    [TestMethod]
-//    public async Task BillingPortal_InvalidOperation_ReturnsBadRequest()
-//    {
-//        // Arrange
-//        _mockGateway.Setup(g => g.CreatePortalSessionAsync(1))
-//                    .ThrowsAsync(new InvalidOperationException("no sub"));
+    [TestMethod]
+    public async Task Webhook_Bad_Signature_Returns_BadRequest()
+    {
+        _factory.PaymentGatewayMock.Setup(g => g.HandleWebhookAsync(It.IsAny<HttpRequest>()))
+            .ThrowsAsync(new StripeException("No signatures found matching the expected signature for payload"));
 
-//        // Act
-//        var result = await _controller.BillingPortal() as BadRequestObjectResult;
+        var resp = await _factory.AnonymousClient().PostAsync("/api/payments/webhook", new StringContent("{}"));
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        Assert.AreEqual("no sub", result.Value);
-//    }
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
 
-//    [TestMethod]
-//    public async Task Cancel_SchedulesCancellation_ReturnsOk()
-//    {
-//        // Arrange
-//        _mockGateway.Setup(g => g.CancelAtPeriodEndAsync(1))
-//                    .Returns(Task.CompletedTask);
+    [TestMethod]
+    public async Task Webhook_Unexpected_Error_Returns_500()
+    {
+        _factory.PaymentGatewayMock.Setup(g => g.HandleWebhookAsync(It.IsAny<HttpRequest>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
 
-//        // Act
-//        var result = await _controller.Cancel() as OkObjectResult;
+        var resp = await _factory.AnonymousClient().PostAsync("/api/payments/webhook", new StringContent("{}"));
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        dynamic payload = result.Value!;
-//        Assert.AreEqual("Cancellation scheduled. You'll retain access until the current period ends.", (string)payload.message);
-//    }
+        Assert.AreEqual(HttpStatusCode.InternalServerError, resp.StatusCode);
+    }
 
-//    [TestMethod]
-//    public async Task GetSubscription_ReturnsPayload()
-//    {
-//        // Act
-//        var result = await _controller.GetSubscription() as OkObjectResult;
+    [TestMethod]
+    public async Task Webhook_Non_Actionable_Event_Is_Acknowledged_Without_Recording()
+    {
+        _factory.PaymentGatewayMock.Setup(g => g.HandleWebhookAsync(It.IsAny<HttpRequest>()))
+            .ReturnsAsync(WebhookEvents.Make("evt_ignored", status: "ignored"));
 
-//        // Assert
-//        Assert.IsNotNull(result);
-//        dynamic payload = result.Value!;
-//        Assert.IsNotNull(payload.subscription);
-//        Assert.AreEqual("active", (string)payload.subscription.status);
-//        Assert.AreEqual("premium", (string)payload.subscription.planKey);
-//    }
+        var resp = await _factory.AnonymousClient().PostAsync("/api/payments/webhook", new StringContent("{}"));
 
-//    [TestMethod]
-//    public async Task Webhook_AddOnCredits_IncrementsBalance()
-//    {
-//        // Arrange: mock gateway to return actionable add-on event (plus5 x2 => +10)
-//        _mockGateway.Setup(g => g.HandleWebhookAsync(It.IsAny<HttpRequest>()))
-//            .ReturnsAsync((
-//                eventId: "evt_123",
-//                uid: 1,
-//                custRef: null,
-//                subRef: null,
-//                planKey: null,
-//                status: null,
-//                periodEnd: (DateTime?)null,
-//                periodStart: (DateTime?)null,
-//                cancelAt: (DateTime?)null,
-//                addOnSku: "addon_plus5",
-//                addOnQty: 2
-//            ));
-
-//        // Act
-//        var result = await _controller.Webhook() as OkResult;
-
-//        // Assert
-//        Assert.IsNotNull(result);
-//        var user = await _db.Users.FirstAsync(u => u.Id == 1);
-//        Assert.AreEqual(10, user.AddOnBalance);
-//    }
-
-//    [TestMethod]
-//    public async Task Webhook_NonActionable_ReturnsOk_NoChange()
-//    {
-//        // Arrange
-//        var before = (await _db.Users.FirstAsync(u => u.Id == 1)).AddOnBalance;
-
-//        _mockGateway.Setup(g => g.HandleWebhookAsync(It.IsAny<HttpRequest>()))
-//            .ReturnsAsync((
-//                eventId: "evt_ignored",
-//                uid: (int?)null,
-//                custRef: null,
-//                subRef: null,
-//                planKey: null,
-//                status: "",              // empty + no add-on => non-actionable
-//                periodEnd: (DateTime?)null,
-//                periodStart: (DateTime?)null,
-//                cancelAt: (DateTime?)null,
-//                addOnSku: "",
-//                addOnQty: 0
-//            ));
-
-//        // Act
-//        var result = await _controller.Webhook() as OkResult;
-
-//        // Assert
-//        Assert.IsNotNull(result);
-//        var after = (await _db.Users.FirstAsync(u => u.Id == 1)).AddOnBalance;
-//        Assert.AreEqual(before, after);
-//    }
-//}
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        Assert.AreEqual(0, await _factory.QueryDbAsync(db => db.ProcessedWebhooks.CountAsync()));
+    }
+}
