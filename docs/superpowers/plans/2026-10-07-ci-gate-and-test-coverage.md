@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-07-ci-gate-and-test-coverage-design.md`
 
+**Execution (chosen by the user 2026-10-07):** Native. Implement all tasks in order in one session using superpowers:executing-plans, then run one fresh whole-branch review before Task 13's merge to `staging`. Spec and plan were reviewed and approved by the user.
+
 ## Global Constraints
 
 - Branch: all work on `chore/tests-and-ci` (created from `staging`). Never commit on `main`, never push `main`, never force-push. A hook (`.claude/hooks/protect_main.py`) enforces this; if it blocks something, stop and ask.
