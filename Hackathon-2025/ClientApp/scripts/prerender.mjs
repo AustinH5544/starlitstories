@@ -62,3 +62,8 @@ for (const route of routes) {
   fs.writeFileSync(path.join(outDir, 'index.html'), finalHtml)
   console.log(`Pre-rendered: ${route}`)
 }
+
+// The SSR bundle is only needed above. It also carries a full copy of public/ (~120MB),
+// which pushed the upload past the Static Web Apps size limit, so don't ship it.
+fs.rmSync(path.join(distPath, 'server'), { recursive: true, force: true })
+console.log('Removed dist/server (build-time only)')
