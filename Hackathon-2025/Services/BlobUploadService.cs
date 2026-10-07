@@ -1,7 +1,8 @@
 ﻿using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
+using Hackathon_2025.Services;
 
-public class BlobUploadService
+public class BlobUploadService : IBlobUploadService
 {
     private readonly BlobContainerClient _containerClient;
 

@@ -12,7 +12,7 @@ public class StoryGenerator : IStoryGeneratorService
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
     private readonly IImageGeneratorService _imageService;
-    private readonly BlobUploadService _blobUploader; // kept for DI consistency (unused here)
+    private readonly IBlobUploadService _blobUploader; // kept for DI consistency (unused here)
     private readonly ILogger<StoryGenerator> _logger;
     private readonly IConfiguration _config;
 
@@ -20,7 +20,7 @@ public class StoryGenerator : IStoryGeneratorService
         HttpClient httpClient,
         IConfiguration config,
         IImageGeneratorService imageService,
-        BlobUploadService blobUploader,
+        IBlobUploadService blobUploader,
         ILogger<StoryGenerator> logger)
     {
         _httpClient = httpClient;

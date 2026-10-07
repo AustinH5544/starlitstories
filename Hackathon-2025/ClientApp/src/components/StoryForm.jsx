@@ -1248,7 +1248,7 @@ const StoryForm = ({ onSubmit }) => {
                         <h3 className="character-title">
                             <span className="character-icon">
                                 <img
-                                    src={char.isAnimal ? animalIcon : personIcon}
+                                    src={personIcon}
                                     alt={char.isAnimal ? "Animal character" : "Human character"}
                                     className="character-icon-img"
                                 />

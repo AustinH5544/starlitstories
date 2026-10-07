@@ -163,6 +163,7 @@ const SupportPage = () => {
                 </header>
 
                 <section className="support-highlights" aria-label="Support highlights">
+                    {/* eslint-disable-next-line no-unused-vars -- Icon is rendered as <Icon /> below; this config does not count JSX usage of parameters */}
                     {supportHighlights.map(({ icon: Icon, title, text }) => (
                         <article key={title} className="support-highlight-card">
                             <span className="support-highlight-icon">
@@ -313,6 +314,7 @@ const SupportPage = () => {
                             </div>
 
                             <div className="contact-methods">
+                                {/* eslint-disable-next-line no-unused-vars -- Icon is rendered as <Icon /> below; this config does not count JSX usage of parameters */}
                                 {contactMethods.map(({ icon: Icon, title, detail, note, href }) => {
                                     const content = (
                                         <>

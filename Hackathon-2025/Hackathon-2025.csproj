@@ -47,4 +47,8 @@
     <Folder Include="ClientApp\src\assets\social\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hackathon-2025.Tests" />
+  </ItemGroup>
+
 </Project>

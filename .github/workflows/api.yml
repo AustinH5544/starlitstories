@@ -3,6 +3,8 @@ name: API (App Service)
 on:
   push:
     branches: [ main, staging ]
+  pull_request:
+    branches: [ main, staging ]
   workflow_dispatch: {}
 
 permissions:
@@ -10,9 +12,58 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Build & test (API)
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Hackathon-2025.Tests/Hackathon-2025.Tests.csproj
+
+      - name: Build (warnings are errors in the API project)
+        run: dotnet build Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-restore
+
+      - name: Test (includes SQL Server tests via Docker)
+        run: dotnet test Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
+
+  # The frontend deploys from its own workflow; checking it here too means a frontend
+  # failure also holds back the API, so prod never ends up with only one half updated.
+  frontend-check:
+    name: Lint & build (frontend)
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Hackathon-2025/ClientApp/package-lock.json
+
+      - name: Install deps
+        working-directory: Hackathon-2025/ClientApp
+        run: npm ci
+
+      - name: Lint
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run lint
+
+      - name: Build (staging config)
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run build:staging
+
   deploy-staging:
     name: API deploy (staging)
-    if: ${{ github.ref_name == 'staging' }}
+    needs: [test, frontend-check]
+    if: ${{ github.event_name != 'pull_request' && github.ref_name == 'staging' }}
     runs-on: ubuntu-latest
     environment: staging
     env:
@@ -46,7 +97,8 @@ jobs:
 
   deploy-prod:
     name: API deploy (prod)
-    if: ${{ github.ref_name == 'main' }}
+    needs: [test, frontend-check]
+    if: ${{ github.event_name != 'pull_request' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
     env:

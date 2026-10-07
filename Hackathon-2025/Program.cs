@@ -189,7 +189,7 @@ builder.Services.AddAuthorization();
 // -----------------------------
 builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
-builder.Services.AddSingleton<BlobUploadService>();
+builder.Services.AddSingleton<IBlobUploadService, BlobUploadService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();

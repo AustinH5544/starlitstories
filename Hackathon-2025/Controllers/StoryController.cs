@@ -20,7 +20,7 @@ public class StoryController : ControllerBase
 
     private readonly IStoryGeneratorService _storyService;
     private readonly AppDbContext _db;
-    private readonly BlobUploadService _blobService;
+    private readonly IBlobUploadService _blobService;
     private readonly IProgressBroker _progress;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOptionsSnapshot<StoryOptions> _storyOpts;
@@ -32,7 +32,7 @@ public class StoryController : ControllerBase
     public StoryController(
         IStoryGeneratorService storyService,
         AppDbContext db,
-        BlobUploadService blobService,
+        IBlobUploadService blobService,
         IProgressBroker progress,
         IServiceScopeFactory scopeFactory,
         IOptionsSnapshot<StoryOptions> storyOpts,
@@ -116,18 +116,17 @@ public class StoryController : ControllerBase
             var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl!, coverFileName);
             result = result with { CoverImageUrl = coverBlobUrl };
 
-            // Upload page images
-            var pages = result.Pages.ToList();
-            var uploadTasks = pages.Select(async (p, i) =>
+            // Upload page images in parallel; each task returns its updated page (never mutate the list being enumerated)
+            var uploadTasks = result.Pages.Select(async (p, i) =>
             {
-                if (!string.IsNullOrEmpty(p.ImageUrl))
-                {
-                    var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
-                    var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
-                    pages[i] = p with { ImageUrl = blobUrl };
-                }
+                if (string.IsNullOrEmpty(p.ImageUrl))
+                    return p;
+
+                var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
+                var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
+                return p with { ImageUrl = blobUrl };
             }).ToList();
-            await Task.WhenAll(uploadTasks);
+            var pages = (await Task.WhenAll(uploadTasks)).ToList();
 
             pendingStory.Title = result.Title;
             pendingStory.CoverImageUrl = result.CoverImageUrl;
@@ -203,7 +202,7 @@ public class StoryController : ControllerBase
             {
                 using var scope = _scopeFactory.CreateScope();
                 var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                var scopedBlob = scope.ServiceProvider.GetRequiredService<BlobUploadService>();
+                var scopedBlob = scope.ServiceProvider.GetRequiredService<IBlobUploadService>();
                 var scopedGenerator = scope.ServiceProvider.GetRequiredService<IStoryGeneratorService>();
                 var sUser = await scopedDb.Users.FirstOrDefaultAsync(u => u.Id == user.Id);
                 if (sUser is null)
