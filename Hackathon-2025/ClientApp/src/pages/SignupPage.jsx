@@ -1,13 +1,17 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Helmet } from "react-helmet-async"
+import SiteFooter from "../components/SiteFooter"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
+import { TURNSTILE_SITE_KEY } from "../config"
 import "./SignupPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
 import useWarmup from "../hooks/useWarmup";
+import posthog from '../analytics';
 
 import { checkPassword, requirementLabels, defaultRuleSet } from "../utils/passwordRules"
 import PasswordChecklist from "../components/PasswordChecklist"
@@ -28,6 +32,10 @@ const SignupPage = () => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [isUsernameFocused, setIsUsernameFocused] = useState(false);
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState("");
+    const [turnstileReady, setTurnstileReady] = useState(!TURNSTILE_SITE_KEY);
+    const turnstileContainerRef = useRef(null);
+    const turnstileWidgetIdRef = useRef(null);
 
     const { login } = useAuth()
     const navigate = useNavigate()
@@ -44,6 +52,71 @@ const SignupPage = () => {
     const usernameRuleSet = { ...defaultUsernameRuleSet };
     const { requirements: usernameReqs, allMet: isUsernameValid } = checkUsername(username, usernameRuleSet);
     const usernameLabels = usernameRequirementLabels(usernameRuleSet);
+
+    useEffect(() => {
+        if (!TURNSTILE_SITE_KEY) {
+            return undefined;
+        }
+
+        let cancelled = false;
+        const scriptSrc = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+        const renderWidget = () => {
+            if (cancelled || !turnstileContainerRef.current || !window.turnstile || turnstileWidgetIdRef.current !== null) {
+                return;
+            }
+
+            turnstileWidgetIdRef.current = window.turnstile.render(turnstileContainerRef.current, {
+                sitekey: TURNSTILE_SITE_KEY,
+                theme: "dark",
+                callback: (token) => {
+                    setTurnstileToken(token);
+                    setStatus((prev) => prev === "Please complete the human verification challenge." ? "" : prev);
+                },
+                "expired-callback": () => setTurnstileToken(""),
+                "error-callback": () => {
+                    setTurnstileToken("");
+                    setStatus("Human verification could not load. Please refresh and try again.");
+                }
+            });
+
+            setTurnstileReady(true);
+        };
+
+        const handleLoad = () => renderWidget();
+        const existingScript = document.querySelector(`script[src="${scriptSrc}"]`);
+
+        if (window.turnstile) {
+            renderWidget();
+        } else if (existingScript) {
+            existingScript.addEventListener("load", handleLoad);
+        } else {
+            const script = document.createElement("script");
+            script.src = scriptSrc;
+            script.async = true;
+            script.defer = true;
+            script.addEventListener("load", handleLoad);
+            document.head.appendChild(script);
+        }
+
+        return () => {
+            cancelled = true;
+            const currentScript = document.querySelector(`script[src="${scriptSrc}"]`);
+            currentScript?.removeEventListener("load", handleLoad);
+
+            if (turnstileWidgetIdRef.current !== null && window.turnstile?.remove) {
+                window.turnstile.remove(turnstileWidgetIdRef.current);
+                turnstileWidgetIdRef.current = null;
+            }
+        };
+    }, []);
+
+    const resetTurnstile = () => {
+        setTurnstileToken("");
+        if (turnstileWidgetIdRef.current !== null && window.turnstile?.reset) {
+            window.turnstile.reset(turnstileWidgetIdRef.current);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -67,8 +140,13 @@ const SignupPage = () => {
             setStatus("Passwords don't match.");
             return;
         }
+        if (TURNSTILE_SITE_KEY && !turnstileToken) {
+            setStatus("Please complete the human verification challenge.");
+            return;
+        }
 
         setIsLoading(true);
+        posthog.capture('signup_started', { signup_method: 'email' })
 
         try {
             // Always create as FREE by default
@@ -76,9 +154,11 @@ const SignupPage = () => {
                 email,
                 username: uname,
                 password,
+                turnstileToken,
             });
 
             if (data?.requiresVerification) {
+                posthog.capture('signup_completed', { signup_method: 'email' })
                 alert("Account created! Please verify your email to continue.");
                 navigate("/login");
                 return;
@@ -86,6 +166,12 @@ const SignupPage = () => {
 
             // Log in and send to profile (they can upgrade from there)
             login(data);
+            posthog.identify(data.email, {
+                email: data.email,
+                name: data.username,
+                plan: data.membership || 'free',
+            })
+            posthog.capture('signup_completed', { signup_method: 'email' })
             navigate("/profile");
              } catch (err) {
             console.error(err);
@@ -120,6 +206,10 @@ const SignupPage = () => {
                     }
                 }
 
+                if (msg.toLowerCase().includes("human verification")) {
+                    resetTurnstile();
+                }
+
                 setStatus(msg);
             }
         } finally {
@@ -129,6 +219,21 @@ const SignupPage = () => {
 
     return (
         <div className="signup-page">
+            <Helmet>
+                <title>Sign Up — Create Your Free Account | Starlit Stories</title>
+                <meta name="description" content="Create your free account and start making personalized illustrated storybooks featuring your child as the hero. Ready in minutes." />
+                <link rel="canonical" href="https://starlitstories.app/signup" />
+                <meta property="og:title" content="Sign Up — Create Your Free Account | Starlit Stories" />
+                <meta property="og:description" content="Create your free account and start making personalized illustrated storybooks featuring your child as the hero. Ready in minutes." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/signup" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Sign Up — Create Your Free Account | Starlit Stories" />
+                <meta name="twitter:description" content="Create your free account and start making personalized illustrated storybooks featuring your child as the hero. Ready in minutes." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+            </Helmet>
             <div className="stars"></div>
             <div className="small-clouds"></div>
             <div className="clouds"></div>
@@ -165,6 +270,21 @@ const SignupPage = () => {
                                 id="username-reqs"
                             />
                         </div>
+                        {/* Show failing rules when blurred with invalid input */}
+                        {username.length > 0 && !isUsernameFocused && !isUsernameValid && (
+                            <div className="missing-reqs">
+                                <p className="missing-reqs-title">Username issues:</p>
+                                <ul>
+                                    {Object.entries(usernameReqs)
+                                        .filter(([, met]) => !met)
+                                        .map(([key]) => (
+                                            <li key={key} className="missing-req">
+                                                {usernameLabels[key]}
+                                            </li>
+                                        ))}
+                                </ul>
+                            </div>
+                        )}
                     </div>
 
                     {/* Email */}
@@ -187,7 +307,7 @@ const SignupPage = () => {
                         <div className="input-with-toggle">
                             <input
                                 id="password"
-                                className="input"
+                                className="input ph-no-capture"
                                 type={showPwd ? "text" : "password"}
                                 placeholder="Create a password"
                                 value={password}
@@ -243,7 +363,7 @@ const SignupPage = () => {
                         <div className="input-with-toggle">
                             <input
                                 id="confirm"
-                                className="input"
+                                className="input ph-no-capture"
                                 type={showConfirm ? "text" : "password"}
                                 placeholder="Confirm your password"
                                 value={confirm}
@@ -275,6 +395,18 @@ const SignupPage = () => {
                         <PasswordMatch confirmValue={confirm} isMatch={passwordsMatch} />
                     </div>
 
+                    {TURNSTILE_SITE_KEY && (
+                        <div className="human-check">
+                            <label>Human Check</label>
+                            <div className={`human-check-frame ${turnstileReady ? "is-ready" : "is-loading"}`}>
+                                <div ref={turnstileContainerRef} />
+                            </div>
+                            <p className="human-check-help">
+                                Complete the Cloudflare check so we can block automated signups.
+                            </p>
+                        </div>
+                    )}
+
                     {status && <div className="signup-status" aria-live="polite">{status}</div>}
 
                     <button
@@ -284,7 +416,8 @@ const SignupPage = () => {
                             isLoading ||
                             !isUsernameValid ||
                             !allRequirementsMet ||
-                            !passwordsMatch
+                            !passwordsMatch ||
+                            (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)
                         }
                         title={
                             !isUsernameValid
@@ -310,6 +443,7 @@ const SignupPage = () => {
                     </p>
                 </div>
             </div>
+            <SiteFooter />
         </div>
     )
 }

@@ -53,7 +53,9 @@ public class StoryGenerator : IStoryGeneratorService
         };
     }
 
-    public async Task<StoryResult> GenerateFullStoryAsync(StoryRequest request)
+    public async Task<StoryResult> GenerateFullStoryAsync(
+        StoryRequest request,
+        Action<ProgressUpdate>? onProgress = null)
     {
         // Normalize characters list so it's never null
         var characters = request.Characters ?? new List<CharacterSpec>();
@@ -63,6 +65,9 @@ public class StoryGenerator : IStoryGeneratorService
         // SINGLE SOURCE OF TRUTH: page count from config only
         int pageCount = _config.GetValue<int?>("Story:DefaultParagraphs") ?? 10;
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
+        const string ChildSafetyRule =
+            "Follow fundamental child-safety guidance: do not normalize risky, secretive, or unsupervised behavior for children. " +
+            "If a theme or lesson touches on safety, model age-appropriate choices such as staying aware, using caution, asking a trusted adult for help, and following caregiver guidance.";
 
         // ----- System prompt depends on whether a lesson is required -----
         string systemContent;
@@ -72,6 +77,7 @@ public class StoryGenerator : IStoryGeneratorService
                 "You are a creative children's story writer. " +
                 "Never describe physical appearance. " +
                 "Use only the provided character names and roles; do not invent other named characters. " +
+                ChildSafetyRule + " " +
                 "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
         }
         else
@@ -80,6 +86,7 @@ public class StoryGenerator : IStoryGeneratorService
                 "You are a creative children's story writer. " +
                 "Never describe physical appearance. " +
                 "Use only the provided character names and roles; do not invent other named characters. " +
+                ChildSafetyRule + " " +
                 "If any moral or takeaway emerges, keep it subtle and do NOT add any explicit line that starts with 'Lesson:'.";
         }
 
@@ -186,6 +193,7 @@ Rules:
 - Do not invent new named characters.
 {introLine}
 - Keep each page to 1–3 sentences.
+- {ChildSafetyRule}
 
 {style.AudienceLine}
 Use a {style.Tone} tone. Prefer {style.SentenceRule}
@@ -222,6 +230,13 @@ Put a line containing only --- between paragraphs. Do not include any other divi
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
         httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
         httpRequest.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "story",
+            Percent = 15,
+            Message = "Writing your story..."
+        });
 
         var response = await _httpClient.SendAsync(httpRequest);
         response.EnsureSuccessStatusCode();
@@ -306,20 +321,81 @@ Put a line containing only --- between paragraphs. Do not include any other divi
             paragraphs[^1] = paragraphs[^1].TrimEnd() + "\n\nLesson: " + extractedLesson;
 
         // Image prompts strictly from scene paragraphs (no "Lesson:" line)
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "scene-prompts",
+            Percent = 28,
+            Message = "Planning each illustration..."
+        });
+
         var imagePromptTasks = paragraphsForImages.Select(p =>
             PromptBuilder.BuildImagePromptAsync(characters, p, _httpClient, _apiKey, request.ArtStyle));
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
 
-        // Generate images for each page
-        var externalImageUrls = await _imageService.GenerateImagesAsync(imagePrompts.ToList());
+        // Build cover prompt — story-aware: LLM picks the most iconic scene from the full story.
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "cover-prompt",
+            Percent = 38,
+            Message = "Choosing the best cover moment..."
+        });
 
-        // Title + cover prompt / cover image
+        var coverPrompt = await PromptBuilder.BuildCoverPromptAsync(
+            characters, request.Theme, request.ReadingLevel, request.ArtStyle,
+            paragraphsForImages, _httpClient, _apiKey);
+
+        // Build the base character prompt used as the shared reference image.
+        var charBasePrompt = PromptBuilder.BuildBaseCharacterPrompt(characters, request.ArtStyle);
+
+        // Generate: base character first (1 gpt-image-2 call), then all story images
+        // (cover + pages) in parallel as gpt-image-2 edits referencing the base.
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "character-base",
+            Percent = 48,
+            Message = "Painting your character guide..."
+        });
+
+        var allPrompts = new[] { coverPrompt }.Concat(imagePrompts).ToList();
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "page-images",
+            Percent = 58,
+            Message = $"Illustrating your book (0/{allPrompts.Count})...",
+            Index = 0,
+            Total = allPrompts.Count
+        });
+
+        var allImageUrls = await _imageService.GenerateImagesWithCharacterBaseAsync(
+            allPrompts,
+            charBasePrompt,
+            (completed, total) =>
+            {
+                var percent = 58 + (int)Math.Round((completed / (double)Math.Max(1, total)) * 24);
+                onProgress?.Invoke(new ProgressUpdate
+                {
+                    Stage = "page-images",
+                    Percent = Math.Min(82, percent),
+                    Message = $"Illustrating your book ({completed}/{total})...",
+                    Index = completed,
+                    Total = total
+                });
+            });
+
+        var coverExternalUrl = allImageUrls[0];
+        var externalImageUrls = allImageUrls.Skip(1).ToList();
+
+        // Title is independent — generate it in parallel would be ideal but keeping it simple here.
+        onProgress?.Invoke(new ProgressUpdate
+        {
+            Stage = "title",
+            Percent = 84,
+            Message = "Naming your story..."
+        });
+
         var title = await GenerateTitleAsync(characters.FirstOrDefault()?.Name ?? "A Hero", request.Theme);
-        var coverPrompt = PromptBuilder.BuildCoverPrompt(
-            characters, request.Theme, request.ReadingLevel, request.ArtStyle);
-        var coverExternalUrl = (await _imageService.GenerateImagesAsync(new List<string> { coverPrompt }))[0];
 
         // Assemble DTO pages (NOT EF entities) with image prompts included
         var dtoPages = paragraphs

@@ -58,12 +58,14 @@ public sealed class PeriodService : IPeriodService
 
         user.LastReset = now;
 
-        // If using Stripe windows, roll the start forward.
+        // If using Stripe windows, roll the start forward and clear the stale end date.
+        // Leaving the old end date in place would cause IsPeriodBoundary to fire on every
+        // subsequent request (now >= stale_end) until the renewal webhook arrives.
+        // The Stripe renewal webhook will restore CurrentPeriodEndUtc with the correct value.
         if (user.CurrentPeriodEndUtc.HasValue)
         {
-            user.CurrentPeriodStartUtc = now; // next period start
-            // NOTE: user.CurrentPeriodEndUtc should be set by your Stripe webhook on renewal.
-            // If you want a fallback here, you could set end = now.AddMonths(1), but webhook is source of truth.
+            user.CurrentPeriodStartUtc = now;
+            user.CurrentPeriodEndUtc = null;
         }
         else
         {

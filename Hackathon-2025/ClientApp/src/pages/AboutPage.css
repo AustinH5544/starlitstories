@@ -769,3 +769,32 @@ body {
         justify-content: center;
     }
 }
+
+.benefit-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.benefit-icon-img {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+}
+
+.vision-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+.vision-icon {
+    flex-shrink: 0;
+}
+
+.vision-icon-img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+}

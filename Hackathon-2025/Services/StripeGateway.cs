@@ -6,35 +6,38 @@ using Stripe;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Options;
-using Hackathon_2025.Services; // IPaymentGateway
+using Hackathon_2025.Services;
 using Checkout = Stripe.Checkout;
 using BillingPortal = Stripe.BillingPortal;
 
 public class StripeGateway : IPaymentGateway
 {
     private readonly StripeOptions _cfg;
-    private readonly AppOptions _app;                 // NEW
+    private readonly AppOptions _app;
+    private readonly BillingOptions _billing;
     private readonly AppDbContext _db;
     private readonly ILogger<StripeGateway> _log;
     private readonly StripeClient _client;
 
     public StripeGateway(
         IOptions<StripeOptions> cfg,
-        IOptions<AppOptions> app,                    // NEW
+        IOptions<AppOptions> app,
+        IOptions<BillingOptions> billing,
         AppDbContext db,
         ILogger<StripeGateway> log,
         StripeClient client)
     {
         _cfg = cfg.Value;
-        _app = app.Value;                           // NEW
+        _app = app.Value;
+        _billing = billing.Value;
         _db = db;
         _log = log;
-        _client = client;                           // use this instead of StripeConfiguration.ApiKey
+        _client = client;
     }
 
     private string MapPlanPrice(string planKey)
     {
-        var key = (planKey ?? string.Empty).Trim().ToLowerInvariant(); // NEW normalize
+        var key = (planKey ?? string.Empty).Trim().ToLowerInvariant();
         return key switch
         {
             "pro" => _cfg.PriceIdPro,
@@ -45,6 +48,35 @@ public class StripeGateway : IPaymentGateway
 
     private bool IsAllowedAddon(string priceId) =>
         priceId == _cfg.PriceIdAddon5 || priceId == _cfg.PriceIdAddon11;
+
+    private List<Checkout.SessionDiscountOptions>? BuildLaunchSaleDiscounts(string planKey)
+    {
+        var sale = _billing.LaunchSale;
+        if (!sale.Enabled)
+            return null;
+
+        var mode = (sale.DiscountMode ?? string.Empty).Trim().ToLowerInvariant();
+        var plan = (planKey ?? string.Empty).Trim().ToLowerInvariant();
+        var couponId = (plan, mode) switch
+        {
+            ("pro", "forever") => sale.ProCouponIdForever,
+            ("pro", "months") => sale.ProCouponIdLimited,
+            ("premium", "forever") => sale.PremiumCouponIdForever,
+            ("premium", "months") => sale.PremiumCouponIdLimited,
+            _ => throw new InvalidOperationException($"Unsupported Billing:LaunchSale:DiscountMode '{sale.DiscountMode}'.")
+        };
+
+        if (string.IsNullOrWhiteSpace(couponId))
+            throw new InvalidOperationException($"Billing:LaunchSale is enabled, but no coupon ID is configured for plan '{planKey}' and mode '{sale.DiscountMode}'.");
+
+        return new List<Checkout.SessionDiscountOptions>
+        {
+            new()
+            {
+                Coupon = couponId
+            }
+        };
+    }
 
     // ---------- Subscriptions ----------
 
@@ -62,6 +94,7 @@ public class StripeGateway : IPaymentGateway
             PaymentMethodTypes = new List<string> { "card" },
             LineItems = new List<Checkout.SessionLineItemOptions> { lineItem },
             Mode = "subscription",
+            Discounts = BuildLaunchSaleDiscounts(planKey),
             CustomerEmail = userEmail,
             ClientReferenceId = userId.ToString(),
             Metadata = new Dictionary<string, string?>
@@ -74,7 +107,7 @@ public class StripeGateway : IPaymentGateway
             CancelUrl = cancelUrl
         };
 
-        var sessSvc = new Checkout.SessionService(_client);      // CHANGED: pass client
+        var sessSvc = new Checkout.SessionService(_client);
         var session = await sessSvc.CreateAsync(create);
         return new CheckoutSession(session.Url);
     }
@@ -85,11 +118,11 @@ public class StripeGateway : IPaymentGateway
         if (string.IsNullOrEmpty(user.BillingCustomerRef))
             throw new InvalidOperationException("No Stripe customer on file.");
 
-        var svc = new BillingPortal.SessionService(_client);     // CHANGED: pass client
+        var svc = new BillingPortal.SessionService(_client);
         var ps = await svc.CreateAsync(new BillingPortal.SessionCreateOptions
         {
             Customer = user.BillingCustomerRef,
-            ReturnUrl = $"{_app.BaseUrl.TrimEnd('/')}/profile"  // CHANGED: from AppOptions
+            ReturnUrl = $"{_app.BaseUrl.TrimEnd('/')}/profile"
         });
         return new PortalSession(ps.Url);
     }
@@ -100,7 +133,7 @@ public class StripeGateway : IPaymentGateway
         if (string.IsNullOrEmpty(user.BillingSubscriptionRef))
             throw new InvalidOperationException("No active subscription.");
 
-        var subSvc = new SubscriptionService(_client);           // CHANGED: pass client
+        var subSvc = new SubscriptionService(_client);
         await subSvc.UpdateAsync(user.BillingSubscriptionRef,
             new SubscriptionUpdateOptions { CancelAtPeriodEnd = true });
     }
@@ -110,7 +143,7 @@ public class StripeGateway : IPaymentGateway
     public async Task<CheckoutSession> CreateOneTimeCheckoutAsync(
         int userId, string userEmail, string priceId, int quantity, string successUrl, string cancelUrl)
     {
-        if (!IsAllowedAddon(priceId))                            // NEW: guard
+        if (!IsAllowedAddon(priceId))
             throw new ArgumentException("Unknown add-on priceId.", nameof(priceId));
 
         string sku = priceId == _cfg.PriceIdAddon5 ? "addon_plus5" : "addon_plus11";
@@ -143,7 +176,7 @@ public class StripeGateway : IPaymentGateway
         _log.LogInformation("CreateOneTimeCheckout: user {UserId} priceId={PriceId} sku={Sku} qty={Qty}",
             userId, priceId, sku, lineItem.Quantity);
 
-        var sessSvc = new Checkout.SessionService(_client);      // CHANGED: pass client
+        var sessSvc = new Checkout.SessionService(_client);
         var session = await sessSvc.CreateAsync(create);
         return new CheckoutSession(session.Url);
     }
@@ -163,8 +196,7 @@ public class StripeGateway : IPaymentGateway
             stripeEvent = EventUtility.ConstructEvent(
                 json,
                 request.Headers["Stripe-Signature"],
-                _cfg.WebhookSecret,
-                tolerance: 0);
+                _cfg.WebhookSecret);
         }
         catch (Exception ex)
         {
@@ -187,14 +219,14 @@ public class StripeGateway : IPaymentGateway
                         Subscription? sub = null;
                         if (!string.IsNullOrEmpty(session.SubscriptionId))
                         {
-                            var subSvc = new SubscriptionService(_client);      // CHANGED
+                            var subSvc = new SubscriptionService(_client);
                             sub = await subSvc.GetAsync(session.SubscriptionId);
                         }
 
                         Invoice? latestInv = null;
                         if (!string.IsNullOrEmpty(sub?.LatestInvoiceId))
                         {
-                            var invSvc = new InvoiceService(_client);          // CHANGED
+                            var invSvc = new InvoiceService(_client);
                             latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
                         }
                         var line = latestInv?.Lines?.Data?.FirstOrDefault();
@@ -280,7 +312,7 @@ public class StripeGateway : IPaymentGateway
                     Invoice? latestInv = null;
                     if (!string.IsNullOrEmpty(sub.LatestInvoiceId))
                     {
-                        var invSvc = new InvoiceService(_client);              // CHANGED
+                        var invSvc = new InvoiceService(_client);
                         latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
                     }
                     var line = latestInv?.Lines?.Data?.FirstOrDefault();
@@ -309,7 +341,7 @@ public class StripeGateway : IPaymentGateway
                     Invoice? latestInv = null;
                     if (!string.IsNullOrEmpty(sub.LatestInvoiceId))
                     {
-                        var invSvc = new InvoiceService(_client);              // CHANGED
+                        var invSvc = new InvoiceService(_client);
                         latestInv = await invSvc.GetAsync(sub.LatestInvoiceId);
                     }
                     var line = latestInv?.Lines?.Data?.FirstOrDefault();

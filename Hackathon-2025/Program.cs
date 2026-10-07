@@ -1,25 +1,22 @@
-using System.Text;
-using System.Threading.RateLimiting;
-using System.Xml;
-
-using Azure.Identity;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
-
+using Azure.Identity;
 using Hackathon_2025.Data;
 using Hackathon_2025.Models;                 // for User (password hasher)
 using Hackathon_2025.Options;
 using Hackathon_2025.Services;
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;         // for IPasswordHasher<User>
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.RateLimiting;     // for .DisableRateLimiting()
-
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using OpenAI;
 using Stripe;
+using System.Text;
+using System.Threading.RateLimiting;
+using System.Xml;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,6 +64,46 @@ builder.Services.AddOptions<OpenAIOptions>()
 
 builder.Services.AddOptions<AppOptions>()
     .Bind(builder.Configuration.GetSection("App"))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<BillingOptions>()
+    .Bind(builder.Configuration.GetSection("Billing"))
+    .Validate(
+        o =>
+        {
+            if (!o.LaunchSale.Enabled) return true;
+
+            var mode = (o.LaunchSale.DiscountMode ?? string.Empty).Trim().ToLowerInvariant();
+            if (mode is not ("forever" or "months")) return false;
+
+            if (string.IsNullOrWhiteSpace(o.LaunchSale.ProSalePrice) ||
+                string.IsNullOrWhiteSpace(o.LaunchSale.PremiumSalePrice))
+            {
+                return false;
+            }
+
+            if (mode == "forever")
+            {
+                return !string.IsNullOrWhiteSpace(o.LaunchSale.ProCouponIdForever) &&
+                       !string.IsNullOrWhiteSpace(o.LaunchSale.PremiumCouponIdForever);
+            }
+
+            return o.LaunchSale.DurationInMonths > 0 &&
+                   !string.IsNullOrWhiteSpace(o.LaunchSale.ProCouponIdLimited) &&
+                   !string.IsNullOrWhiteSpace(o.LaunchSale.PremiumCouponIdLimited);
+        },
+        "Billing:LaunchSale must define valid mode, both sale display prices, and plan-specific coupon configuration when enabled.")
+    .ValidateOnStart();
+
+builder.Services.AddOptions<AdminOptions>()
+    .Bind(builder.Configuration.GetSection("Admin"))
+    .ValidateOnStart();
+
+builder.Services.AddOptions<TurnstileOptions>()
+    .Bind(builder.Configuration.GetSection("Turnstile"))
+    .Validate(
+        o => !o.Enabled || !string.IsNullOrWhiteSpace(o.SecretKey),
+        "Turnstile:SecretKey must be set when Turnstile is enabled.")
     .ValidateOnStart();
 
 builder.Services.Configure<CreditsOptions>(builder.Configuration.GetSection("Credits"));
@@ -121,7 +158,7 @@ else
 }
 
 // -----------------------------
-// Auth (JWT) — no ASP.NET Identity
+// Auth (JWT) ï¿½ no ASP.NET Identity
 // -----------------------------
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
@@ -158,6 +195,8 @@ builder.Services.AddScoped<EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
 builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddScoped<IPeriodService, PeriodService>();
+builder.Services.AddScoped<ITurnstileService, TurnstileService>();
+builder.Services.AddSingleton<IAdminAccessService, AdminAccessService>();
 builder.Services.AddHealthChecks();
 
 // Payments provider toggle (default: stripe)
@@ -182,9 +221,10 @@ var corsOriginsFromConfig = ParseCors(appOptions.AllowedCorsOrigins);
 var allowedOrigins = corsOriginsFromConfig.Length > 0
     ? corsOriginsFromConfig
     : new[] {
+        "https://starlitstories.app",
         "https://staging.starlitstories.app",
         "http://localhost:5173"
-      };
+  };
 
 builder.Services.AddCors(options =>
 {
@@ -203,7 +243,7 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (ctx, token) =>
     {
         ctx.HttpContext.Response.Headers.RetryAfter = "60";
-        await ctx.HttpContext.Response.WriteAsync("Too many login attempts. Please try again shortly.", token);
+        await ctx.HttpContext.Response.WriteAsync("Too many requests. Please try again shortly.", token);
     };
 
     // per-IP limiter for login route (match in endpoint with RequireRateLimiting("login-ip"))
@@ -218,12 +258,38 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    options.AddPolicy("signup-ip", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0
+        });
+    });
+
+    options.AddPolicy("feedback-ip", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 3,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0
+        });
+    });
+
     // Optional: a light global limiter
     // options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(...)
 });
 
-builder.Services.AddControllers();
-// builder.Services.AddEndpointsApiExplorer(); // only needed if you add Swagger later
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 
 // =========================
@@ -231,10 +297,32 @@ builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 // =========================
 var app = builder.Build();
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 app.UseResponseCompression();
 
 var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
 logger.LogInformation("CORS origins: {origins}", string.Join(", ", allowedOrigins));
+
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    try
+    {
+        await db.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogCritical(ex, "Failed to apply database migrations on startup.");
+        throw;
+    }
+}
 
 // =========================
 // Security headers / HTTPS
@@ -244,6 +332,27 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseHttpsRedirection();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// =========================
+// Security headers
+// =========================
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.Headers.Append("Content-Security-Policy",
+        "default-src 'self'; " +
+        "script-src 'self' https://js.stripe.com https://*.js.stripe.com https://checkout.stripe.com; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: blob: https: https://*.stripe.com; " +
+        "connect-src 'self' https://api.starlitstories.app https://api.stripe.com https://checkout.stripe.com; " +
+        "frame-src https://js.stripe.com https://*.js.stripe.com https://hooks.stripe.com https://checkout.stripe.com;");
+    await next();
+});
 
 // =========================
 // Static files & routing
@@ -270,10 +379,21 @@ app.MapMethods("/api/{**catchall}", new[] { "OPTIONS" }, () => Results.Ok())
    .RequireCors("AppCors");
 
 //app.MapGet("/healthz", () => Results.Ok("ok"));
-app.MapGet("/readyz", async (AppDbContext db) =>
+app.MapGet("/readyz", async (AppDbContext db, ILoggerFactory loggerFactory) =>
 {
-    var canConnect = await db.Database.CanConnectAsync();
-    return canConnect ? Results.Ok("ready") : Results.StatusCode(503);
+    var logger = loggerFactory.CreateLogger("ReadyZ");
+
+    try
+    {
+        // This will throw on the real failures (firewall/login/DNS/etc)
+        await db.Database.ExecuteSqlRawAsync("SELECT 1");
+        return Results.Ok("ready");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "READYZ DB check failed");
+        return Results.StatusCode(503);
+    }
 });
 
 // =========================
@@ -325,74 +445,25 @@ app.MapGet("/sitemap.xml", async (AppDbContext db, IConfiguration cfg) =>
 {
     var baseUrl = (cfg["Site:BaseUrl"] ?? "https://starlitstories.app").TrimEnd('/');
 
-    // Static routes you want indexed:
+    // Static routes that currently exist and should be indexed.
     var staticUrls = new[]
     {
         $"{baseUrl}/",
-        $"{baseUrl}/stories",
-        $"{baseUrl}/pricing",
         $"{baseUrl}/about",
-        $"{baseUrl}/contact"
+        $"{baseUrl}/faq",
+        $"{baseUrl}/support",
+        $"{baseUrl}/blog",
+        $"{baseUrl}/blog/personalized-bedtime-storybooks",
+        $"{baseUrl}/blog/ai-story-generator-for-kids",
+        $"{baseUrl}/blog/personalized-childrens-books",
+        $"{baseUrl}/blog/personalized-bedtime-stories",
+        $"{baseUrl}/blog/bedtime-story-ideas-for-kids",
+        $"{baseUrl}/blog/how-ai-story-generators-help-kids-love-reading",
+        $"{baseUrl}/signup"
     };
 
     var allUrls = new List<(string loc, DateTime? lastmod)>();
     allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
-
-    // Variant A: StoryShare table (Token + optional IsPublic/IsListed + ExpiresAt)
-    bool addedShares = false;
-    try
-    {
-        var shares = await db.Set<StoryShare>()
-            .AsNoTracking()
-            .Include(s => s.Story) // if you need UpdatedAt from Story
-            .Where(s =>
-                s.Token != null &&
-                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
-                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
-            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
-            .Select(s => new
-            {
-                Url = $"{baseUrl}/s/{s.Token}",
-                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
-            })
-            .ToListAsync();
-
-        if (shares.Count > 0)
-        {
-            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
-            addedShares = true;
-        }
-    }
-    catch
-    {
-        // if StoryShare doesn't exist, we fall back to Variant B
-    }
-
-    // Variant B: token on Story (ShareToken + IsPublic)
-    if (!addedShares)
-    {
-        try
-        {
-            var stories = await db.Set<Story>()
-                .AsNoTracking()
-                .Where(s =>
-                    EF.Property<string?>(s, "ShareToken") != null &&
-                    (EF.Property<bool?>(s, "IsPublic") ?? true))
-                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
-                .Select(s => new
-                {
-                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
-                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
-                })
-                .ToListAsync();
-
-            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
-        }
-        catch
-        {
-            // neither variant present; serve static routes only
-        }
-    }
 
     // Return index if we exceed max per file
     if (allUrls.Count > MaxUrlsPerFile)
@@ -422,62 +493,21 @@ app.MapGet("/sitemaps/sitemap-{index}.xml", async (int index, AppDbContext db, I
     var staticUrls = new[]
     {
         $"{baseUrl}/",
-        $"{baseUrl}/stories",
-        $"{baseUrl}/pricing",
         $"{baseUrl}/about",
-        $"{baseUrl}/contact"
+        $"{baseUrl}/faq",
+        $"{baseUrl}/support",
+        $"{baseUrl}/blog",
+        $"{baseUrl}/blog/personalized-bedtime-storybooks",
+        $"{baseUrl}/blog/ai-story-generator-for-kids",
+        $"{baseUrl}/blog/personalized-childrens-books",
+        $"{baseUrl}/blog/personalized-bedtime-stories",
+        $"{baseUrl}/blog/bedtime-story-ideas-for-kids",
+        $"{baseUrl}/blog/how-ai-story-generators-help-kids-love-reading",
+        $"{baseUrl}/signup"
     };
 
     var allUrls = new List<(string loc, DateTime? lastmod)>();
     allUrls.AddRange(staticUrls.Select(u => (u, (DateTime?)null)));
-
-    bool addedShares = false;
-    try
-    {
-        var shares = await db.Set<StoryShare>()
-            .AsNoTracking()
-            .Include(s => s.Story)
-            .Where(s =>
-                s.Token != null &&
-                (EF.Property<bool?>(s, "IsPublic") ?? EF.Property<bool?>(s, "IsListed") ?? true) &&
-                (EF.Property<DateTime?>(s, "ExpiresAt") == null || EF.Property<DateTime?>(s, "ExpiresAt") > DateTime.UtcNow))
-            .OrderByDescending(s => EF.Property<DateTime?>(s.Story!, "UpdatedAt") ?? DateTime.UtcNow)
-            .Select(s => new
-            {
-                Url = $"{baseUrl}/s/{s.Token}",
-                LastMod = EF.Property<DateTime?>(s.Story!, "UpdatedAt")
-            })
-            .ToListAsync();
-
-        if (shares.Count > 0)
-        {
-            allUrls.AddRange(shares.Select(x => (x.Url, x.LastMod)));
-            addedShares = true;
-        }
-    }
-    catch { }
-
-    if (!addedShares)
-    {
-        try
-        {
-            var stories = await db.Set<Story>()
-                .AsNoTracking()
-                .Where(s =>
-                    EF.Property<string?>(s, "ShareToken") != null &&
-                    (EF.Property<bool?>(s, "IsPublic") ?? true))
-                .OrderByDescending(s => EF.Property<DateTime?>(s, "UpdatedAt") ?? DateTime.UtcNow)
-                .Select(s => new
-                {
-                    Url = $"{baseUrl}/s/{EF.Property<string>(s, "ShareToken")}",
-                    LastMod = EF.Property<DateTime?>(s, "UpdatedAt")
-                })
-                .ToListAsync();
-
-            allUrls.AddRange(stories.Select(x => (x.Url, x.LastMod)));
-        }
-        catch { }
-    }
 
     var skip = index * MaxUrlsPerFile;
     var page = allUrls.Skip(skip).Take(MaxUrlsPerFile).ToList();

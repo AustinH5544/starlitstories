@@ -107,7 +107,7 @@ public class EmailService : IEmailService
         await SendEmailAsync(email, subject, body);
     }
 
-    private async Task SendEmailAsync(string to, string subject, string body)
+    private async Task<bool> SendEmailAsync(string to, string subject, string body, bool throwOnError = false)
     {
         try
         {
@@ -120,7 +120,9 @@ public class EmailService : IEmailService
             if (string.IsNullOrWhiteSpace(fromEmail))
             {
                 _logger.LogError("Email:FromEmail not configured; aborting send to {Email}", to);
-                return;
+                if (throwOnError)
+                    throw new InvalidOperationException("Email:FromEmail is not configured.");
+                return false;
             }
 
             if (!string.IsNullOrWhiteSpace(acsConnString) || provider == "acs" || provider == "azureacs")
@@ -155,9 +157,11 @@ public class EmailService : IEmailService
                 catch (Azure.RequestFailedException rfe)
                 {
                     _logger.LogError(rfe, "ACS send failed for {Email}. Code={Code}", to, rfe.ErrorCode);
+                    if (throwOnError) throw;
+                    return false;
                 }
 
-                return;
+                return true;
             }
 
             // --- SMTP fallback (unchanged) ---
@@ -170,7 +174,9 @@ public class EmailService : IEmailService
             if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
                 _logger.LogWarning("Email configuration missing; not sending email to {Email}", to);
-                return;
+                if (throwOnError)
+                    throw new InvalidOperationException("SMTP email configuration is missing.");
+                return false;
             }
 
             using var clientSmtp = new System.Net.Mail.SmtpClient(smtpHost, smtpPort)
@@ -193,16 +199,19 @@ public class EmailService : IEmailService
 
             await clientSmtp.SendMailAsync(msg);
             _logger.LogInformation("SMTP email sent to {Email}", to);
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send email to {Email}", to);
+            if (throwOnError) throw;
+            return false;
         }
     }
 
     public async Task SendCustomEmailAsync(string to, string subject, string htmlBody)
     {
-        await SendEmailAsync(to, subject, htmlBody);
+        await SendEmailAsync(to, subject, htmlBody, throwOnError: true);
     }
 
     // very small helper; can replace with something fancier

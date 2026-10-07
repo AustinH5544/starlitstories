@@ -1,20 +1,22 @@
 ﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from "../api";
+import posthog from '../analytics';
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem("token"));
+    const [token, setToken] = useState(typeof window !== 'undefined' ? localStorage.getItem("token") : null);
 
-    // EXPECTS backend to return { token, email, username, membership, profileImage? }
-    const login = ({ token: jwt, email, username, membership, profileImage }) => {
-        setUser({ email, username, membership, profileImage });
+    // EXPECTS backend to return { token, email, username, membership, profileImage?, isAdmin? }
+    const login = ({ token: jwt, email, username, membership, profileImage, isAdmin }) => {
+        setUser({ email, username, membership, profileImage, isAdmin: Boolean(isAdmin) });
         setToken(jwt);
         localStorage.setItem("token", jwt);
     };
 
     const logout = () => {
+        posthog.reset();
         setUser(null);
         setToken(null);
         localStorage.removeItem("token");
@@ -32,6 +34,7 @@ export const AuthProvider = ({ children }) => {
                     username: data.username ?? u?.username,
                     membership: data.membership ?? u?.membership,
                     profileImage: data.profileImage ?? u?.profileImage,
+                    isAdmin: data.isAdmin ?? u?.isAdmin ?? false,
                 }));
             } catch (e) {
                 console.error("Failed to load profile", e);

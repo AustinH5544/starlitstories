@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import "./ResetPasswordPage.css"
 
@@ -103,6 +104,10 @@ const ResetPasswordPage = () => {
 
     return (
         <div className="reset-password-page">
+            <Helmet>
+                <title>Set New Password | Starlit Stories</title>
+                <meta name="robots" content="noindex, follow" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>
@@ -236,7 +241,7 @@ const ResetPasswordPage = () => {
 
                     <div className="alternative-options">
                         <p>
-                            Need help? <a href="mailto:support@StarlitStories.com">Contact our support team</a>
+                            Need help? <a href="mailto:support@StarlitStories.app">Contact our support team</a>
                         </p>
                     </div>
                 </div>

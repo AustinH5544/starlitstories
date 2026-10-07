@@ -49,6 +49,9 @@ namespace Hackathon_2025.Controllers
         [Authorize] // you rely on user claims
         public async Task<IActionResult> CreateCheckoutSession([FromBody] CheckoutRequest request)
         {
+            if (request.Membership == MembershipPlan.Free)
+                return BadRequest("The Free plan does not require checkout.");
+
             // request.Membership is enum now; no null/empty check needed
             var userIdStr =
                 User.FindFirst("sub")?.Value ??
@@ -58,13 +61,25 @@ namespace Hackathon_2025.Controllers
             if (!int.TryParse(userIdStr, out var userId))
                 return Unauthorized("No user id claim on the request.");
 
+            var user = await _db.Users.FindAsync(userId);
+            if (user is null)
+                return Unauthorized("User not found.");
+
+            var currentStatus = (user.PlanStatus ?? string.Empty).Trim().ToLowerInvariant();
+            var hasActiveOrManagedSubscription =
+                !string.IsNullOrWhiteSpace(user.BillingSubscriptionRef) &&
+                currentStatus is not ("canceled" or "incomplete_expired");
+
+            if (hasActiveOrManagedSubscription)
+            {
+                return Conflict("Your account already has a Stripe subscription. Use the billing portal to change plans.");
+            }
+
             // Prefer email from claim; fall back to DB
             var email = User.FindFirst("email")?.Value;
             if (string.IsNullOrWhiteSpace(email))
             {
-                var userFromDb = await _db.Users.FindAsync(userId);
-                if (userFromDb is null) return Unauthorized("User not found.");
-                email = userFromDb.Email;
+                email = user.Email;
             }
 
             var baseUrl = (_app.BaseUrl ?? "http://localhost:5173").TrimEnd('/');
@@ -170,6 +185,7 @@ namespace Hackathon_2025.Controllers
                 return Problem("Could not create billing portal session.");
             }
         }
+
 
         [Authorize]
         [HttpGet("subscription")]
@@ -300,14 +316,26 @@ WHEN NOT MATCHED THEN
 
                     if (!string.IsNullOrEmpty(planKey))
                     {
+                        var isUpgradingFromFree = user.Membership == MembershipPlan.Free &&
+                                                  !string.Equals(planKey, "free", StringComparison.OrdinalIgnoreCase);
+
                         user.PlanKey = planKey;
                         if (TryMapPlanKeyToMembership(planKey, out var mapped))
-                        {
                             user.Membership = mapped;
-                        }
                         else
-                        {
                             _log.LogWarning("Webhook {EventId}: Unrecognized planKey '{PlanKey}'. Membership unchanged.", eventId, planKey);
+
+                        if (isUpgradingFromFree)
+                        {
+                            if (user.BooksGenerated == 0)
+                            {
+                                // Free story was never used — carry it over as an add-on credit
+                                user.AddOnBalance += 1;
+                                _log.LogInformation("Webhook {EventId}: carried over unused free credit for user {UserId}.", eventId, user.Id);
+                            }
+                            // Reset per-period counters so paid quota starts fresh
+                            user.BooksGenerated = 0;
+                            user.AddOnSpentThisPeriod = 0;
                         }
                     }
 

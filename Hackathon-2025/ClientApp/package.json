@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "build:staging": "vite build --mode staging",
+    "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist/server && node scripts/prerender.mjs",
+    "build:staging": "vite build --mode staging && vite build --ssr src/entry-server.jsx --outDir dist/server --mode staging && node scripts/prerender.mjs",
     "preview": "vite preview",
     "preview:staging": "npm run build:staging && vite preview",
     "lint": "eslint ."
@@ -18,8 +18,11 @@
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
     "jszip": "^3.10.1",
+    "posthog-js": "^1.360.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-helmet-async": "^3.0.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.6.0"
   },
   "devDependencies": {

@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { createPortal } from "react-dom";
 import "./NavBar.css"
+import sparkleIcon from "../assets/ui-icons/icon4.png"
 
 const NavBar = () => {
     const { user, logout } = useAuth()
@@ -12,7 +13,7 @@ const NavBar = () => {
     const [scrolled, setScrolled] = useState(false)
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const BASE = import.meta.env.BASE_URL;
-    const avatarFile = user?.profileImage || localStorage.getItem("avatar") || null;
+    const avatarFile = user?.profileImage || (typeof window !== 'undefined' ? localStorage.getItem("avatar") : null) || null;
     const navAvatarSrc = avatarFile
         ? (avatarFile.startsWith("http")
             ? avatarFile
@@ -87,7 +88,15 @@ const NavBar = () => {
                 <div className="nav-left">
                     <Link to="/" className="logo-link">
                         <span className="logo">Starlit Stories</span>
-                        <span className="logo-icon">✨</span>
+
+                        <span className="logo-icon">
+                            <img
+                                src={sparkleIcon}
+                                alt=""
+                                aria-hidden="true"
+                                className="logo-icon-img"
+                            />
+                        </span>
                     </Link>
                 </div>
 
@@ -154,6 +163,9 @@ const NavBar = () => {
                                     {user.username || (user.email?.split("@")[0]) || "My Account"}
                                 </span>
                             </a>
+                            {user?.isAdmin && (
+                                <Link to="/admin" className="login-button">Admin</Link>
+                            )}
                             <button className="logout-button" onClick={logout}>Logout</button>
                         </div>
                     ) : (

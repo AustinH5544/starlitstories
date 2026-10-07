@@ -1,0 +1,181 @@
+.blog-page {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+    padding: calc(64px + 2.5rem) 0 0;
+}
+
+.blog-page .stars {
+    position: fixed;
+    inset: 0;
+    background: #0c1445 url("/stars.jpg") no-repeat center center;
+    background-size: cover;
+    z-index: -3;
+}
+
+.blog-page .twinkling {
+    pointer-events: none;
+    z-index: -2;
+}
+
+.blog-page .clouds {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: transparent url("/clouds.png") repeat top center;
+    background-size: contain;
+    z-index: -1;
+    opacity: 0.6;
+}
+
+.blog-container {
+    max-width: 800px;
+    margin: 0 auto 3rem;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.blog-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    color: white;
+    position: relative;
+}
+
+.blog-header::before {
+    content: "";
+    position: absolute;
+    inset: -3rem -6rem;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: -1;
+}
+
+.blog-header h1 {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    background: linear-gradient(45deg, #fff, #d8b4fe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 2px 16px rgba(0, 0, 0, 0.8))
+            drop-shadow(0 0 20px rgba(167, 139, 250, 0.4));
+}
+
+.blog-header p {
+    font-size: 1.15rem;
+    color: rgba(255, 255, 255, 0.9);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.6;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.7);
+}
+
+.blog-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.blog-list + .blog-list {
+    margin-top: 1.5rem;
+}
+
+.blog-card {
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 20px;
+    padding: 1.85rem 2rem;
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.24),
+        0 0 0 1px rgba(255, 255, 255, 0.16);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.blog-card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+        0 28px 68px rgba(0, 0, 0, 0.28),
+        0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.blog-card-date {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #9a7fd4;
+    margin-bottom: 0.6rem;
+}
+
+.blog-card-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1a1035;
+    margin-bottom: 0.75rem;
+    line-height: 1.35;
+}
+
+.blog-card-title a {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.blog-card-title a:hover {
+    color: #6d46d4;
+}
+
+.blog-card-excerpt {
+    color: #555;
+    line-height: 1.7;
+    margin-bottom: 1.1rem;
+    font-size: 0.97rem;
+}
+
+.blog-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: gap 0.15s ease, filter 0.15s ease;
+    filter: drop-shadow(0 0 8px rgba(161, 140, 209, 0));
+}
+
+.blog-card-link:hover {
+    gap: 0.55rem;
+    filter: drop-shadow(0 0 8px rgba(161, 140, 209, 0.5));
+}
+
+@media (max-width: 768px) {
+    .blog-page {
+        padding: calc(56px + 2rem) 0 0;
+    }
+
+    .blog-container {
+        padding: 0 1rem;
+    }
+
+    .blog-header h1 {
+        font-size: 2rem;
+    }
+
+    .blog-header p {
+        font-size: 1rem;
+    }
+
+    .blog-card {
+        padding: 1.4rem;
+    }
+}

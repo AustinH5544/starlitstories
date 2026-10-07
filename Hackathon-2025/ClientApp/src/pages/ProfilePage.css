@@ -365,6 +365,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
+    min-width: 0;
 }
 
 .detail-label {
@@ -377,11 +378,7 @@
     font-size: 1.1rem;
     color: white;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 195px; /* adjust width to fit your layout */
-    display: block;
+    word-break: break-word;
 }
 
 /* Profile Actions */
@@ -1042,4 +1039,26 @@
 /* Keep the outer row from growing too tall */
 .addon-row {
     overflow: visible;
+}
+
+.detail-icon-img,
+.button-icon-img,
+.section-icon-img,
+.empty-icon-img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+}
+
+/* Buttons usually look better slightly smaller */
+.button-icon-img {
+    width: 44px;
+    height: 44px;
+}
+
+/* Optional: tighten alignment for icon+text headers */
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }

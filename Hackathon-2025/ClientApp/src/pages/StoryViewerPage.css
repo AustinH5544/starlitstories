@@ -12,12 +12,9 @@
     --site-nav-h-mobile: 72px;
     /* Viewer chrome */
     --viewer-header-h: 68px; /* desktop progress pill */
-    --viewer-header-h-mobile: 0px; /* hidden on phones */
     --viewer-nav-h: 72px; /* bottom control bar */
     --gap-top: 72px; /* space under site nav */
-    --gap-bottom: -130px; /* space above story nav */
-    --progress-clearance: 72px; /* extra space under the progress pill (desktop only) */
-    --page-text-size: 1.125rem; /* ~18px on mobile */
+    --page-text-size: clamp(0.92rem, 1.8vmin + 0.4rem, 1.6rem);
     --page-line: 1.8;
 }
 
@@ -138,19 +135,12 @@
     transition: width .25s ease;
 }
 
-/* Hide progress pill on phones */
-@media (max-width: 768px) {
-    .story-header {
-        display: none !important;
-    }
-}
-
 /* --- Main content (between top & bottom chrome) --- */
 .story-content {
-    padding: calc(var(--gap-top) + var(--progress-clearance) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
-    /* Reserve space for navs + progress pill + gaps */
-    height: calc(100dvh - var(--site-nav-h) - var(--viewer-header-h) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+    flex: 1;
     min-height: 0;
+    overflow: hidden;
+    padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--viewer-nav-h) + env(safe-area-inset-bottom,0px));
     display: flex;
     align-items: center;
     justify-content: center;
@@ -162,9 +152,17 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
 }
 
 .cover-container {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
     text-align: center;
     background: rgba(16,24,64,.85);
     backdrop-filter: blur(10px);
@@ -172,6 +170,7 @@
     padding: 2rem;
     box-shadow: 0 8px 32px rgba(0,0,0,.3);
     border: 1px solid rgba(255,255,255,.1);
+    overflow: hidden;
 }
 
 .story-title {
@@ -190,12 +189,14 @@
     overflow: hidden;
     margin-bottom: 1.2rem;
     box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    flex: 1;
+    min-height: 0;
 }
 
 .cover-image {
     width: 100%;
-    height: 400px;
-    object-fit: cover;
+    height: 100%;
+    object-fit: contain;
     transition: transform .25s ease;
     cursor: pointer;
 }
@@ -378,8 +379,8 @@
 }
 
 .page-text {
-    font-size: 1.25rem;
-    line-height: 1.8;
+    font-size: var(--page-text-size);
+    line-height: var(--page-line);
     color: #fff;
     font-family: Georgia, serif;
     text-shadow: 0 1px 3px rgba(0,0,0,.3);
@@ -391,6 +392,13 @@
 .finish-story-section {
     display: flex;
     justify-content: center;
+}
+
+.finish-inline {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin-top: 1rem;
 }
 
 .finish-story-btn {
@@ -420,11 +428,13 @@
     right: 0;
     bottom: 0;
     z-index: 100;
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    height: var(--viewer-nav-h);
-    padding: .75rem 1rem;
+    gap: 1rem;
+    box-sizing: border-box;
+    height: calc(var(--viewer-nav-h) + env(safe-area-inset-bottom, 0px));
+    padding: .45rem 1rem calc(.45rem + env(safe-area-inset-bottom, 0px));
     background: linear-gradient(to top, rgba(12,20,69,.9), transparent);
     backdrop-filter: blur(10px);
     transition: transform .25s ease, opacity .25s ease;
@@ -443,9 +453,11 @@
 .nav-button {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: .5rem;
     padding: .7rem .95rem;
     min-width: 120px;
+    line-height: 1;
     border-radius: 24px;
     border: 1px solid rgba(255,255,255,.2);
     background: rgba(255,255,255,.1);
@@ -465,6 +477,37 @@
         cursor: not-allowed;
     }
 
+.nav-spacer {
+    min-width: 0;
+    align-self: center;
+}
+
+.nav-reading-controls {
+    grid-column: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .75rem;
+    min-width: 0;
+    align-self: center;
+}
+
+.nav-middle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+.nav-utility {
+    grid-column: 3;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    align-self: center;
+}
+
 .page-indicators {
     display: flex;
     align-items: center;
@@ -472,11 +515,87 @@
     max-width: 420px;
     overflow-x: auto;
     padding: .25rem;
+    align-self: center;
+}
+
+.flip-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: .7rem;
+    padding: .55rem .8rem;
+    line-height: 1;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,.16);
+    background: rgba(10, 17, 48, .55);
+    color: rgba(255,255,255,.92);
+    font-size: .92rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    box-shadow: 0 10px 24px rgba(0,0,0,.18);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color .15s ease, background .15s ease, transform .15s ease;
+}
+
+.flip-toggle:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255,255,255,.28);
+    background: rgba(17, 28, 74, .7);
+}
+
+.flip-toggle input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.flip-toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.18);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
+    transition: background .2s ease, box-shadow .2s ease;
+}
+
+.flip-toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,.28);
+    transition: transform .2s ease;
+}
+
+.flip-toggle input:checked + .flip-toggle-switch {
+    background: linear-gradient(135deg, #7db7ff, #a18cd1);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 0 0 4px rgba(125,183,255,.12);
+}
+
+.flip-toggle input:checked + .flip-toggle-switch .flip-toggle-thumb {
+    transform: translateX(20px);
+}
+
+.flip-toggle input:focus-visible + .flip-toggle-switch {
+    outline: 2px solid rgba(255,255,255,.85);
+    outline-offset: 2px;
+}
+
+.flip-toggle-label {
+    white-space: nowrap;
 }
 
 .page-dot {
     width: 40px;
     height: 40px;
+    line-height: 1;
     border-radius: 999px;
     flex-shrink: 0;
     display: grid;
@@ -709,21 +828,8 @@
    Responsive adjustments
    ========================= */
 
-/* 4) Very large screens (optional) */
-@media (min-width: 1440px) {
-    :root {
-        --page-text-size: 1.65rem; /* ~26.4px */
-        --page-line: 2.0;
-    }
-}
-
 /* Tablet and below (minor sizing tweaks) */
 @media (max-width: 1024px) {
-    :root {
-        --page-text-size: 1.5rem; /* 24px */
-        --page-line: 1.9;
-    }
-
     .page-container {
         max-width: 820px;
         margin: 0 auto;
@@ -737,238 +843,11 @@
 
     .page-text {
         text-align: center;
-        font-size: var(--page-text-size);
-        line-height: var(--page-line);
-    }
-}
-
-/* --- Wide but short screens (e.g., 1024x600) --- */
-@media (min-width: 900px) and (max-height: 900px) {
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: stretch; /* let children fill height */
-        gap: 1.5rem;
-        height: 100%; /* keep fixed viewer height */
-        min-height: 0; /* crucial for scrollable children */
-        overflow: hidden; /* clip child overflow */
-        border-radius: 20px; /* ensures clipping shape */
-        padding: 1.5rem; /* less padding = more room */
-    }
-
-    .cover-image-container {
-        margin-bottom: 1rem;
-    }
-
-    .cover-image {
-        height: 300px; /* was 400px */
-        border-radius: 15px;
-        object-fit: cover;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden; /* clip image + shadow */
-        border-radius: inherit; /* match card rounding */
-        height: 100%; /* full height for column */
-        min-height: 0; /* allow proper sizing */
-        display: flex;
-        padding: 0;
-    }
-
-    .page-image {
-        height: 100%; /* fill column height */
-        max-height: 100%;
-        width: auto;
-        max-width: 100%;
-        object-fit: contain; /* preserve aspect ratio */
-        transform: none !important; /* cancel hover zoom */
-    }
-
-        .page-image:hover {
-            transform: none !important;
-        }
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 1rem 2rem;
-        height: 100%;
-        max-height: 100%;
-        min-height: 0; /* allow scrolling inside */
-        overflow: auto; /* scroll the text, not the page */
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .image-enlarge-hint {
-        display: none; /* optional, avoids extra spacing */
-    }
-}
-
-/* --- Compact cover for short widescreen displays (≈1024x600) --- */
-@media (min-width: 900px) and (max-height: 650px) {
-    .cover-container {
-        padding: 1.2rem 1.4rem; /* tighter padding */
-        transform: scale(0.9) translateY(20px);
-    }
-
-    .story-title {
-        font-size: 1.6rem; /* smaller title */
-        margin-bottom: 0.6rem;
-    }
-
-    .cover-image {
-        height: 240px; /* reduce image height */
-        border-radius: 15px;
-        object-fit: cover;
-    }
-}
-
-@media (min-width: 900px) and (max-height: 900px) {
-    .page-text-container:has(.page-text) {
-        font-size: 1.15rem;
-    }
-
-    /* If the text block is short, enlarge further */
-    .page-text-container:has(.page-text:only-child) .page-text {
-        font-size: 1.35rem;
-        line-height: 1.9;
-    }
-}
-
-@media (max-width: 950px) and (max-height: 500px) {
-    .story-content:has(.story-page) {
-        --gap-bottom: -190px; /* extend downward */
-    }
-
-    .cover-container {
-        padding: 1rem 1.2rem; /* tighter padding */
-        transform: scale(0.75) translateY(90px); /* smaller & moved down */
-        transform-origin: top center; /* shrink downward */
-    }
-
-    .story-title {
-        font-size: 1.4rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .cover-image {
-        height: 200px; /* smaller image height */
-        border-radius: 12px;
-        object-fit: cover;
-    }
-
-    .story-info {
-        font-size: 0.9rem;
-    }
-
-    .story-stats {
-        flex-direction: column; /* stack for narrow height */
-        gap: 0.3rem;
-        font-size: 0.8rem;
-    }
-
-    .start-reading-btn {
-        padding: 0.6rem 1rem;
-        font-size: 0.85rem;
-    }
-
-    .page-text {
-        font-size: 1rem !important; /* smaller text for low height */
-        line-height: 1.6; /* tighter lines */
-        text-align: left; /* prevent center crowding */
-    }
-}
-
-/* --- Landscape phone layout (≈667x375) --- */
-@media (max-width: 700px) and (max-height: 400px) {
-    .story-content:has(.story-page) {
-        --gap-bottom: -200px; /* extend reading area a bit */
-    }
-
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: stretch;
-        gap: 0.8rem;
-        height: 100%;
-        min-height: 0;
-        padding: 0.8rem;
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        flex: 0.9;
-        height: auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
-    }
-
-    /*    .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 60vh;
-        object-fit: contain;
-        transform: none !important;
-    }*/
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        padding: 0.6rem 1rem;
-        overflow: auto;
-        min-height: 0;
-    }
-
-    .page-text {
-        font-size: 0.85rem !important;
-        line-height: 1.4;
-        text-align: left;
-    }
-
-    .finish-story-btn {
-        padding: 0.5rem 0.9rem;
-        font-size: 0.8rem;
-    }
-
-    /* Optional: shrink nav bar for landscape */
-    .story-navigation {
-        height: 56px;
-        padding: 0.4rem 0.8rem;
-    }
-
-    .nav-button {
-        min-width: 80px;
-        padding: 0.5rem 0.7rem;
-        font-size: 0.8rem;
-    }
-
-    .page-dot {
-        width: 32px;
-        height: 32px;
-        font-size: 0.7rem;
     }
 }
 
 /* Phones */
 @media (max-width: 768px) {
-    :root {
-        --page-text-size: 1.00rem; /* ~21.6px */
-        --page-line: 1.85;
-        --progress-clearance: 10px;
-    }
-
     .cover-container, .page-container {
         padding: 1.5rem;
     }
@@ -984,27 +863,38 @@
     }
 
     .story-navigation {
-        justify-content: space-evenly;
-        height: var(--viewer-nav-h);
-        padding: .5rem 1rem;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        height: calc(var(--viewer-nav-h) + env(safe-area-inset-bottom, 0px));
+        padding: .4rem 1rem calc(.4rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .nav-reading-controls {
+        gap: .5rem;
     }
 
     .nav-text {
         display: none;
     }
 
+    .nav-utility {
+        justify-self: end;
+    }
+
     .page-indicators {
         max-width: 260px;
     }
 
-    .image-enlarge-hint {
-        display: none;
+    .flip-toggle {
+        padding: .45rem .6rem;
+        gap: .5rem;
     }
 
-    /* Recompute story-content height for mobile nav sizes */
-    .story-content {
-        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
-        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
+    .flip-toggle-label {
+        font-size: .84rem;
+    }
+
+    .image-enlarge-hint {
+        display: none;
     }
 }
 
@@ -1012,10 +902,6 @@
 @media (max-width: 480px) {
     .story-title {
         font-size: 1.6rem;
-    }
-
-    .cover-image {
-        height: 300px;
     }
 
     .page-image {
@@ -1059,223 +945,108 @@
     color: #b2ffb2;
     font-weight: 700;
 }
-/* Hide the top progress pill on landscape phones (short height) */
-@media (orientation: landscape) and (max-height: 450px) and (max-width: 915px) {
+
+/* ── Hide progress pill only when screen is too short to fit it ── */
+@media (max-height: 550px) {
     .story-header {
         display: none !important;
     }
-
-    /* Reclaim the reserved space for the pill */
-    :root {
-        --viewer-header-h: 0px; /* no header height */
-        --progress-clearance: 10px; /* minimal top padding */
-    }
-
-    /* Ensure the content height is recomputed without the header */
-    .story-content {
-        height: calc(100dvh - var(--site-nav-h-mobile) - var(--viewer-header-h-mobile) - var(--viewer-nav-h) - var(--gap-top) - var(--gap-bottom));
-        padding: calc(var(--gap-top) + env(safe-area-inset-top,0px)) 1rem calc(var(--gap-bottom) + env(safe-area-inset-bottom,0px));
-    }
 }
 
-/* Optional: exact match for 896×414 devices (belt & suspenders) */
-@media (width: 896px) and (height: 414px) {
-    .story-header {
-        display: none !important;
-    }
-
-    :root {
-        --viewer-header-h: 0px;
-        --progress-clearance: 10px;
-    }
+/* ── Compact cover on short viewports ── */
+@media (max-height: 600px) {
+    .cover-container { padding: 1rem 1.2rem; }
+    .story-title { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .story-stats { flex-direction: column; gap: 0.3rem; font-size: 0.85rem; }
+    .start-reading-btn { padding: 0.6rem 1rem; font-size: 0.85rem; }
 }
-/* Landscape phones (≈896x414): image left, text right */
-@media (orientation: landscape) and (max-height: 430px) and (max-width: 930px) {
+
+/* ── WIDE / LANDSCAPE: image left, text right ──
+   Fires for: landscape tablets, landscape phones, wide desktops, iPad landscape,
+   and near-square foldables (e.g. Galaxy Z Fold open) at min-aspect-ratio: 1 */
+@media (min-aspect-ratio: 1) and (min-width: 600px) {
     .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: stretch;
-        gap: 1rem;
-        height: 100%;
-        min-height: 0;
-        padding: 1rem;
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
-    }
-
-    .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 80vh;
-        object-fit: contain;
-        transform: none !important;
-    }
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 0.8rem 1.2rem;
-        overflow: auto;
-        min-height: 0;
-    }
-
-    .page-text {
-        font-size: 0.95rem;
-        line-height: 1.5;
-        text-align: left;
-    }
-
-    .story-content {
-        padding-bottom: calc(var(--viewer-nav-h) + 0px);
-    }
-}
-
-/* Landscape phones (≈896x414–932x430): image left, text right, no progress pill */
-@media (orientation: landscape) and (max-height: 440px) and (max-width: 950px) {
-    /* Hide progress pill */
-    .story-header {
-        display: none !important;
-    }
-
-    :root {
-        --viewer-header-h: 0px; /* no header space */
-        --progress-clearance: 10px; /* reduce extra gap */
-    }
-
-    /* Layout: image left, text right */
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        align-items: stretch;
-        gap: 1rem;
-        height: 100%;
-        min-height: 0;
-        padding: 1rem;
-        border-radius: 16px;
-        overflow: hidden;
-    }
-
-    .page-image-container {
-        grid-column: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
-    }
-
-    .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 80vh;
-        object-fit: contain;
-        transform: none !important;
-    }
-
-    .page-text-container {
-        grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 0.8rem 1.2rem;
-        overflow: auto;
-        min-height: 0;
-    }
-
-    .page-text {
-        font-size: 0.95rem;
-        line-height: 1.5;
-        text-align: left;
-    }
-
-    .story-content {
-        padding-bottom: calc(var(--viewer-nav-h) + 0px);
-    }
-}
-
-/* iPad Pro 12.9" landscape (≈1366x1024): image left, text right, keep progress pill */
-@media (orientation: landscape) and (min-width: 1180px) and (max-width: 1400px) and (min-height: 900px) {
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1.1fr; /* image left, text right */
-        align-items: stretch;
+        grid-template-columns: 1fr 1.1fr;
+        grid-template-rows: 1fr;
         gap: 1.5rem;
-        height: 100%;
-        min-height: 0;
         padding: 1.25rem 1.5rem;
-        border-radius: 16px;
+        height: 100%;
+        min-height: 0;
         overflow: hidden;
+        align-items: stretch;
     }
 
     .page-image-container {
         grid-column: 1;
+        height: 100%;
+        min-height: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         overflow: hidden;
-        border-radius: inherit;
-        min-height: 0;
     }
 
     .page-image {
-        width: 100%;
-        height: auto;
-        max-height: 78vh;
+        width: auto;
+        height: 100%;
+        max-height: 100%; /* override the 50vh/60vh caps from narrower breakpoints */
+        max-width: 100%;
         object-fit: contain;
         transform: none !important;
     }
 
     .page-text-container {
         grid-column: 2;
-        justify-content: flex-start;
-        align-items: flex-start;
-        text-align: left;
-        padding: 1rem 1.5rem;
-        overflow: auto;
+        height: 100%;
         min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        overflow: hidden;
+        padding: 0.75rem 1.25rem;
+        text-align: left;
     }
 
-    .page-text {
-        font-size: 1.05rem;
-        line-height: 1.6;
-        text-align: left;
+    .page-text-inner {
+        flex: 0 1 auto;
+        max-height: 100%;
+        width: 100%;
     }
+
+    .image-enlarge-hint { display: none; }
 }
 
-/* iPad Pro & wide tablets (e.g. 1366x1024, 1180x768): image left, text right */
-@media (min-width: 1000px) and (max-height: 1100px) and (orientation: landscape) {
-    .page-container {
-        display: grid;
-        grid-template-columns: 1fr 1fr; /* image left, text right */
-        align-items: center; /* center vertically instead of stretch */
-        gap: 1.5rem;
-        height: auto; /* let it shrink to fit */
-        padding: 1.5rem;
+/* ── DESKTOP (≥1024px, landscape): edge-to-edge card, image-dominant layout ── */
+@media (min-width: 1024px) and (min-aspect-ratio: 4/3) {
+    .story-page {
+        max-width: none;   /* remove 1200px cap — card fills viewport */
     }
 
-    .page-image {
-        max-height: 70vh; /* less tall to avoid excess bottom gap */
-        object-fit: contain;
+    .page-container {
+        grid-template-columns: 1.75fr 1fr;   /* image takes ~64%, text ~36% */
+        padding: 1.5rem 2rem;
     }
 
     .page-text-container {
-        font-size: 1.25rem; /* increase text size */
-        line-height: 1.7;
-        text-align: left;
+        --page-text-size: clamp(1.2rem, 1.8vw, 2rem);  /* bigger text on desktop */
+        max-width: none;    /* fill the full right column */
+        width: 100%;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.04);
     }
+
+}
+
+/* ── VERY SHORT landscape (phones): tighten spacing ── */
+@media (orientation: landscape) and (max-height: 450px) {
+    .page-container { gap: 0.75rem; padding: 0.75rem 1rem; }
+    .page-text { font-size: 0.88rem !important; line-height: 1.45; }
+    .story-navigation { height: calc(52px + env(safe-area-inset-bottom, 0px)); padding: 0.2rem 0.8rem calc(0.2rem + env(safe-area-inset-bottom, 0px)); }
+    .nav-text { display: none; }
+    .flip-toggle-label { display: none; }
+    .story-header { display: none !important; }
 }
 
 /* ==== Book layout (two pages; cover = single page) ==== */
@@ -1283,13 +1054,17 @@
     display: grid;
     place-items: center;
     width: 100%;
+    height: 100%;
+    min-height: 0;
 }
 
 .book {
     position: relative;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    width: min(1000px, 92vw);
+    width: min(1000px, 100%);
+    max-width: 100%;
+    max-height: 100%;
     aspect-ratio: 3/2;
     perspective: 2000px;
 }
@@ -1303,7 +1078,10 @@
 /* Single centered cover */
 .book.cover-state {
     grid-template-columns: 1fr;
-    width: min(760px, 92vw);
+    width: min(760px, 100%);
+    max-width: 100%;
+    max-height: 100%;
+    align-self: start;
 }
 
     .book.cover-state .book-left {
@@ -1613,7 +1391,114 @@
     .story-viewer.is-book {
         --page-text-color: #1f222b;
         --page-title-color: #1a1d24;
+        --book-page-text-size: clamp(0.96rem, 0.55rem + 0.32vw + 0.36vh, 1.22rem);
+        --book-page-line: clamp(1.56, 1.5 + 0.12vw, 1.72);
     }
+
+.story-viewer.is-book .story-content {
+    align-items: stretch;
+}
+
+.story-viewer.is-book .book-wrapper {
+    place-items: start center;
+    padding-top: clamp(0px, 1vh, 12px);
+}
+
+.story-viewer.is-book .page-text-container {
+    --page-text-size: var(--book-page-text-size);
+    --page-line: var(--book-page-line);
+}
+
+.story-viewer.is-book .page-text {
+    font-size: var(--book-page-text-size);
+    line-height: var(--book-page-line);
+}
+
+.story-viewer.is-book .finish-inline {
+    justify-content: center;
+}
+
+.story-viewer.is-book .finish-story-btn {
+    color: #fff;
+}
+
+        .story-viewer.is-book .story-content {
+            align-items: stretch;
+        }
+
+        .story-viewer.is-book .book-wrapper {
+            place-items: center;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            padding-top: clamp(0px, 1vh, 12px);
+            padding-bottom: clamp(0px, 1vh, 12px);
+        }
+
+    /* Shared available height for book mode */
+    .story-viewer.is-book {
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 24px );
+        --book-page-text-size: clamp(0.96rem, 0.55rem + 0.32vw + 0.36vh, 1.22rem);
+        --book-page-line: clamp(1.56, 1.5 + 0.12vw, 1.72);
+    }
+
+        /* Regular spreads */
+        .story-viewer.is-book .book {
+            width: min(100%, calc(var(--book-available-h) * 1.5));
+            height: min(var(--book-available-h), calc(100vw / 1.5));
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+            /* Cover page only */
+            .story-viewer.is-book .book.cover-state {
+                width: min(100%, calc(var(--book-available-h) * 0.78));
+                height: min(var(--book-available-h), calc(100vw / 0.78));
+                max-width: 100%;
+                max-height: 100%;
+            }
+
+/* Keep cover from feeling oversized on very wide desktop screens */
+@media (min-width: 1024px) and (min-aspect-ratio: 4/3) {
+    .story-viewer.is-book {
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 40px );
+        --book-page-text-size: clamp(1rem, 0.52rem + 0.36vw + 0.42vh, 1.3rem);
+    }
+
+        .story-viewer.is-book .book.cover-state {
+            width: min(92%, calc(var(--book-available-h) * 0.76));
+            height: min(var(--book-available-h), calc(92vw / 0.76));
+        }
+}
+
+/* Tablet / portrait tuning */
+@media (max-width: 1023px), (max-aspect-ratio: 4/3) {
+    .story-viewer.is-book {
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 28px );
+        --book-page-text-size: clamp(0.9rem, 0.58rem + 0.22vw + 0.3vh, 1.08rem);
+    }
+
+        .story-viewer.is-book .book.cover-state {
+            width: min(96%, calc(var(--book-available-h) * 0.8));
+            height: min(var(--book-available-h), calc(96vw / 0.8));
+        }
+}
+
+/* Short screens */
+@media (max-height: 760px) {
+    .story-viewer.is-book {
+        --book-page-text-size: clamp(0.88rem, 0.6rem + 0.18vw + 0.22vh, 1.02rem);
+        --book-page-line: 1.58;
+        --book-available-h: calc( 100dvh - var(--site-nav-h) - var(--viewer-nav-h) - var(--gap-top) - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 18px );
+    }
+}
+
+@media (max-height: 760px) {
+    .story-viewer.is-book {
+        --book-page-text-size: clamp(0.88rem, 0.6rem + 0.18vw + 0.22vh, 1.02rem);
+        --book-page-line: 1.58;
+    }
+}
 
 .page-text {
     color: var(--page-text-color);
@@ -1887,3 +1772,23 @@
         box-shadow: 0 4px 16px rgba(0,0,0,.18);
     }
 }
+
+/* Opening spread on the back of the cover-turn sheet */
+.spread-back {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.spread-half {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+    .spread-half .paper-face-content {
+        height: 100%;
+    }

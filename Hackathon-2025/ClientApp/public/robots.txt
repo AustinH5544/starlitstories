@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+
+Disallow: /create
+Disallow: /profile
+Disallow: /view
+Disallow: /upgrade
+Disallow: /customize
+Disallow: /signup/complete
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+
+Sitemap: https://starlitstories.app/sitemap.xml

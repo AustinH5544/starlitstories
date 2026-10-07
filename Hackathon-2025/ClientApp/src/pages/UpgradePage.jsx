@@ -1,9 +1,11 @@
 ﻿"use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Helmet } from "react-helmet-async"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
 import api from "../api"
+import usePublicConfig from "../hooks/usePublicConfig"
 import "./UpgradePage.css"
 
 const UpgradePage = () => {
@@ -11,40 +13,64 @@ const UpgradePage = () => {
     const navigate = useNavigate()
     const [selectedPlan, setSelectedPlan] = useState("")
     const [isProcessing, setIsProcessing] = useState(false)
+    const { config: publicConfig } = usePublicConfig()
+    const pricing = publicConfig.pricing || {}
+    const upgradeActionsRef = useRef(null)
 
     const plans = [
         {
             id: "free",
             name: "Free",
-            price: "$0/month",
+            price: pricing.free?.price || "$0/month",
             icon: "📖",
             description: "Perfect for trying out our service",
-            features: ["1 personalized story", "Basic customization", "Digital format only"],
+            features: [
+                "1 personalized story",
+                "1 saved character",
+                "Standard character creator",
+                "Digital format only",
+            ],
             disabled: user?.membership === "free",
         },
         {
             id: "pro",
             name: "Pro",
-            price: "$4/month",
+            price: pricing.pro?.price || "$4.99/month",
+            originalPrice: pricing.pro?.originalPrice || null,
+            isOnSale: !!pricing.pro?.isOnSale,
+            saleHint: pricing.pro?.saleHint || null,
+            badge: pricing.pro?.badgeText || null,
             icon: "✨",
-            description: "Great for regular storytelling",
-            features: ["5 stories per month", "Advanced customization", "High-quality illustrations", "Download & share"],
+            description: "Built for families ready to make storytime a regular ritual",
+            features: [
+                "5 stories per month",
+                "5 saved characters",
+                "Advanced character creation",
+                "10 additional art styles",
+                "High-quality illustrations",
+                "Download & share",
+            ],
             disabled: user?.membership === "pro" || user?.membership === "premium",
         },
         {
             id: "premium",
             name: "Premium",
-            price: "$8/month",
+            price: pricing.premium?.price || "$9.99/month",
+            originalPrice: pricing.premium?.originalPrice || null,
+            isOnSale: !!pricing.premium?.isOnSale,
+            saleHint: pricing.premium?.saleHint || null,
             icon: "🌟",
-            description: "Perfect for families who love stories",
+            description: "Best for families who want the fullest creative library",
             features: [
                 "11 stories per month",
-                "Premium illustrations",
-                "Multiple characters",
+                "10 saved characters",
+                "Advanced character creation",
+                "10 additional art styles",
+                "High-quality illustrations",
+                "Download & share",
                 "Print-ready format",
-                "Priority support",
             ],
-            badge: "Most Popular",
+            badge: pricing.premium?.badgeText || "Most Popular",
             disabled: user?.membership === "premium",
         },
     ]
@@ -97,6 +123,25 @@ const UpgradePage = () => {
         return currentPlan?.features || []
     }
 
+    useEffect(() => {
+        if (!selectedPlan || selectedPlan === "free") return
+        if (typeof window === "undefined") return
+        if (!window.matchMedia("(max-width: 768px)").matches) return
+
+        const frame = window.requestAnimationFrame(() => {
+            const top = upgradeActionsRef.current?.getBoundingClientRect().top
+            if (typeof top !== "number") return
+
+            const y = window.scrollY + top - 40
+            window.scrollTo({
+                top: Math.max(0, y),
+                behavior: "smooth",
+            })
+        })
+
+        return () => window.cancelAnimationFrame(frame)
+    }, [selectedPlan])
+
     if (!user) {
         return (
             <div className="upgrade-page">
@@ -116,6 +161,10 @@ const UpgradePage = () => {
 
     return (
         <div className="upgrade-page">
+            <Helmet>
+                <title>Upgrade Your Plan | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>
@@ -126,7 +175,7 @@ const UpgradePage = () => {
                         <span>←</span> Back to Profile
                     </button>
                     <h1 className="upgrade-title">Upgrade Your Plan</h1>
-                    <p className="upgrade-subtitle">Unlock more magical stories and premium features</p>
+                    <p className="upgrade-subtitle">Unlock more stories, more saved characters, and the full character creator.</p>
                 </div>
 
                 <div className="current-plan-section">
@@ -164,15 +213,28 @@ const UpgradePage = () => {
                             <div
                                 key={plan.id}
                                 className={`plan-card ${selectedPlan === plan.id ? "selected" : ""} ${plan.disabled ? "disabled" : ""
-                                    } ${plan.badge ? "premium" : ""}`}
+                                    } ${plan.badge ? "premium" : ""} ${plan.isOnSale ? "on-sale" : ""}`}
                                 onClick={() => !plan.disabled && setSelectedPlan(plan.id)}
                             >
                                 {plan.badge && <div className="plan-badge">{plan.badge}</div>}
-                                {plan.disabled && user.membership === plan.id && <div className="current-badge">Current Plan</div>}
+                                {plan.disabled && user.membership === plan.id && (
+                                    <div className={`current-badge ${plan.badge ? "with-sale-badge" : ""}`}>Current Plan</div>
+                                )}
 
                                 <div className="plan-icon">{plan.icon}</div>
                                 <h3>{plan.name}</h3>
-                                <p className="plan-price">{plan.price}</p>
+                                <div className="plan-pricing">
+                                    {plan.isOnSale && plan.originalPrice && (
+                                        <p className="plan-price-original">{plan.originalPrice}</p>
+                                    )}
+                                    <p className={`plan-price ${plan.isOnSale ? "sale-price" : ""}`}>{plan.price}</p>
+                                </div>
+                                {plan.isOnSale && (
+                                    <p className="plan-sale-copy">Limited-time pricing for new subscribers.</p>
+                                )}
+                                {plan.saleHint && (
+                                    <p className="plan-sale-hint">{plan.saleHint}</p>
+                                )}
                                 <p className="plan-description">{plan.description}</p>
 
                                 <ul className="plan-features">
@@ -190,7 +252,7 @@ const UpgradePage = () => {
                 </div>
 
                 {selectedPlan && selectedPlan !== "free" && (
-                    <div className="upgrade-actions">
+                    <div className="upgrade-actions" ref={upgradeActionsRef}>
                         <div className="upgrade-summary">
                             <h3>Ready to upgrade to {plans.find((p) => p.id === selectedPlan)?.name}?</h3>
                             <p>You'll be redirected to our secure payment processor to complete your upgrade.</p>
@@ -211,27 +273,27 @@ const UpgradePage = () => {
                         Why Upgrade?
                     </h2>
 
-                    <div className="benefits-grid">
-                        <div className="benefit-card">
-                            <div className="benefit-icon">📚</div>
+                    <div className="upgrade-benefits-grid">
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">📚</div>
                             <h4>More Stories</h4>
                             <p>Create more personalized adventures for your children with higher monthly limits.</p>
                         </div>
 
-                        <div className="benefit-card">
-                            <div className="benefit-icon">🎨</div>
-                            <h4>Premium Quality</h4>
-                            <p>Access to higher quality illustrations and advanced customization options.</p>
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">🎨</div>
+                            <h4>Character Creator</h4>
+                            <p>Paid plans unlock advanced character creation, while Free keeps the standard creator.</p>
                         </div>
 
-                        <div className="benefit-card">
-                            <div className="benefit-icon">👨‍👩‍👧‍👦</div>
-                            <h4>Family Features</h4>
-                            <p>Support for multiple characters and family-oriented story themes.</p>
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">💾</div>
+                            <h4>Saved Characters</h4>
+                            <p>Keep 1 saved character on Free, 5 on Pro, and 10 on Premium.</p>
                         </div>
 
-                        <div className="benefit-card">
-                            <div className="benefit-icon">🖨️</div>
+                        <div className="upgrade-benefit-card">
+                            <div className="upgrade-benefit-icon">🖨️</div>
                             <h4>Print & Share</h4>
                             <p>Download your stories in print-ready format to create physical keepsakes.</p>
                         </div>
@@ -240,7 +302,10 @@ const UpgradePage = () => {
 
                 <div className="upgrade-footer">
                     <p>
-                        Questions about upgrading? <a href="mailto:support@StarlitStories.com">Contact our support team</a>
+                        Multiple characters are currently disabled for all plans. If your membership changes, we keep saved characters in your account and only pause new saves until you are back under the active plan limit.
+                    </p>
+                    <p>
+                        Priority support is planned, but not live yet. A practical rollout is a dedicated premium inbox or tagged support queue with faster first-response targets. Questions about upgrading? <a href="mailto:support@StarlitStories.app">Contact our support team</a>
                     </p>
                 </div>
             </div>

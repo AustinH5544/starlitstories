@@ -1,4 +1,4 @@
-﻿/* Create Page Styles */
+/* Create Page Styles */
 .create-page {
     position: relative;
     min-height: 100vh;
@@ -187,6 +187,61 @@
     margin: 0;
 }
 
+.wait-title {
+    margin: 0 0 0.4rem;
+    font-size: 1.6rem;
+    font-weight: 800;
+}
+
+.wait-subtitle {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.82);
+}
+
+.wait-activity-switch {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin: 0 0 1rem;
+    flex-wrap: wrap;
+}
+
+.wait-activity-btn {
+    padding: 0.65rem 1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wait-activity-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.14);
+}
+
+.wait-activity-btn.active {
+    background: linear-gradient(120deg, #fb7185, #a78bfa);
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(251, 113, 133, 0.35);
+}
+
+.wait-activity-shell {
+    margin-top: 1rem;
+}
+
+.wait-activity-panel {
+    margin-top: 0;
+}
+
+.story-status-slot {
+    min-height: 64px;
+    margin-top: 0.5rem;
+}
+
 /* Error states */
 .error-container {
     text-align: center;
@@ -213,6 +268,127 @@
     color: rgba(255, 255, 255, 0.7);
     font-size: 0.9rem;
     margin: 0;
+}
+
+.error-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+}
+
+.error-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 201;
+    width: min(480px, 90vw);
+    background: linear-gradient(135deg, #1e1b4b, #2d1b69);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+}
+
+.error-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.error-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.error-modal .error-icon {
+    font-size: 3rem;
+    margin-bottom: 0.75rem;
+}
+
+.error-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ffd6a5;
+    margin-bottom: 0.4rem;
+}
+
+.error-modal .create-error {
+    text-align: center;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+}
+
+.error-suggestions {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    text-align: left;
+}
+
+.error-suggestions-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.6rem;
+}
+
+.error-suggestions ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.error-suggestions li {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.875rem;
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+}
+
+.retry-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, #a78bfa, #7c3aed);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+}
+
+.retry-btn:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.retry-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
 }
 
 /* Success states */
@@ -249,7 +425,58 @@
     color: #90ee90;
     font-size: 1.3rem;
     font-weight: 600;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.success-subtext {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 34rem;
+    margin: 0 auto 1.5rem;
+}
+
+.story-ready-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.65rem 0.9rem;
+    background: rgba(14, 22, 54, 0.7);
+    border: 1px solid rgba(76, 175, 80, 0.28);
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(8px);
+    text-align: left;
+}
+
+.story-ready-copy {
+    flex: 1;
+}
+
+.story-ready-title,
+.story-ready-text {
+    margin: 0;
+}
+
+.story-ready-title {
+    color: #90ee90;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.story-ready-text {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.82rem;
+    line-height: 1.35;
+    margin-top: 0.15rem;
+}
+
+.story-ready-banner .view-story-button {
+    padding: 0.7rem 1rem;
+    font-size: 0.92rem;
+    box-shadow: 0 6px 16px rgba(161, 140, 209, 0.28);
 }
 
 /* View story button */
@@ -473,6 +700,12 @@
         font-size: 1rem;
     }
 
+    .story-ready-banner {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+
     .auth-required-prompt {
         padding: 2rem;
     }
@@ -514,6 +747,10 @@
 
     .loading-text {
         font-size: 1.1rem;
+    }
+
+    .wait-title {
+        font-size: 1.35rem;
     }
 
     .success-text {
@@ -782,11 +1019,12 @@
 .progress-bar {
     height: 100%;
     width: 0%;
-    background: linear-gradient(90deg, #a18cd1, #fbc2eb);
+    background: linear-gradient(90deg, #7dd3fc, #38bdf8);
     transition: width 200ms ease-out;
 }
 
     .progress-bar.upload {
+        background: linear-gradient(90deg, #60a5fa, #38bdf8);
         /* first phase – slightly animated shimmer could be added later */
     }
 
@@ -798,12 +1036,59 @@
         /* final stretch to 100% while response bytes arrive */
     }
 
+    .progress-bar.planning {
+        background: linear-gradient(90deg, #7dd3fc, #22d3ee);
+    }
+
+    .progress-bar.illustrating {
+        background: linear-gradient(90deg, #f59e0b, #f97316);
+    }
+
+    .progress-bar.saving {
+        background: linear-gradient(90deg, #34d399, #10b981);
+    }
+
     .progress-bar.done {
+        background: linear-gradient(90deg, #34d399, #22c55e);
         /* snap to 100% and hold briefly; handled in JS */
     }
 
+.progress-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.progress-step {
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 999px;
+    color: rgba(255,255,255,0.72);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.38rem 0.55rem;
+    text-align: center;
+}
+
+.progress-step.active {
+    border-color: rgba(125,211,252,0.55);
+    background: rgba(56,189,248,0.16);
+    color: #f8fafc;
+}
+
+.progress-step.done {
+    border-color: rgba(52,211,153,0.45);
+    background: rgba(16,185,129,0.16);
+    color: #ecfdf5;
+}
+
 /* Responsive tweaks */
 @media (max-width: 768px) {
+    .progress-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .options-row {
         grid-template-columns: 1fr;
         gap: 0.5rem;

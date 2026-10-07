@@ -1,0 +1,207 @@
+.seo-topic-page {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+    padding: calc(64px + 2.5rem) 0 0;
+}
+
+.seo-topic-page .stars {
+    position: fixed;
+    inset: 0;
+    background: #0c1445 url("/stars.jpg") no-repeat center center;
+    background-size: cover;
+    z-index: -3;
+}
+
+.seo-topic-page .twinkling {
+    pointer-events: none;
+    z-index: -2;
+}
+
+.seo-topic-page .clouds {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: transparent url("/clouds.png") repeat top center;
+    background-size: contain;
+    z-index: -1;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.seo-topic-shell {
+    max-width: 860px;
+    margin: 0 auto 3rem;
+    padding: 0 2rem;
+    position: relative;
+    z-index: 1;
+}
+
+.seo-topic-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    transition: color 0.15s ease;
+    letter-spacing: 0.01em;
+}
+
+.seo-topic-back:hover {
+    color: white;
+}
+
+.seo-topic-card {
+    background: rgba(255, 255, 255, 0.97);
+    border-radius: 24px;
+    padding: 2.5rem;
+    box-shadow:
+        0 24px 64px rgba(0, 0, 0, 0.24),
+        0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.seo-topic-kicker {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #8d71cb;
+    margin-bottom: 0.8rem;
+}
+
+.seo-topic-title {
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.15;
+    color: #1a1035;
+    margin-bottom: 1rem;
+}
+
+.seo-topic-intro {
+    font-size: 1.08rem;
+    line-height: 1.8;
+    color: #3d3552;
+    margin-bottom: 2.25rem;
+}
+
+.seo-topic-content section + section,
+.seo-topic-faq,
+.seo-topic-related,
+.seo-topic-cta {
+    margin-top: 2.25rem;
+}
+
+.seo-topic-content h2,
+.seo-topic-faq h2,
+.seo-topic-related h2 {
+    font-size: 1.45rem;
+    color: #1a1035;
+    margin-bottom: 0.8rem;
+}
+
+.seo-topic-markdown {
+    color: #3d3552;
+    line-height: 1.85;
+    font-size: 1.02rem;
+}
+
+.seo-topic-markdown p {
+    margin-bottom: 1rem;
+}
+
+.seo-topic-markdown a {
+    color: #7c4dbb;
+}
+
+.seo-topic-faq-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.seo-topic-faq-item {
+    background: #f7f4ff;
+    border: 1px solid #ece4ff;
+    border-radius: 16px;
+    padding: 1rem 1.1rem;
+}
+
+.seo-topic-faq-item h3 {
+    color: #1a1035;
+    margin-bottom: 0.45rem;
+    font-size: 1rem;
+}
+
+.seo-topic-faq-item p {
+    color: #4b4360;
+    line-height: 1.7;
+}
+
+.seo-topic-related-grid {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.seo-topic-related-link {
+    display: block;
+    padding: 1rem 1.1rem;
+    border-radius: 16px;
+    background: #f5f7ff;
+    border: 1px solid #e4e9ff;
+    color: #2a2150;
+    text-decoration: none;
+    font-weight: 600;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.seo-topic-related-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(24, 18, 52, 0.08);
+}
+
+.seo-topic-cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.seo-topic-button,
+.seo-topic-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.85rem 1.25rem;
+    border-radius: 999px;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.seo-topic-button {
+    background: linear-gradient(135deg, #f6c75f, #ff9d5c);
+    color: #1d1238;
+}
+
+.seo-topic-secondary {
+    background: #efe8ff;
+    color: #5d3ea7;
+}
+
+@media (max-width: 768px) {
+    .seo-topic-page {
+        padding: calc(56px + 2rem) 0 0;
+    }
+
+    .seo-topic-shell {
+        padding: 0 1rem;
+    }
+
+    .seo-topic-card {
+        padding: 1.5rem;
+    }
+}

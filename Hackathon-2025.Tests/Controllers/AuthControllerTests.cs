@@ -69,6 +69,53 @@ public class AuthControllerTests
         _factory.EmailMock.Verify(
             e => e.SendVerificationEmailAsync("test@x.com", It.IsAny<string>()),
             Times.Once);
+        _factory.TurnstileMock.Verify(
+            t => t.VerifyAsync(null, It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [TestMethod]
+    public async Task Signup_Fails_When_Human_Verification_Fails()
+    {
+        _factory.TurnstileMock
+            .Setup(t => t.VerifyAsync(null, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TurnstileVerificationResult.Failed("Please complete the human verification challenge."));
+
+        var payload = new SignupRequest
+        {
+            Email = "blocked@x.com",
+            Username = "blockeduser",
+            Password = "Pass123!"
+        };
+
+        var resp = await _client.PostAsJsonAsync("/api/auth/signup", payload);
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        var json = await ReadJson(resp);
+        Assert.AreEqual("Please complete the human verification challenge.", json.GetProperty("message").GetString());
+        _factory.EmailMock.Verify(
+            e => e.SendVerificationEmailAsync(It.IsAny<string>(), It.IsAny<string>()),
+            Times.Never);
+    }
+
+    [TestMethod]
+    public async Task Signup_Passes_Turnstile_Token_To_Verifier()
+    {
+        var payload = new SignupRequest
+        {
+            Email = "token@x.com",
+            Username = "tokenuser",
+            Password = "Pass123!",
+            TurnstileToken = "turnstile-token-123"
+        };
+
+        var resp = await _client.PostAsJsonAsync("/api/auth/signup", payload);
+
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        _factory.TurnstileMock.Verify(
+            t => t.VerifyAsync("turnstile-token-123", It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [TestMethod]

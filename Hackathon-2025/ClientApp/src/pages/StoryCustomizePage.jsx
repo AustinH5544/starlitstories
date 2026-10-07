@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
+import { useAuth } from "../context/AuthContext";
 import "./StoryCustomizePage.css";
 
 /**
@@ -17,32 +19,103 @@ import "./StoryCustomizePage.css";
 export default function StoryCustomizePage() {
     const { state } = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const [story, setStory] = useState(null);
     const [pageIndex, setPageIndex] = useState(-1);
     const [boxesByPage, setBoxesByPage] = useState({});
     const [selectedBoxId, setSelectedBoxId] = useState(null);
     const stageRef = useRef(null);
+    const topbarRef = useRef(null);
+    const [topbarOffset, setTopbarOffset] = useState(56);
+    const [stageSize, setStageSize] = useState({ stageW: 600, stageH: 450 });
+    const [layoutBaseSize, setLayoutBaseSize] = useState({ stageW: 600, stageH: 450, coverStageH: 450 });
 
     // Mobile drawers state: 'pages' | 'inspector' | null
     const [panel, setPanel] = useState(null);
+    const [headerOpen, setHeaderOpen] = useState(true);
     const openPages = () => setPanel("pages");
     const toggleInspector = () =>
         setPanel(prev => (prev === "inspector" ? null : "inspector"));
     const closePanels = () => setPanel(null);
 
+    function getStageMetrics() {
+        const rect = stageRef.current?.getBoundingClientRect();
+        const stageW = Math.round(rect?.width || stageSize.stageW || 600);
+        const stageH = Math.round(rect?.height || stageSize.stageH || Math.round(stageW * 0.75));
+        return { stageW, stageH };
+    }
+
+    useEffect(() => {
+        const el = stageRef.current;
+        if (!el) return;
+
+        const syncStageSize = () => {
+            const rect = el.getBoundingClientRect();
+            const next = {
+                stageW: Math.round(rect.width || 600),
+                stageH: Math.round(rect.height || Math.round((rect.width || 600) * 0.75)),
+            };
+            setStageSize((prev) =>
+                prev.stageW === next.stageW && prev.stageH === next.stageH ? prev : next
+            );
+        };
+
+        syncStageSize();
+
+        const ro = new ResizeObserver(() => syncStageSize());
+        ro.observe(el);
+        window.addEventListener("resize", syncStageSize);
+        window.addEventListener("orientationchange", syncStageSize);
+
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("resize", syncStageSize);
+            window.removeEventListener("orientationchange", syncStageSize);
+        };
+    }, [story, pageIndex]);
+
+    useEffect(() => {
+        const el = topbarRef.current;
+        if (!el) return;
+
+        const syncTopbarOffset = () => {
+            setTopbarOffset(Math.round(el.getBoundingClientRect().height || 56));
+        };
+
+        syncTopbarOffset();
+
+        const ro = new ResizeObserver(() => syncTopbarOffset());
+        ro.observe(el);
+        window.addEventListener("resize", syncTopbarOffset);
+
+        return () => {
+            ro.disconnect();
+            window.removeEventListener("resize", syncTopbarOffset);
+        };
+    }, [headerOpen, story?.title]);
+
     // stable helper
-    function createDefaultTextBox(text, page) {
+    function createDefaultTextBox(text, page, stageW = 600, stageH = 450) {
+        const x = Math.round(clampN(stageW * 0.04, 12, 24));
+        const y = Math.round(clampN(stageH * 0.05, 12, 24));
+        const w = Math.round(clampN(stageW * 0.46, 160, 420));
+        const h = Math.round(clampN(stageH * 0.24, 88, 160));
+        const fontSize = Math.round(clampN(stageW * 0.028, 14, 20));
+        const padding = Math.round(clampN(stageW * 0.02, 8, 16));
+        const radius = Math.round(clampN(stageW * 0.015, 10, 12));
+
         return {
             id: crypto.randomUUID(),
             page,
-            x: 24, y: 24, w: 420, h: 160,
+            x, y, w, h,
             text,
             style: {
                 fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 20, fontWeight: 400, lineHeight: 1.35,
+                fontSize, fontWeight: 400, lineHeight: 1.35,
                 color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.8,
-                align: "left", padding: 16, radius: 12, shadow: true,
+                align: "left", padding, radius, shadow: true,
+                textEdge: false, textEdgeColor: "#ffffff", textEdgeWidth: 1,
             },
         };
     }
@@ -68,8 +141,12 @@ export default function StoryCustomizePage() {
         }
 
         // Regular page
+        const { stageW, stageH } = getStageMetrics();
         setBoxesByPage(prev => {
-            const next = { ...prev, [pageIndex]: [createDefaultTextBox(story.pages[pageIndex]?.text || "", pageIndex)] };
+            const next = {
+                ...prev,
+                [pageIndex]: [createDefaultTextBox(story.pages[pageIndex]?.text || "", pageIndex, stageW, stageH)]
+            };
             localStorage.setItem(key, JSON.stringify(next));
             return next;
         });
@@ -95,9 +172,10 @@ export default function StoryCustomizePage() {
     }
 
     function seedFromStory(s) {
+        const { stageW, stageH } = getStageMetrics();
         const init = {};
         (s?.pages || []).forEach((p, i) => {
-            init[i] = [createDefaultTextBox(p?.text || "", i)];
+            init[i] = [createDefaultTextBox(p?.text || "", i, stageW, stageH)];
         });
         return init;
     }
@@ -140,7 +218,12 @@ export default function StoryCustomizePage() {
         }
         try {
             // try to warm up one typical size; it’s okay if it resolves immediately
-            await document.fonts.load(`16px ${fontFamily.split(",")[0]}`);
+            await Promise.all([
+                document.fonts.load(`300 16px ${fontFamily.split(",")[0]}`),
+                document.fonts.load(`400 16px ${fontFamily.split(",")[0]}`),
+                document.fonts.load(`700 16px ${fontFamily.split(",")[0]}`),
+                document.fonts.load(`900 16px ${fontFamily.split(",")[0]}`),
+            ]);
         } catch { /* ignore */ }
     }
 
@@ -157,6 +240,14 @@ export default function StoryCustomizePage() {
     }
 
     useEffect(() => {
+        const membership = String(user?.membership ?? "free").toLowerCase();
+        if (membership === "free") {
+            alert("Story customization is available for Pro and Premium users.");
+            navigate("/upgrade", { replace: true });
+        }
+    }, [navigate, user?.membership]);
+
+    useEffect(() => {
         let s = state?.story;
         if (!s) {
             const saved = localStorage.getItem("story");
@@ -167,6 +258,14 @@ export default function StoryCustomizePage() {
 
             const key = storageKey(s);
             const savedLayouts = JSON.parse(localStorage.getItem(key) || "null");
+            const { stageW, stageH } = getStageMetrics();
+            const meta = JSON.parse(localStorage.getItem(`${key}:meta`) || "null");
+
+            setLayoutBaseSize({
+                stageW: meta?.stageW || stageW,
+                stageH: meta?.stageH || stageH,
+                coverStageH: meta?.coverStageH || stageH,
+            });
 
             function normalizeLayouts(saved, s) {
                 if (!saved || typeof saved !== "object") return null;
@@ -183,7 +282,7 @@ export default function StoryCustomizePage() {
                     for (let i = 0; i < s.pages.length; i++) {
                         next[i] = (clean[i + 1] || []).map(b => ({ ...b, id: crypto.randomUUID(), page: i }));
                         if (!next[i].length && (s.pages[i]?.text ?? "")) {
-                            next[i] = [createDefaultTextBox(s.pages[i].text, i)];
+                            next[i] = [createDefaultTextBox(s.pages[i].text, i, stageW, stageH)];
                         }
                     }
                     return next;
@@ -197,7 +296,7 @@ export default function StoryCustomizePage() {
                 for (let i = 0; i < s.pages.length; i++) {
                     next[i] = (clean[i] || []).map(b => ({ ...b, id: b.id || crypto.randomUUID(), page: i }));
                     if (!next[i].length && (s.pages[i]?.text ?? "")) {
-                        next[i] = [createDefaultTextBox(s.pages[i].text, i)];
+                        next[i] = [createDefaultTextBox(s.pages[i].text, i, stageW, stageH)];
                     }
                 }
                 return next;
@@ -234,21 +333,8 @@ export default function StoryCustomizePage() {
         localStorage.setItem(`${key}:cover`, JSON.stringify(boxesByPage[-1] || []));
         localStorage.setItem(key, JSON.stringify(boxesByPage));
 
-        // store stage size so export can scale coordinates 1:1
-        const rect = stageRef.current?.getBoundingClientRect();
-        if (rect && pageIndex === -1) {
-            const mk = `${key}:meta`;
-            const metaNow = JSON.parse(localStorage.getItem(mk) || "{}");
-            metaNow.coverStageH = Math.round(rect.height);
-            localStorage.setItem(mk, JSON.stringify(metaNow));
-        }
-        if (rect) {
-            localStorage.setItem(`${key}:meta`, JSON.stringify({
-                stageW: Math.round(rect.width),
-                stageH: Math.round(rect.height),
-            }));
-        }
-    }, [story, boxesByPage, pageIndex]);
+        localStorage.setItem(`${key}:meta`, JSON.stringify(layoutBaseSize));
+    }, [story, boxesByPage, layoutBaseSize]);
 
     // Helpers
     const currentBoxes = boxesByPage?.[pageIndex] || [];
@@ -262,10 +348,11 @@ export default function StoryCustomizePage() {
     }
 
     function addTextBox() {
+        const { stageW, stageH } = getStageMetrics();
         setBoxesByPage((prev) => {
             const next = { ...prev };
             const copy = [...(next[pageIndex] || [])];
-            copy.push(createDefaultTextBox("New text…", pageIndex));
+            copy.push(createDefaultTextBox("New text…", pageIndex, stageW, stageH));
             next[pageIndex] = copy;
             return next;
         });
@@ -297,14 +384,16 @@ export default function StoryCustomizePage() {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
+            const scaleX = bounds ? bounds.width / (layoutBaseSize.stageW || bounds.width) : 1;
+            const scaleY = bounds ? bounds.height / (layoutBaseSize.stageH || bounds.height) : 1;
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
                 if (b.id !== id) return b;
                 let x = nextX,
                     y = nextY;
                 if (bounds) {
-                    const maxX = bounds.width - b.w - 2;
-                    const maxY = bounds.height - b.h - 2;
+                    const maxX = bounds.width / scaleX - b.w - 2;
+                    const maxY = bounds.height / scaleY - b.h - 2;
                     x = Math.max(2, Math.min(x, maxX));
                     y = Math.max(2, Math.min(y, maxY));
                 }
@@ -318,14 +407,16 @@ export default function StoryCustomizePage() {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
+            const scaleX = bounds ? bounds.width / (layoutBaseSize.stageW || bounds.width) : 1;
+            const scaleY = bounds ? bounds.height / (layoutBaseSize.stageH || bounds.height) : 1;
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
                 if (b.id !== id) return b;
-                let x = b.x + dx;
-                let y = b.y + dy;
+                let x = b.x + (dx / scaleX);
+                let y = b.y + (dy / scaleY);
                 if (bounds) {
-                    const maxX = bounds.width - b.w - 2;
-                    const maxY = bounds.height - b.h - 2;
+                    const maxX = bounds.width / scaleX - b.w - 2;
+                    const maxY = bounds.height / scaleY - b.h - 2;
                     x = Math.max(2, Math.min(x, maxX));
                     y = Math.max(2, Math.min(y, maxY));
                 }
@@ -339,6 +430,10 @@ export default function StoryCustomizePage() {
         setBoxesByPage((prev) => {
             const stage = stageRef.current;
             const bounds = stage ? stage.getBoundingClientRect() : null;
+            const scaleX = bounds ? bounds.width / (layoutBaseSize.stageW || bounds.width) : 1;
+            const scaleY = bounds ? bounds.height / (layoutBaseSize.stageH || bounds.height) : 1;
+            const baseDw = dw / scaleX;
+            const baseDh = dh / scaleY;
 
             const next = { ...prev };
             next[pageIndex] = (next[pageIndex] || []).map((b) => {
@@ -348,24 +443,24 @@ export default function StoryCustomizePage() {
                     y = b.y,
                     w = b.w,
                     h = b.h;
-                const minW = 120,
-                    minH = 80;
+                const minW = 72,
+                    minH = 48;
 
                 const right = b.x + b.w;
                 const bottom = b.y + b.h;
 
                 if (anchor.includes("e")) {
-                    w = w + dw;
+                    w = w + baseDw;
                 }
                 if (anchor.includes("w")) {
-                    x = b.x - dw;
+                    x = b.x - baseDw;
                     w = right - x;
                 }
                 if (anchor.includes("s")) {
-                    h = h + dh;
+                    h = h + baseDh;
                 }
                 if (anchor.includes("n")) {
-                    y = b.y - dh;
+                    y = b.y - baseDh;
                     h = bottom - y;
                 }
 
@@ -374,14 +469,14 @@ export default function StoryCustomizePage() {
 
                 if (bounds) {
                     const pad = 2;
-                    const maxX = bounds.width - minW - pad;
-                    const maxY = bounds.height - minH - pad;
+                    const maxX = bounds.width / scaleX - minW - pad;
+                    const maxY = bounds.height / scaleY - minH - pad;
 
                     x = Math.max(pad, Math.min(x, maxX));
                     y = Math.max(pad, Math.min(y, maxY));
 
-                    w = Math.min(w, bounds.width - x - pad);
-                    h = Math.min(h, bounds.height - y - pad);
+                    w = Math.min(w, bounds.width / scaleX - x - pad);
+                    h = Math.min(h, bounds.height / scaleY - y - pad);
                 }
 
                 return { ...b, x, y, w, h };
@@ -412,6 +507,17 @@ export default function StoryCustomizePage() {
         });
     }
 
+    function updateDimension(key, value) {
+        if (!selectedBox) return;
+        const min = key === "w" ? 72 : 48;
+        const nextValue = Math.max(min, Number(value) || min);
+        onResize(
+            selectedBox.id,
+            key === "w" ? nextValue - selectedBox.w : 0,
+            key === "h" ? nextValue - selectedBox.h : 0
+        );
+    }
+
     function copyLayoutFrom(fromIndex) {
         setBoxesByPage((prev) => {
             const next = { ...prev };
@@ -425,6 +531,8 @@ export default function StoryCustomizePage() {
         const w = Math.round(stageW * 0.84);
         const x = Math.round((stageW - w) / 2);
         const y = Math.round(stageH * 0.06);
+        const fontSize = Math.round(clampN(stageW * 0.05, 22, 36));
+        const padding = Math.round(clampN(stageW * 0.012, 6, 10));
         return {
             id: crypto.randomUUID(),
             page: -1,
@@ -433,9 +541,10 @@ export default function StoryCustomizePage() {
             text: title || "My Story",
             style: {
                 fontFamily: "Georgia, 'Times New Roman', serif",
-                fontSize: 36, fontWeight: 700, lineHeight: 1.2,
+                fontSize, fontWeight: 700, lineHeight: 1.2,
                 color: "#1b1b1b", bg: "#ffffff", bgAlpha: 0.0,
-                align: "center", padding: 8, radius: 12, shadow: false
+                align: "center", padding, radius: 12, shadow: false,
+                textEdge: false, textEdgeColor: "#ffffff", textEdgeWidth: 1
             },
         };
     }
@@ -446,6 +555,7 @@ export default function StoryCustomizePage() {
             const next = { ...prev };
             Object.keys(next).forEach((k) => {
                 const i = Number(k);
+                if (i === -1) return; // Skip cover page
                 next[i] = (next[i] || []).map((b) => ({
                     ...b,
                     style: { ...b.style, ...selectedBox.style },
@@ -470,11 +580,20 @@ export default function StoryCustomizePage() {
     }
 
     const page = story.pages[pageIndex];
+    const currentStageW = stageSize.stageW;
+    const currentStageH = stageSize.stageH;
+    const scaleX = currentStageW / (layoutBaseSize.stageW || currentStageW || 1);
+    const scaleY = currentStageH / (layoutBaseSize.stageH || currentStageH || 1);
+    const contentScale = Math.min(scaleX || 1, scaleY || 1);
 
     return (
-        <div className="customizer">
+        <div className="customizer" style={{ "--customizer-topbar-offset": `${topbarOffset}px` }}>
+            <Helmet>
+                <title>Customize Your Story | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             {/* Top bar */}
-            <header className="topbar">
+            <header className="topbar" data-collapsed={!headerOpen} ref={topbarRef}>
                 <div className="left-actions">
                     <button className="btn" onClick={() => navigate(-1)} aria-label="Go back">
                         ← Back
@@ -492,7 +611,18 @@ export default function StoryCustomizePage() {
                 </div>
 
                 <div className="title">
-                    Customize: <span>{story.title || "Untitled"}</span>
+                    <div className="title-bar">
+                        <span>Customize: <span>{story.title || "Untitled"}</span></span>
+                        <button
+                            className="btn ghost topbar-toggle show-on-mobile"
+                            type="button"
+                            onClick={() => setHeaderOpen((prev) => !prev)}
+                            aria-expanded={headerOpen}
+                            aria-label={headerOpen ? "Collapse customize header" : "Expand customize header"}
+                        >
+                            {headerOpen ? "Hide" : "Show"}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="actions">
@@ -592,13 +722,15 @@ export default function StoryCustomizePage() {
                                     <option key={i} value={i}>Page {i + 1}</option>
                                 ))}
                             </select>
-                            <button
-                                className="btn ghost"
-                                disabled={!selectedBox}
-                                onClick={applySelectedStyleToAllPages}
-                            >
-                            Apply selected style → all pages
-                            </button>
+                            {pageIndex !== -1 && (
+                                <button
+                                    className="btn ghost"
+                                    disabled={!selectedBox}
+                                    onClick={applySelectedStyleToAllPages}
+                                >
+                                Apply selected style → all pages
+                                </button>
+                            )}
                         </div>
                     </div>
                 </aside>
@@ -616,6 +748,9 @@ export default function StoryCustomizePage() {
                                 key={b.id}
                                 box={b}
                                 selected={selectedBoxId === b.id}
+                                scaleX={scaleX}
+                                scaleY={scaleY}
+                                contentScale={contentScale}
                                 onSelect={() => setSelectedBoxId(b.id)}
                                 onDrag={onDrag}
                                 onResize={onResize}
@@ -632,7 +767,20 @@ export default function StoryCustomizePage() {
                     data-open={panel === "inspector"}
                     aria-hidden={panel !== "inspector"}
                 >
-                    <h3>Text Box</h3>
+                    <div className="inspector-header">
+                        <div>
+                            <h3>Text Box</h3>
+                            <p className="tip">Keep this open while comparing changes on the page.</p>
+                        </div>
+                        <button
+                            className="btn ghost show-on-mobile"
+                            type="button"
+                            onClick={closePanels}
+                            aria-label="Close inspector"
+                        >
+                            Close
+                        </button>
+                    </div>
                     {selectedBox ? (
                         <>
                             <label>Text</label>
@@ -680,62 +828,46 @@ export default function StoryCustomizePage() {
                             </div>
 
                             <div className="grid2">
-                                <div>
-                                    <label>Font size</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={12}
-                                        max={64}
-                                        value={selectedBox.style.fontSize}
-                                        onChange={(e) =>
-                                            updateStyle({ fontSize: clampN(e.target.value, 12, 64) })
-                                        }
-                                    />
-                                </div>
+                                <NumberStepperField
+                                    label="Font size"
+                                    value={selectedBox.style.fontSize}
+                                    min={8}
+                                    max={64}
+                                    step={1}
+                                    onChange={(value) => updateStyle({ fontSize: clampN(value, 8, 64) })}
+                                />
                                 <div>
                                     <label>Weight</label>
                                     <select
                                         className="input"
-                                        value={selectedBox.style.fontWeight}
+                                        value={normalizeWeight(selectedBox.style.fontWeight)}
                                         onChange={(e) => updateStyle({ fontWeight: Number(e.target.value) })}
                                     >
                                         <option value={300}>Light</option>
                                         <option value={400}>Regular</option>
-                                        <option value={600}>Semibold</option>
                                         <option value={700}>Bold</option>
+                                        <option value={900}>Heavy</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div className="grid2">
-                                <div>
-                                    <label>Line height</label>
-                                    <input
-                                        type="number"
-                                        step="0.05"
-                                        className="input"
-                                        min={1.1}
-                                        max={2}
-                                        value={selectedBox.style.lineHeight}
-                                        onChange={(e) =>
-                                            updateStyle({ lineHeight: clampN(e.target.value, 1.1, 2) })
-                                        }
-                                    />
-                                </div>
-                                <div>
-                                    <label>Padding</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={0}
-                                        max={48}
-                                        value={selectedBox.style.padding}
-                                        onChange={(e) =>
-                                            updateStyle({ padding: clampN(e.target.value, 0, 48) })
-                                        }
-                                    />
-                                </div>
+                                <NumberStepperField
+                                    label="Line height"
+                                    value={selectedBox.style.lineHeight}
+                                    min={1.1}
+                                    max={2}
+                                    step={0.05}
+                                    onChange={(value) => updateStyle({ lineHeight: clampN(value, 1.1, 2) })}
+                                />
+                                <NumberStepperField
+                                    label="Padding"
+                                    value={selectedBox.style.padding}
+                                    min={0}
+                                    max={48}
+                                    step={1}
+                                    onChange={(value) => updateStyle({ padding: clampN(value, 0, 48) })}
+                                />
                             </div>
 
                             <div className="grid2">
@@ -758,6 +890,39 @@ export default function StoryCustomizePage() {
                                     />
                                 </div>
                             </div>
+
+                            <label className="row gap sm">
+                                <input
+                                    type="checkbox"
+                                    checked={!!selectedBox.style.textEdge}
+                                    onChange={(e) => updateStyle({ textEdge: e.target.checked })}
+                                />
+                                Text edge (outline)
+                            </label>
+
+                            {selectedBox.style.textEdge && (
+                                <div className="grid2">
+                                    <div>
+                                        <label>Edge color</label>
+                                        <input
+                                            type="color"
+                                            className="input"
+                                            value={selectedBox.style.textEdgeColor || "#ffffff"}
+                                            onChange={(e) => updateStyle({ textEdgeColor: e.target.value })}
+                                        />
+                                    </div>
+                                    <NumberStepperField
+                                        label="Edge width"
+                                        value={selectedBox.style.textEdgeWidth ?? 1}
+                                        min={1}
+                                        max={6}
+                                        step={1}
+                                        onChange={(value) =>
+                                            updateStyle({ textEdgeWidth: clampN(value, 1, 6) })
+                                        }
+                                    />
+                                </div>
+                            )}
 
                             <div className="grid2">
                                 <div>
@@ -789,30 +954,22 @@ export default function StoryCustomizePage() {
                             </div>
 
                             <div className="grid2">
-                                <div>
-                                    <label>Width (px)</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={80}
-                                        value={selectedBox.w}
-                                        onChange={(e) =>
-                                            onResize(selectedBox.id, Number(e.target.value) - selectedBox.w, 0)
-                                        }
-                                    />
-                                </div>
-                                <div>
-                                    <label>Height (px)</label>
-                                    <input
-                                        type="number"
-                                        className="input"
-                                        min={60}
-                                        value={selectedBox.h}
-                                        onChange={(e) =>
-                                            onResize(selectedBox.id, 0, Number(e.target.value) - selectedBox.h)
-                                        }
-                                    />
-                                </div>
+                                <NumberStepperField
+                                    label="Width (px)"
+                                    value={selectedBox.w}
+                                    min={72}
+                                    max={2000}
+                                    step={8}
+                                    onChange={(value) => updateDimension("w", value)}
+                                />
+                                <NumberStepperField
+                                    label="Height (px)"
+                                    value={selectedBox.h}
+                                    min={48}
+                                    max={2000}
+                                    step={8}
+                                    onChange={(value) => updateDimension("h", value)}
+                                />
                             </div>
 
                             <label className="row gap sm">
@@ -836,6 +993,63 @@ export default function StoryCustomizePage() {
 function clampN(v, min, max) {
     const n = Number(v);
     return isNaN(n) ? min : Math.max(min, Math.min(max, n));
+}
+
+function normalizeWeight(value) {
+    const weight = Number(value) || 400;
+    if (weight <= 350) return 300;
+    if (weight <= 550) return 400;
+    if (weight <= 800) return 700;
+    return 900;
+}
+
+function formatStepValue(value, step) {
+    const decimals = step < 1 ? String(step).split(".")[1]?.length || 0 : 0;
+    return decimals ? Number(value).toFixed(decimals) : String(Math.round(Number(value)));
+}
+
+function NumberStepperField({ label, value, min, max, step = 1, onChange }) {
+    const numericValue = Number(value);
+    const safeValue = Number.isFinite(numericValue) ? numericValue : min;
+
+    const applyValue = (nextValue) => {
+        const clamped = clampN(nextValue, min, max);
+        const rounded = Number(formatStepValue(clamped, step));
+        onChange(rounded);
+    };
+
+    return (
+        <div>
+            <label>{label}</label>
+            <div className="stepper">
+                <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={() => applyValue(safeValue - step)}
+                    aria-label={`Decrease ${label.toLowerCase()}`}
+                >
+                    -
+                </button>
+                <input
+                    type="number"
+                    className="input stepper-input"
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={formatStepValue(safeValue, step)}
+                    onChange={(e) => applyValue(e.target.value)}
+                />
+                <button
+                    type="button"
+                    className="stepper-btn"
+                    onClick={() => applyValue(safeValue + step)}
+                    aria-label={`Increase ${label.toLowerCase()}`}
+                >
+                    +
+                </button>
+            </div>
+        </div>
+    );
 }
 
 function hexToRgb(hex) {
@@ -865,8 +1079,22 @@ function colorToRgba(hexOrRgb, alpha = 0.8) {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function edgeShadow(color = "#ffffff", width = 1) {
+    const w = Math.max(1, Math.min(6, Number(width) || 1));
+    return [
+        `${w}px 0 ${color}`,
+        `-${w}px 0 ${color}`,
+        `0 ${w}px ${color}`,
+        `0 -${w}px ${color}`,
+        `${w}px ${w}px ${color}`,
+        `-${w}px -${w}px ${color}`,
+        `${w}px -${w}px ${color}`,
+        `-${w}px ${w}px ${color}`,
+    ].join(", ");
+}
+
 /** Draggable, resizable text box */
-function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange }) {
+function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1, onSelect, onDrag, onResize, onTextChange }) {
     const ref = useRef(null);
     const dragState = useRef(null);
 
@@ -890,6 +1118,20 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         const el = ref.current;
         if (!el) return;
 
+        function cleanupDrag(pointerId) {
+            try {
+                if (pointerId != null) {
+                    el.releasePointerCapture?.(pointerId);
+                }
+            } catch { }
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+            window.removeEventListener("pointercancel", cancel);
+            el.removeEventListener("lostpointercapture", lostCapture);
+            dragState.current = null;
+            el.classList.remove("dragging");
+        }
+
         function down(e) {
             if (e.target.closest?.(".edge-handle, .corner-handle")) return;
 
@@ -905,6 +1147,8 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
             } catch { }
             window.addEventListener("pointermove", move, { passive: false });
             window.addEventListener("pointerup", up, { once: true });
+            window.addEventListener("pointercancel", cancel, { once: true });
+            el.addEventListener("lostpointercapture", lostCapture, { once: true });
             el.classList.add("dragging");
         }
 
@@ -928,18 +1172,21 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         }
 
         function up(e) {
-            try {
-                el.releasePointerCapture?.(e.pointerId);
-            } catch { }
-            window.removeEventListener("pointermove", move);
-            dragState.current = null;
-            el.classList.remove("dragging");
+            cleanupDrag(e.pointerId);
+        }
+
+        function cancel(e) {
+            cleanupDrag(e.pointerId);
+        }
+
+        function lostCapture() {
+            cleanupDrag();
         }
 
         el.addEventListener("pointerdown", down);
         return () => {
             el.removeEventListener("pointerdown", down);
-            window.removeEventListener("pointermove", move);
+            cleanupDrag();
         };
     }, [box.id]);
 
@@ -959,6 +1206,7 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         } catch { }
         window.addEventListener("pointermove", onResizeMove, { passive: false });
         window.addEventListener("pointerup", onResizeUp, { once: true });
+        window.addEventListener("pointercancel", onResizeUp, { once: true });
     }
 
     function onResizeMove(e) {
@@ -986,20 +1234,22 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
             e.currentTarget?.releasePointerCapture?.(e.pointerId);
         } catch { }
         window.removeEventListener("pointermove", onResizeMove);
+        window.removeEventListener("pointerup", onResizeUp);
+        window.removeEventListener("pointercancel", onResizeUp);
         rs.current = null;
     }
 
     const style = {
-        left: box.x,
-        top: box.y,
-        width: box.w,
-        height: box.h,
-        padding: box.style.padding,
-        borderRadius: box.style.radius,
+        left: box.x * scaleX,
+        top: box.y * scaleY,
+        width: box.w * scaleX,
+        height: box.h * scaleY,
+        padding: box.style.padding * contentScale,
+        borderRadius: box.style.radius * contentScale,
         background: colorToRgba(box.style.bg, box.style.bgAlpha ?? 0.8),
         boxShadow: box.style.shadow ? "0 6px 24px rgba(0,0,0,.18)" : "none",
         fontFamily: box.style.fontFamily,
-        fontSize: box.style.fontSize,
+        fontSize: box.style.fontSize * contentScale,
         fontWeight: box.style.fontWeight,
         lineHeight: box.style.lineHeight,
         color: box.style.color,
@@ -1007,7 +1257,14 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
         outline: selected ? "2px solid #6c8cff" : "1px solid rgba(0,0,0,.08)",
         position: "absolute",
         cursor: "grab",
+        touchAction: "none",
         userSelect: "none",
+    };
+
+    const contentStyle = {
+        textShadow: box?.style?.textEdge
+            ? edgeShadow(box?.style?.textEdgeColor || "#ffffff", box?.style?.textEdgeWidth ?? 1)
+            : "none",
     };
 
     return (
@@ -1029,7 +1286,7 @@ function DraggableBox({ box, selected, onSelect, onDrag, onResize, onTextChange 
             <div className="corner-handle handle-sw" onPointerDown={(e) => startResize(e, "sw")} />
             <div className="corner-handle handle-se" onPointerDown={(e) => startResize(e, "se")} />
 
-            <div className="content">{box.text}</div>
+            <div className="content" style={contentStyle}>{box.text}</div>
         </div>
     );
 }

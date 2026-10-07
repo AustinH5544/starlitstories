@@ -21,20 +21,26 @@ public class AuthController : ControllerBase
     private readonly IPasswordHasher<User> _hasher;
     private readonly IConfiguration _config;
     private readonly IEmailService _emailService;
+    private readonly IAdminAccessService _adminAccess;
+    private readonly ITurnstileService _turnstileService;
 
     public AuthController(
         AppDbContext db,
         IPasswordHasher<User> hasher,
         IConfiguration config,
-        IEmailService emailService)
+        IEmailService emailService,
+        IAdminAccessService adminAccess,
+        ITurnstileService turnstileService)
     {
         _db = db;
         _hasher = hasher;
         _config = config;
         _emailService = emailService;
+        _adminAccess = adminAccess;
+        _turnstileService = turnstileService;
     }
 
-    // Stronger default than before (8+ with letters and digits)
+    // Stronger default (8+ with letters and digits)
     private static bool IsPasswordValid(string p) =>
         !string.IsNullOrWhiteSpace(p) &&
         p.Length >= 8 &&
@@ -42,6 +48,7 @@ public class AuthController : ControllerBase
         p.Any(char.IsDigit);
 
     [HttpPost("signup")]
+    [EnableRateLimiting("signup-ip")]
     public async Task<IActionResult> Signup(SignupRequest request)
     {
         if (!IsPasswordValid(request.Password))
@@ -52,9 +59,19 @@ public class AuthController : ControllerBase
             return BadRequest(new { message = "Email already in use." });
 
         var uname = request.Username.Trim();
-        var unameNorm = uname.ToLowerInvariant();
+        if (!UsernameRules.IsValid(uname))
+            return BadRequest(new { message = "Username must be 3-24 characters and use only lowercase letters, numbers, dots, underscores, or hyphens." });
+
+        var unameNorm = UsernameRules.Normalize(uname);
         if (await _db.Users.AnyAsync(u => u.UsernameNormalized == unameNorm))
             return BadRequest(new { message = "Username already in use." });
+
+        var turnstile = await _turnstileService.VerifyAsync(
+            request.TurnstileToken,
+            HttpContext.Connection.RemoteIpAddress?.ToString(),
+            HttpContext.RequestAborted);
+        if (!turnstile.Success)
+            return BadRequest(new { message = turnstile.ErrorMessage ?? "Human verification failed. Please try again." });
 
         var user = new User
         {
@@ -108,7 +125,8 @@ public class AuthController : ControllerBase
             token,
             email = user.Email,
             username = user.Username,
-            membership = user.Membership.ToString()
+            membership = user.Membership.ToString(),
+            isAdmin = _adminAccess.IsAdminEmail(user.Email)
         });
     }
 
@@ -118,7 +136,6 @@ public class AuthController : ControllerBase
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
 
-        // Do not reveal existence
         if (user is null)
             return Ok(new { message = "If an account with that email exists, we've sent a verification email." });
 
@@ -172,7 +189,8 @@ public class AuthController : ControllerBase
             token,
             email = user.Email,
             username = user.Username,
-            membership = user.Membership.ToString()
+            membership = user.Membership.ToString(),
+            isAdmin = _adminAccess.IsAdminEmail(user.Email)
         });
     }
 

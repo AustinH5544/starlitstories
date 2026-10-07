@@ -1,13 +1,24 @@
 ﻿"use client"
 
 import { useState, useEffect } from "react"
+import { Helmet } from "react-helmet-async"
+import SiteFooter from "../components/SiteFooter"
 import "./LandingPage.css";
 import "./AboutPage.css"
+
+import imaginationIcon from "../assets/ui-icons/imagination.png";
+import readingIcon from "../assets/ui-icons/reading.png";
+import bondIcon from "../assets/ui-icons/bond.png";
+import uniquenessIcon from "../assets/ui-icons/uniqueness1.png";
+
+import physicalBookIcon from "../assets/vision/physical-books.png";
+import characterGalleryIcon from "../assets/vision/character-gallery.png";
+import audioNarrationIcon from "../assets/vision/audio-narration.png";
 
 const teamMembers = [
     {
         name: "Tyler Woody",
-        image: "/tyler.jpg",
+        image: "/tyler-small.jpg",
         role: "Co-Founder & Developer",
         bio: "Passionate about combining technology with storytelling to create magical experiences for children.",
     },
@@ -53,6 +64,21 @@ const AboutPage = () => {
 
     return (
         <div className="about-page">
+            <Helmet>
+                <title>About Starlit Stories — AI-Powered Personalized Children's Books | Starlit Stories</title>
+                <meta name="description" content="Learn how Starlit Stories uses AI to create safe, beautiful, personalized storybooks that make your child the hero of every bedtime story." />
+                <link rel="canonical" href="https://starlitstories.app/about" />
+                <meta property="og:title" content="About Starlit Stories — AI-Powered Personalized Children's Books | Starlit Stories" />
+                <meta property="og:description" content="Learn how Starlit Stories uses AI to create safe, beautiful, personalized storybooks that make your child the hero of every bedtime story." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/about" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="About Starlit Stories — AI-Powered Personalized Children's Books | Starlit Stories" />
+                <meta name="twitter:description" content="Learn how Starlit Stories uses AI to create safe, beautiful, personalized storybooks that make your child the hero of every bedtime story." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+            </Helmet>
             {/* Hero Section */}
             <section className="about-hero">
                 <div className="stars"></div>
@@ -154,31 +180,66 @@ const AboutPage = () => {
                     <h2>Why Families Love Starlit Stories</h2>
                     <div className="benefits-grid">
                         <div className="benefit-card">
-                            <div className="benefit-icon">💫</div>
+                            <div className="benefit-icon">
+                                <img
+                                    className="benefit-icon-img"
+                                    src={imaginationIcon}
+                                    alt="Boost imagination"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
                             <h3>Boosts Imagination</h3>
                             <p>
                                 Our personalized stories spark creativity and encourage readers
                                 to dream big—expanding their imaginative horizons.
                             </p>
                         </div>
+
                         <div className="benefit-card">
-                            <div className="benefit-icon">📚</div>
+                            <div className="benefit-icon">
+                                <img
+                                    className="benefit-icon-img"
+                                    src={readingIcon}
+                                    alt="Fosters love for reading"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
                             <h3>Fosters Love for Reading</h3>
                             <p>
                                 When readers see themselves—or characters they’ve created—in a story,
                                 they form a deeper connection to reading that can last a lifetime.
                             </p>
                         </div>
+
                         <div className="benefit-card">
-                            <div className="benefit-icon">❤️</div>
+                            <div className="benefit-icon">
+                                <img
+                                    className="benefit-icon-img"
+                                    src={bondIcon}
+                                    alt="Creates special bonds"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
                             <h3>Creates Special Bonds</h3>
                             <p>
                                 Sharing personalized stories turns reading time into meaningful moments
                                 for families, caregivers, and classrooms, strengthening connection.
                             </p>
                         </div>
+
                         <div className="benefit-card">
-                            <div className="benefit-icon">🌈</div>
+                            <div className="benefit-icon">
+                                <img
+                                    className="benefit-icon-img"
+                                    src={uniquenessIcon}
+                                    alt="Celebrates uniqueness"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
                             <h3>Celebrates Uniqueness</h3>
                             <p>
                                 Every tale highlights what makes each reader unique, building confidence
@@ -225,15 +286,33 @@ const AboutPage = () => {
 
                         <div className="vision-features">
                             <div className="vision-feature">
-                                <div className="vision-icon">🖨️</div>
+                                <div className="vision-icon">
+                                    <img
+                                        className="vision-icon-img"
+                                        src={physicalBookIcon}
+                                        alt="Physical books"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <div>
                                     <h3>Physical Books</h3>
-                                    <p>Turn your digital stories into beautiful printed keepsakes to treasure for years to come.</p>
+                                    <p>
+                                        Turn your digital stories into beautiful printed keepsakes to treasure for years to come.
+                                    </p>
                                 </div>
                             </div>
 
                             <div className="vision-feature">
-                                <div className="vision-icon">🎭</div>
+                                <div className="vision-icon">
+                                    <img
+                                        className="vision-icon-img"
+                                        src={characterGalleryIcon}
+                                        alt="Character gallery"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <div>
                                     <h3>Character Gallery</h3>
                                     <p>
@@ -244,10 +323,20 @@ const AboutPage = () => {
                             </div>
 
                             <div className="vision-feature">
-                                <div className="vision-icon">🔊</div>
+                                <div className="vision-icon">
+                                    <img
+                                        className="vision-icon-img"
+                                        src={audioNarrationIcon}
+                                        alt="Audio narration"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
                                 <div>
                                     <h3>Audio Narration</h3>
-                                    <p>Listen to professionally narrated versions of your personalized stories.</p>
+                                    <p>
+                                        Listen to professionally narrated versions of your personalized stories.
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -288,45 +377,7 @@ const AboutPage = () => {
             {/*        </div>*/}
             {/*    </div>*/}
             {/*</section>*/}
-            <footer className="footer">
-                <div className="footer-content">
-                    <div className="footer-logo">
-                        <span className="logo">Starlit Stories</span>
-                        <p>Making bedtime magical, one story at a time</p>
-                    </div>
-
-                    <div className="footer-links">
-                        <div className="footer-column">
-                            <h4>Company</h4>
-                            <a href="/about">About Us</a>
-                            <a href="/contact">Contact</a>
-                            <a href="/privacy">Privacy Policy</a>
-                            <a href="/terms">Terms of Service</a>
-                        </div>
-
-                        <div className="footer-column">
-                            <h4>Resources</h4>
-                            <a href="/blog">Blog</a>
-                            <a href="/faq">FAQ</a>
-                            <a href="/support">Support</a>
-                        </div>
-
-                        <div className="footer-column">
-                            <h4>Connect</h4>
-                            <div className="social-links">
-                                <a href="#" className="social-link">📱</a>
-                                <a href="#" className="social-link">📘</a>
-                                <a href="#" className="social-link">📸</a>
-                                <a href="#" className="social-link">🐦</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="footer-bottom">
-                    <p>© 2025 Starlit Stories. All rights reserved.</p>
-                </div>
-            </footer>
+            <SiteFooter />
         </div>
     )
 }

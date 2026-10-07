@@ -9,6 +9,7 @@ using Hackathon_2025.Data;
 [Route("api")]
 public class ShareController : ControllerBase
 {
+    private const int FallbackShareExpirationDays = 30;
     private readonly AppDbContext _db;
     private readonly IConfiguration _cfg;
 
@@ -48,9 +49,16 @@ public class ShareController : ControllerBase
             .OrderByDescending(x => x.Id)
             .FirstOrDefaultAsync();
 
+        var effectiveDays = ResolveShareExpirationDays(days);
         var share = active ?? new StoryShare { StoryId = id };
-        if (days is int d && d > 0) share.ExpiresUtc = DateTime.UtcNow.AddDays(d);
-        if (active == null) { _db.StoryShares.Add(share); await _db.SaveChangesAsync(); }
+        share.ExpiresUtc = DateTime.UtcNow.AddDays(effectiveDays);
+
+        if (active == null)
+        {
+            _db.StoryShares.Add(share);
+        }
+
+        await _db.SaveChangesAsync();
 
         var baseUrl = _cfg["PublicBaseUrl"]?.TrimEnd('/') ?? $"{Request.Scheme}://{Request.Host}";
         var url = $"{baseUrl}/s/{share.Token}";
@@ -104,5 +112,16 @@ public class ShareController : ControllerBase
         };
         Response.Headers.Append("X-Robots-Tag", "noindex, nofollow");
         return Ok(dto);
+    }
+
+    private int ResolveShareExpirationDays(int? requestedDays)
+    {
+        if (requestedDays is > 0)
+        {
+            return requestedDays.Value;
+        }
+
+        var configuredDays = _cfg.GetValue<int?>("Sharing:DefaultExpirationDays");
+        return configuredDays is > 0 ? configuredDays.Value : FallbackShareExpirationDays;
     }
 }

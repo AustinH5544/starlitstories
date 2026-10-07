@@ -68,6 +68,15 @@
     font-size: .8rem;
 }
 
+.feedback-note,
+.field-note {
+    display: block;
+    margin-top: 6px;
+    color: rgba(255,255,255,.72);
+    font-size: .82rem;
+    font-weight: 500;
+}
+
 .feedback-close {
     border: 1px solid rgba(255,255,255,.18);
     background: rgba(255,255,255,.06);

@@ -2,13 +2,32 @@
 
 import { useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import "./ProfilePage.css"
 import { useAuth } from "../context/AuthContext"
 import { useNavigate } from "react-router-dom"
+import usePublicConfig from "../hooks/usePublicConfig"
 import StoryCard from "../components/StoryCard"
 import { downloadStoryPdf } from "../utils/downloadStoryPdf";
 import { publicBase } from "../utils/urls";
+import posthog from '../analytics';
+
+import emailIcon from "../assets/ui-icons/email1.png";
+import membershipFreeIcon from "../assets/ui-icons/membership-free.png";
+import membershipProIcon from "../assets/ui-icons/membership-pro.png";
+import membershipPremiumIcon from "../assets/ui-icons/membership-premium.png";
+import calendarIcon from "../assets/ui-icons/calendar2.png";
+import boxIcon from "../assets/ui-icons/box1.png";
+
+import sparkleIcon from "../assets/ui-icons/sparkle3.png";
+import rocketIcon from "../assets/ui-icons/rocket.png";
+import toolsIcon from "../assets/ui-icons/tools.png";
+import cartIcon from "../assets/ui-icons/cart.png";
+
+import bookIcon from "../assets/ui-icons/book.png";
+import booksIcon from "../assets/ui-icons/books.png";
+import starIcon from "../assets/ui-icons/star.png";
 
 const normalizeMembership = (value) => {
     if (value === null || value === undefined) return "free";
@@ -48,11 +67,10 @@ const ProfilePage = () => {
     const [avatarVersion, setAvatarVersion] = useState(0);
     const [working, setWorking] = useState(false);
     const [actionMsg, setActionMsg] = useState("");
-    const [showCancelModal, setShowCancelModal] = useState(false);
     const { search } = useLocation();
     const [flash, setFlash] = useState("");
     const [billing, setBilling] = useState(null);
-    const isCancelScheduled = Boolean(billing?.cancelAt);
+    const { config: publicConfig } = usePublicConfig();
 
     const [storiesPage, setStoriesPage] = useState(1);
     const [storiesTotal, setStoriesTotal] = useState(0);
@@ -64,7 +82,7 @@ const ProfilePage = () => {
     const [usageError, setUsageError] = useState("")
     const [buyWorking, setBuyWorking] = useState(false)
     // Compact add-on selector
-    const [selectedPack, setSelectedPack] = useState("plus5");
+    const [selectedPack, setSelectedPack] = useState("Plus5");
 
     const BASE = import.meta.env.BASE_URL
     const [showImageModal, setShowImageModal] = useState(false)
@@ -73,8 +91,8 @@ const ProfilePage = () => {
     const [addonOpen, setAddonOpen] = useState(false);
 
     const packs = [
-        { key: "plus5", label: "+5 credits", price: "$4" },
-        { key: "plus11", label: "+11 credits", price: "$8" },
+        { key: "Plus5", label: "+5 credits", price: "$4" },
+        { key: "Plus11", label: "+11 credits", price: "$8" },
     ];
 
     const selected = packs.find(p => p.key === selectedPack) ?? packs[0];
@@ -159,6 +177,12 @@ const ProfilePage = () => {
     // membership helpers (handle enum/number or string)
     const membershipKey = normalizeMembership(user?.membership);
     const membershipLabel = prettyMembershipLabel(membershipKey);
+    const membershipIconByTier = {
+        free: membershipFreeIcon,
+        pro: membershipProIcon,
+        premium: membershipPremiumIcon,
+    };
+    const membershipIcon = membershipIconByTier[membershipKey] ?? membershipFreeIcon;
 
     // fetch summaries (lightweight)
     useEffect(() => {
@@ -199,6 +223,19 @@ const ProfilePage = () => {
 
         return () => { alive = false; };
     }, [user?.email, storiesPage]);
+
+    useEffect(() => {
+        if (user && storiesTotal > 0) {
+            const daysSinceSignup = user.createdAt
+                ? Math.floor((Date.now() - new Date(user.createdAt)) / 86400000)
+                : undefined
+            posthog.capture('return_visit', {
+                stories_created: storiesTotal,
+                days_since_signup: daysSinceSignup,
+                plan: user.membership || 'free',
+            })
+        }
+    }, [user?.email, storiesTotal]);
 
     useEffect(() => {
         if (!loadingMore && shouldStickToBottomRef.current) {
@@ -259,12 +296,29 @@ const ProfilePage = () => {
     const isPaid = membershipKey !== "free" || Boolean(billing?.cancelAt);
     const isPremium = membershipKey === "premium";
     const renewalDate = billing?.cancelAt || billing?.currentPeriodEnd;
-    const renewalLabel = billing?.cancelAt ? "Ends on" : "Next renewal";
+    const renewalLabel = "Next renewal";
+    const renewalValue = billing?.cancelAt
+        ? `Canceled (${membershipKey.charAt(0).toUpperCase() + membershipKey.slice(1)} until ${formatDate(billing.cancelAt)})`
+        : renewalDate ? formatDate(renewalDate) : "—";
 
     useEffect(() => {
         const q = new URLSearchParams(search);
         if (q.get("upgraded") === "1") {
             const plan = q.get("plan");
+            const parseDisplayPrice = (value) => {
+                const match = String(value || "").match(/(\d+(?:\.\d+)?)/);
+                return match ? Number(match[1]) : undefined;
+            };
+            const planPrices = {
+                pro: parseDisplayPrice(publicConfig?.pricing?.pro?.price) ?? 4.99,
+                premium: parseDisplayPrice(publicConfig?.pricing?.premium?.price) ?? 9.99,
+            };
+            posthog.capture('subscription_started', {
+                plan_name: plan,
+                plan_price: planPrices[plan],
+                currency: 'USD',
+                payment_method: 'stripe',
+            })
             setFlash(`You're all set! Your ${plan} plan is active.`);
             window.history.replaceState({}, "", "/profile");
         }
@@ -272,25 +326,7 @@ const ProfilePage = () => {
             setFlash("Credits added! 🎉");
             window.history.replaceState({}, "", "/profile");
         }
-    }, [search]);
-
-    const cancelMembership = async () => {
-        try {
-            setWorking(true);
-            setActionMsg("");
-            await api.post("payments/cancel");
-            const { data } = await api.get("payments/subscription");
-            setBilling(coerceBilling(data?.subscription ?? data));
-
-            setShowCancelModal(false);
-            setActionMsg("Cancellation scheduled. You’ll keep access until the current period ends.");
-        } catch (e) {
-            console.error(e);
-            setActionMsg("We couldn't cancel your membership. Please try again.");
-        } finally {
-            setWorking(false);
-        }
-    };
+    }, [search, publicConfig]);
 
     // Buy credits (same API as UpgradePage)
     const buyCredits = async (pack /* "plus5" | "plus11" */) => {
@@ -338,6 +374,7 @@ const ProfilePage = () => {
     }, [user?.profileImage, BASE, avatarVersion]);
 
     const canDownload = ["pro", "premium"].includes(membershipKey);
+    const canCustomize = canDownload;
 
     // ---- ADDED: lazy loader for full story (used by open/download/share) ----
     const fetchFullStory = async (id) => {
@@ -378,6 +415,12 @@ const ProfilePage = () => {
 
             const url = new URL(`/s/${token}`, publicBase()).toString();
 
+            const shareMethod = navigator.share ? 'native' : 'link'
+            posthog.capture('story_shared', {
+                story_id: storySummary.id,
+                share_method: shareMethod,
+            })
+
             if (navigator.share) {
                 try {
                     await navigator.share({ title: storySummary.title, url });
@@ -407,6 +450,16 @@ const ProfilePage = () => {
         }
     };
 
+    const onCustomize = async (storySummary) => {
+        try {
+            const story = await fetchFullStory(storySummary.id);
+            navigate("/customize", { state: { story } });
+        } catch (e) {
+            console.error("Customize failed:", e);
+            alert("Could not load the story for customization.");
+        }
+    };
+
     const onDelete = async (storyId) => {
         const prev = stories;
         setStories(prev.filter(s => s.id !== storyId));
@@ -417,6 +470,40 @@ const ProfilePage = () => {
             alert("Could not delete the story. Please try again.");
         }
     };
+
+    const hasGeneratingStory = stories.some((s) => Boolean(s?.isGenerating ?? s?.IsGenerating));
+
+    // Keep the profile list fresh while a placeholder story is still generating.
+    useEffect(() => {
+        if (!user?.email || !hasGeneratingStory) return;
+
+        let alive = true;
+        const intervalMs = 4000;
+
+        const refreshStories = async () => {
+            if (loading || loadingMore) return;
+
+            try {
+                const visibleCount = Math.max(pageSize, storiesPage * pageSize, stories.length);
+                const refreshPageSize = Math.min(50, visibleCount);
+                const { data } = await api.get(`/profile/me/stories?page=1&pageSize=${refreshPageSize}`);
+                if (!alive) return;
+
+                setStories(data.items ?? []);
+                setStoriesTotal(data.total ?? 0);
+            } catch (e) {
+                console.debug("Auto-refresh stories retry after error:", e);
+            }
+        };
+
+        refreshStories();
+        const timer = window.setInterval(refreshStories, intervalMs);
+
+        return () => {
+            alive = false;
+            window.clearInterval(timer);
+        };
+    }, [user?.email, hasGeneratingStory, stories.length, storiesPage, loading, loadingMore]);
 
     const loadImageAsBase64 = (url) => new Promise((resolve, reject) => {
         const img = new Image()
@@ -510,6 +597,10 @@ const ProfilePage = () => {
 
     return (
         <div className="profile-page">
+            <Helmet>
+                <title>My Library | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             <div className="stars" />
             <div className="twinkling" />
             <div className="clouds" />
@@ -540,7 +631,15 @@ const ProfilePage = () => {
 
                 <div className="profile-details">
                     <div className="detail-card">
-                        <div className="detail-icon">📧</div>
+                        <div className="detail-icon">
+                            <img
+                                className="detail-icon-img"
+                                src={emailIcon}
+                                alt="Email"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
                         <div className="detail-content">
                             <span className="detail-label">Email</span>
                             <span className="detail-value">{user.email}</span>
@@ -548,7 +647,15 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="detail-card">
-                        <div className="detail-icon">⭐</div>
+                        <div className="detail-icon">
+                            <img
+                                className="detail-icon-img"
+                                src={membershipIcon}
+                                alt="Membership"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
                         <div className="detail-content">
                             <span className="detail-label">Membership</span>
                             <span className="detail-value">{membershipLabel}</span>
@@ -557,24 +664,39 @@ const ProfilePage = () => {
 
                     {isPaid && (
                         <div className="detail-card">
-                            <div className="detail-icon">🗓️</div>
+                            <div className="detail-icon">
+                                <img
+                                    className="detail-icon-img"
+                                    src={calendarIcon}
+                                    alt="Renewal date"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
                             <div className="detail-content">
                                 <span className="detail-label">{renewalLabel}</span>
-                                <span className="detail-value">{renewalDate ? formatDate(renewalDate) : "—"}</span>
+                                <span className="detail-value">{renewalValue}</span>
                             </div>
                         </div>
                     )}
 
-                    {/* NEW: Stories Remaining (from /users/me/usage) */}
+                    {/* Stories Remaining (from /users/me/usage) */}
                     <div className="detail-card">
-                        <div className="detail-icon">📦</div>
+                        <div className="detail-icon">
+                            <img
+                                className="detail-icon-img"
+                                src={boxIcon}
+                                alt="Stories remaining"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
                         <div className="detail-content">
                             <span className="detail-label">Stories Remaining</span>
                             <span className="detail-value">
-                                {usageLoading ? "…" :
-                                    usageError ? "—" :
-                                        (usage?.remaining ?? "—")}
+                                {usageLoading ? "…" : usageError ? "—" : (usage?.remaining ?? "—")}
                             </span>
+
                             {!usageLoading && usage && (
                                 <div className="detail-subtext">
                                     Base: {usage.baseRemaining} • Extras: {usage.addOnBalance}
@@ -586,39 +708,66 @@ const ProfilePage = () => {
 
                 <div className="profile-actions">
                     <button onClick={() => navigate("/create")} className="create-story-btn">
-                        <span className="button-icon">✨</span>
+                        <span className="button-icon">
+                            <img
+                                className="button-icon-img"
+                                src={sparkleIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
                         <span>Create New Story</span>
                     </button>
 
                     {membershipKey === "free" ? (
                         <button onClick={() => navigate("/upgrade")} className="upgrade-plan-btn">
-                            <span className="button-icon">🚀</span>
+                            <span className="button-icon">
+                                <img
+                                    className="button-icon-img"
+                                    src={rocketIcon}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </span>
                             <span>Upgrade Plan</span>
                         </button>
                     ) : (
                         <div className="membership-actions">
                             <button className="manage-plan-btn" disabled={working} onClick={openBillingPortal}>
-                                <span className="button-icon">🛠️</span>
+                                <span className="button-icon">
+                                    <img
+                                        className="button-icon-img"
+                                        src={toolsIcon}
+                                        alt=""
+                                        aria-hidden="true"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </span>
                                 <span>{working ? "Opening..." : "Change Plan"}</span>
                             </button>
-                            {!isCancelScheduled && (
-                                <button
-                                    className="btn btn-danger"
-                                    onClick={() => setShowCancelModal(true)}
-                                    disabled={working}
-                                >
-                                    Cancel membership
-                                </button>
-                            )}
                         </div>
                     )}
                 </div>
 
-                {/* Premium-only Buy Credits (compact, styled dropdown) */}
-                {isPremium && (
+                {/* Premium-only Buy Credits — only shown when the user is out of stories */}
+                {isPremium && !usageLoading && usage?.remaining === 0 && (
                     <div className="addons-compact">
                         <h2 className="section-title">
-                            <span className="section-icon">🛒</span>
+                            <span className="section-icon">
+                                <img
+                                    className="section-icon-img"
+                                    src={cartIcon}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </span>
                             Buy Extra Stories
                         </h2>
 
@@ -673,7 +822,7 @@ const ProfilePage = () => {
                                     className="addon-buy-btn"
                                     disabled={buyWorking}
                                     onClick={() => buyCredits(selectedPack)}
-                                    aria-label={`Buy ${selectedPack === "plus5" ? "+5" : "+11"} credits`}
+                                    aria-label={`Buy ${selectedPack === "Plus5" ? "+5" : "+11"} credits`}
                                 >
                                     {buyWorking ? "Redirecting…" : "Buy"}
                                 </button>
@@ -692,7 +841,16 @@ const ProfilePage = () => {
 
                 <div className="stories-section">
                     <h2 className="section-title">
-                        <span className="section-icon">📖</span>
+                        <span className="section-icon">
+                            <img
+                                className="section-icon-img"
+                                src={bookIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
                         Your Story Collection
                     </h2>
 
@@ -702,15 +860,35 @@ const ProfilePage = () => {
                             <p className="loading-text">Loading your magical stories...</p>
                         </div>
                     ) : stories.length === 0 ? (
-                        <div className="empty-state">
-                            <div className="empty-icon">📚</div>
-                            <h3>No stories yet!</h3>
-                            <p>Start your storytelling journey by creating your first magical adventure.</p>
-                            <button onClick={() => navigate("/create")} className="create-first-story-btn">
-                                <span className="button-icon">🌟</span>
-                                <span>Create Your First Story</span>
-                            </button>
-                        </div>
+                            <div className="empty-state">
+                                <div className="empty-icon">
+                                    <img
+                                        className="empty-icon-img"
+                                        src={booksIcon}
+                                        alt=""
+                                        aria-hidden="true"
+                                        loading="lazy"
+                                        decoding="async"
+                                    />
+                                </div>
+
+                                <h3>No stories yet!</h3>
+                                <p>Start your storytelling journey by creating your first magical adventure.</p>
+
+                                <button onClick={() => navigate("/create")} className="create-first-story-btn">
+                                    <span className="button-icon">
+                                        <img
+                                            className="button-icon-img"
+                                            src={starIcon}
+                                            alt=""
+                                            aria-hidden="true"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </span>
+                                    <span>Create Your First Story</span>
+                                </button>
+                            </div>
                     ) : (
                         <>
                             <div className="story-grid">
@@ -718,13 +896,13 @@ const ProfilePage = () => {
                                     <StoryCard
                                         key={story.id}
                                         story={story}
-                                        canCustomize={true}
+                                        canCustomize={canCustomize}
                                         canDownload={canDownload}
                                         onShare={onShare}
                                         onDownload={onDownload}
                                         onDelete={onDelete}
                                         onOpen={onOpen}
-                                        onCustomize={(s) => navigate("/customize", { state: { story: s } })}
+                                        onCustomize={onCustomize}
                                     />
                                 ))}
                             </div>
@@ -769,27 +947,7 @@ const ProfilePage = () => {
                     </div>
                 )}
 
-                {showCancelModal && (
-                    <div className="image-modal-overlay" onClick={() => !working && setShowCancelModal(false)}>
-                        <div className="image-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>Cancel Membership?</h3>
-                                <button className="close-btn" onClick={() => !working && setShowCancelModal(false)}>✕</button>
-                            </div>
-                            <p className="cancel-blurb">
-                                This stops auto-renewal. You’ll keep access until the current period ends, then move to the Free plan.
-                            </p>
-                            <div className="cancel-actions">
-                                <button className="manage-plan-btn" disabled={working} onClick={() => setShowCancelModal(false)}>
-                                    Keep my plan
-                                </button>
-                                <button className="cancel-plan-btn" disabled={working} onClick={cancelMembership}>
-                                    {working ? "Cancelling..." : "Confirm Cancel"}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
             </div>
         </div>
     )

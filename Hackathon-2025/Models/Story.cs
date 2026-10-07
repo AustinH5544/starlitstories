@@ -13,6 +13,23 @@ public class Story
     [MaxLength(500)]
     public string? CoverImageUrl { get; set; }
 
+    [MaxLength(200)]
+    public string? RequestTheme { get; set; }
+
+    [MaxLength(64)]
+    public string? RequestReadingLevel { get; set; }
+
+    [MaxLength(64)]
+    public string? RequestArtStyle { get; set; }
+
+    [MaxLength(32)]
+    public string? RequestStoryLength { get; set; }
+
+    [MaxLength(500)]
+    public string? RequestLessonLearned { get; set; }
+
+    public string? RequestCharactersJson { get; set; }
+
     public ICollection<StoryPage> Pages { get; set; } = new List<StoryPage>();
     public ICollection<StoryShare> Shares { get; set; } = new List<StoryShare>();
 

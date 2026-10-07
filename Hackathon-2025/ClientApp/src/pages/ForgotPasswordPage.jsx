@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import "./ForgotPasswordPage.css"
 
@@ -68,7 +69,7 @@ const ForgotPasswordPage = () => {
                                 <li>Wait a few minutes for the email to arrive</li>
                             </ul>
                             <p className="contact-support">
-                                Still having trouble? <a href="mailto:support@StarlitStories.com">Contact our support team</a>
+                                Still having trouble? <a href="mailto:support@StarlitStories.app">Contact our support team</a>
                             </p>
                         </div>
                     </div>
@@ -79,6 +80,10 @@ const ForgotPasswordPage = () => {
 
     return (
         <div className="forgot-password-page">
+            <Helmet>
+                <title>Reset Your Password | Starlit Stories</title>
+                <meta name="robots" content="noindex, follow" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>

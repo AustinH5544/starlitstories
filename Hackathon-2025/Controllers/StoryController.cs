@@ -15,15 +15,19 @@ namespace Hackathon_2025.Controllers;
 [Route("api/[controller]")]
 public class StoryController : ControllerBase
 {
+    private const string PendingStoryTitle = "Your story is being generated...";
+    private const string PendingStoryCoverUrl = "/story-generating-cover.png";
+
     private readonly IStoryGeneratorService _storyService;
     private readonly AppDbContext _db;
     private readonly BlobUploadService _blobService;
     private readonly IProgressBroker _progress;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IOptionsSnapshot<StoryOptions> _storyOpts;
-
     private readonly IQuotaService _quota;
     private readonly IPeriodService _period;
+    private readonly ILogger<StoryController> _logger;
+    private static readonly JsonSerializerOptions StoryRequestJsonOptions = new(JsonSerializerDefaults.Web);
 
     public StoryController(
         IStoryGeneratorService storyService,
@@ -33,7 +37,8 @@ public class StoryController : ControllerBase
         IServiceScopeFactory scopeFactory,
         IOptionsSnapshot<StoryOptions> storyOpts,
         IQuotaService quota,
-        IPeriodService period)
+        IPeriodService period,
+        ILogger<StoryController> logger)
     {
         _storyService = storyService;
         _db = db;
@@ -43,6 +48,7 @@ public class StoryController : ControllerBase
         _storyOpts = storyOpts;
         _quota = quota;
         _period = period;
+        _logger = logger;
     }
 
     [Authorize]
@@ -59,13 +65,38 @@ public class StoryController : ControllerBase
 
         await RolloverIfNeededAsync(user, now);
 
-        var capacity = await EnsureCapacityAndMaybeReserveAddOnAsync(user);
+        var capacity = await EnsureCapacityAndReserveCreditAsync(user);
         if (!capacity.ok) return StatusCode(403, capacity.message!);
 
         // Build immutable effective request (StoryRequest has init-only props)
         var effectiveRequest = BuildEffectiveRequest(user.Membership, request);
 
-        // Generate; ensure add-on refund on failure
+        var pendingStory = new Story
+        {
+            Title = PendingStoryTitle,
+            CoverImageUrl = PendingStoryCoverUrl,
+            CreatedAt = now,
+            UserId = user.Id,
+            RequestTheme = effectiveRequest.Theme?.Trim(),
+            RequestReadingLevel = effectiveRequest.ReadingLevel?.Trim(),
+            RequestArtStyle = effectiveRequest.ArtStyle?.Trim(),
+            RequestStoryLength = effectiveRequest.StoryLength?.Trim(),
+            RequestLessonLearned = effectiveRequest.LessonLearned?.Trim(),
+            RequestCharactersJson = SerializeCharacters(effectiveRequest.Characters)
+        };
+
+        try
+        {
+            _db.Stories.Add(pendingStory);
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            await RefundReservedCreditAsync(user, capacity.usedAddOn);
+            throw;
+        }
+
+        // Generate; rollback reserved credit + pending story on failure
         StoryResult result;
         try
         {
@@ -73,47 +104,49 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            if (capacity.usedAddOn) await RefundReservedAddOnAsync(user);
+            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn);
             throw;
         }
 
-        // Upload cover
-        var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
-        var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl!, coverFileName);
-        result = result with { CoverImageUrl = coverBlobUrl };
-
-        // Upload page images
-        var pages = result.Pages.ToList();
-        var uploadTasks = pages.Select(async (p, i) =>
+        // Upload images and persist — rollback credit + pending story if anything here fails
+        try
         {
-            if (!string.IsNullOrEmpty(p.ImageUrl))
+            // Upload cover
+            var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
+            var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl!, coverFileName);
+            result = result with { CoverImageUrl = coverBlobUrl };
+
+            // Upload page images
+            var pages = result.Pages.ToList();
+            var uploadTasks = pages.Select(async (p, i) =>
             {
-                var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
-                var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
-                pages[i] = p with { ImageUrl = blobUrl };
+                if (!string.IsNullOrEmpty(p.ImageUrl))
+                {
+                    var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
+                    var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
+                    pages[i] = p with { ImageUrl = blobUrl };
+                }
+            }).ToList();
+            await Task.WhenAll(uploadTasks);
+
+            pendingStory.Title = result.Title;
+            pendingStory.CoverImageUrl = result.CoverImageUrl;
+            pendingStory.Pages.Clear();
+            foreach (var p in pages)
+            {
+                pendingStory.Pages.Add(new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl });
             }
-        }).ToList();
-        await Task.WhenAll(uploadTasks);
+            await _db.SaveChangesAsync();
 
-        // Persist story (requires ImagePrompt)
-        var story = new Story
+            // Return final (with blob URLs)
+            var finalResult = result with { Pages = pages };
+            return Ok(finalResult);
+        }
+        catch
         {
-            Title = result.Title,
-            CoverImageUrl = result.CoverImageUrl,
-            CreatedAt = now,
-            UserId = user.Id,
-            Pages = pages
-                .Select(p => new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl })
-                .ToList()
-        };
-
-        _db.Stories.Add(story);
-        user.BooksGenerated += 1;
-        await _db.SaveChangesAsync();
-
-        // Return final (with blob URLs)
-        var finalResult = result with { Pages = pages };
-        return Ok(finalResult);
+            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn);
+            throw;
+        }
     }
 
     [Authorize]
@@ -130,6 +163,35 @@ public class StoryController : ControllerBase
         await RolloverIfNeededAsync(user, now);
 
         var effectiveRequest = BuildEffectiveRequest(user.Membership, request);
+        var reserved = await EnsureCapacityAndReserveCreditAsync(user);
+        if (!reserved.ok) return StatusCode(403, reserved.message!);
+
+        var pendingStory = new Story
+        {
+            Title = PendingStoryTitle,
+            CoverImageUrl = PendingStoryCoverUrl,
+            CreatedAt = now,
+            UserId = user.Id,
+            RequestTheme = effectiveRequest.Theme?.Trim(),
+            RequestReadingLevel = effectiveRequest.ReadingLevel?.Trim(),
+            RequestArtStyle = effectiveRequest.ArtStyle?.Trim(),
+            RequestStoryLength = effectiveRequest.StoryLength?.Trim(),
+            RequestLessonLearned = effectiveRequest.LessonLearned?.Trim(),
+            RequestCharactersJson = SerializeCharacters(effectiveRequest.Characters)
+        };
+
+        try
+        {
+            _db.Stories.Add(pendingStory);
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            await RefundReservedCreditAsync(user, reserved.usedAddOn);
+            throw;
+        }
+
+        var pendingStoryId = pendingStory.Id;
 
         var jobId = _progress.CreateJob();
 
@@ -143,9 +205,6 @@ public class StoryController : ControllerBase
                 var scopedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
                 var scopedBlob = scope.ServiceProvider.GetRequiredService<BlobUploadService>();
                 var scopedGenerator = scope.ServiceProvider.GetRequiredService<IStoryGeneratorService>();
-                var scopedQuota = scope.ServiceProvider.GetRequiredService<IQuotaService>();
-                var scopedPeriod = scope.ServiceProvider.GetRequiredService<IPeriodService>();
-
                 var sUser = await scopedDb.Users.FirstOrDefaultAsync(u => u.Id == user.Id);
                 if (sUser is null)
                 {
@@ -154,91 +213,102 @@ public class StoryController : ControllerBase
                     return;
                 }
 
-                if (scopedPeriod.IsPeriodBoundary(sUser, DateTime.UtcNow))
-                {
-                    scopedPeriod.OnPeriodRollover(sUser, DateTime.UtcNow);
-                    scopedDb.Users.Update(sUser);
-                    await scopedDb.SaveChangesAsync();
-                }
+                var story = await scopedDb.Stories
+                    .Include(s => s.Pages)
+                    .FirstOrDefaultAsync(s => s.Id == pendingStoryId && s.UserId == sUser.Id);
 
-                var canProceed = await EnsureCapacityAndMaybeReserveAddOnAsyncScoped(scopedDb, scopedQuota, sUser);
-                if (!canProceed.ok)
+                if (story is null)
                 {
-                    _progress.Publish(jobId, new ProgressUpdate { Stage = "error", Percent = 100, Message = canProceed.message, Done = true });
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "error", Percent = 100, Message = "Story draft not found.", Done = true });
                     _progress.Complete(jobId);
                     return;
                 }
 
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "text", Percent = 15, Message = "Writing your story…" });
-
                 StoryResult result;
                 try
                 {
-                    result = await scopedGenerator.GenerateFullStoryAsync(effectiveRequest);
+                    result = await scopedGenerator.GenerateFullStoryAsync(
+                        effectiveRequest,
+                        update => _progress.Publish(jobId, update));
                 }
                 catch
                 {
-                    if (canProceed.usedAddOn)
-                        await RefundReservedAddOnAsyncScoped(scopedDb, sUser);
+                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn);
                     throw;
                 }
 
-                // Upload cover
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "image", Percent = 30, Message = "Preparing images…", Index = 0, Total = result.Pages.Count });
-
-                var coverFileName = $"{sUser.Email}-cover-{Guid.NewGuid()}.png";
-                var coverBlobUrl = await scopedBlob.UploadImageAsync(result.CoverImageUrl!, coverFileName);
-                result = result with { CoverImageUrl = coverBlobUrl };
-
-                // Upload page images with progress
-                var pages = result.Pages.ToList();
-                var total = Math.Max(1, pages.Count);
-                for (int i = 0; i < pages.Count; i++)
+                // Upload images and persist — refund add-on if anything here fails
+                try
                 {
-                    if (!string.IsNullOrEmpty(pages[i].ImageUrl))
+                    // Upload cover
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "upload", Percent = 88, Message = "Saving your cover art...", Index = 0, Total = result.Pages.Count + 1 });
+
+                    var coverFileName = $"{sUser.Email}-cover-{Guid.NewGuid()}.png";
+                    var coverBlobUrl = await scopedBlob.UploadImageAsync(result.CoverImageUrl!, coverFileName);
+                    result = result with { CoverImageUrl = coverBlobUrl };
+
+                    // Upload page images with progress
+                    var pages = result.Pages.ToList();
+                    var total = Math.Max(1, pages.Count);
+                    for (int i = 0; i < pages.Count; i++)
                     {
-                        var pageFileName = $"{sUser.Email}-page-{i}-{Guid.NewGuid()}.png";
-                        var blobUrl = await scopedBlob.UploadImageAsync(pages[i].ImageUrl!, pageFileName);
-                        pages[i] = pages[i] with { ImageUrl = blobUrl };
+                        if (!string.IsNullOrEmpty(pages[i].ImageUrl))
+                        {
+                            var pageFileName = $"{sUser.Email}-page-{i}-{Guid.NewGuid()}.png";
+                            var blobUrl = await scopedBlob.UploadImageAsync(pages[i].ImageUrl!, pageFileName);
+                            pages[i] = pages[i] with { ImageUrl = blobUrl };
+                        }
+
+                        var pct = 88 + (int)Math.Round(((i + 1) / (double)total) * 8); // 88 → 96
+                        _progress.Publish(jobId, new ProgressUpdate
+                        {
+                            Stage = "upload",
+                            Percent = Math.Min(96, pct),
+                            Message = $"Saving artwork {i + 1}/{total}...",
+                            Index = i + 2,
+                            Total = total + 1
+                        });
                     }
 
-                    var pct = 30 + (int)Math.Round(((i + 1) / (double)total) * 65); // 30 → 95
-                    _progress.Publish(jobId, new ProgressUpdate
+                    // Save to DB
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "db", Percent = 98, Message = "Saving your story..." });
+
+                    story.Title = result.Title;
+                    story.CoverImageUrl = result.CoverImageUrl;
+                    story.Pages.Clear();
+                    foreach (var p in pages)
                     {
-                        Stage = "image",
-                        Percent = Math.Min(95, pct),
-                        Message = $"Generating images {i + 1}/{total}…",
-                        Index = i + 1,
-                        Total = total
-                    });
+                        story.Pages.Add(new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl });
+                    }
+
+                    await scopedDb.SaveChangesAsync();
+
+                    var finalResult = result with { Pages = pages };
+
+                    _progress.SetResult(jobId, finalResult);
+                    _progress.Publish(jobId, new ProgressUpdate { Stage = "done", Percent = 100, Message = "Done!", Done = true });
                 }
-
-                // Save to DB
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "db", Percent = 97, Message = "Saving your story…" });
-
-                var story = new Story
+                catch
                 {
-                    Title = result.Title,
-                    CoverImageUrl = result.CoverImageUrl,
-                    CreatedAt = DateTime.UtcNow,
-                    UserId = sUser.Id,
-                    Pages = pages
-                        .Select(p => new StoryPage(p.Text, p.ImagePrompt) { ImageUrl = p.ImageUrl })
-                        .ToList()
-                };
-
-                scopedDb.Stories.Add(story);
-                sUser.BooksGenerated += 1;
-                await scopedDb.SaveChangesAsync();
-
-                var finalResult = result with { Pages = pages };
-
-                _progress.SetResult(jobId, finalResult);
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "done", Percent = 100, Message = "Done!", Done = true });
+                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn);
+                    throw;
+                }
+            }
+            catch (SuspiciousImageGenerationException ex)
+            {
+                _logger.LogWarning(ex, "Story generation job {JobId} failed quality checks after retry", jobId);
+                _progress.Publish(jobId, new ProgressUpdate
+                {
+                    Stage = "error",
+                    Percent = 100,
+                    Message = "One of the illustrations failed our quality check twice. No credits were used. Please try generating the story again.",
+                    Done = true
+                });
             }
             catch (Exception ex)
             {
-                _progress.Publish(jobId, new ProgressUpdate { Stage = "error", Percent = 100, Message = $"Failed: {ex.Message}", Done = true });
+                _logger.LogError(ex, "Story generation job {JobId} failed", jobId);
+                _progress.Publish(jobId, new ProgressUpdate { Stage = "error", Percent = 100, Message = "Something went wrong while creating your story. Please try again.", Done = true });
             }
             finally
             {
@@ -307,7 +377,7 @@ public class StoryController : ControllerBase
         }
     }
 
-    private async Task<(bool ok, bool usedAddOn, string? message)> EnsureCapacityAndMaybeReserveAddOnAsync(User user)
+    private async Task<(bool ok, bool usedAddOn, string? message)> EnsureCapacityAndReserveCreditAsync(User user)
     {
         if (user.Membership == MembershipPlan.Free && user.BooksGenerated >= 1)
             return (false, false, "Free users can only generate one story.");
@@ -315,65 +385,74 @@ public class StoryController : ControllerBase
         var baseQuota = _quota.BaseQuotaFor(user.Membership.ToString());
         var baseRemaining = Math.Max(baseQuota - user.BooksGenerated, 0);
 
-        if (baseRemaining > 0)
-            return (true, false, null);
+        var usedAddOn = false;
+        if (baseRemaining <= 0)
+        {
+            if (user.AddOnBalance <= 0)
+                return (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
 
-        if (user.AddOnBalance <= 0)
-            return (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
+            user.AddOnBalance -= 1;
+            user.AddOnSpentThisPeriod += 1;
+            usedAddOn = true;
+        }
 
-        user.AddOnBalance -= 1;
-        user.AddOnSpentThisPeriod += 1;
+        user.BooksGenerated += 1;
         _db.Users.Update(user);
         await _db.SaveChangesAsync();
 
-        return (true, true, null);
+        return (true, usedAddOn, null);
     }
 
-    private async Task RefundReservedAddOnAsync(User user)
+    private async Task RefundReservedCreditAsync(User user, bool usedAddOn)
     {
-        user.AddOnBalance += 1;
-        if (user.AddOnSpentThisPeriod > 0) user.AddOnSpentThisPeriod -= 1;
+        if (user.BooksGenerated > 0) user.BooksGenerated -= 1;
+        if (usedAddOn)
+        {
+            user.AddOnBalance += 1;
+            if (user.AddOnSpentThisPeriod > 0) user.AddOnSpentThisPeriod -= 1;
+        }
+
         _db.Users.Update(user);
         await _db.SaveChangesAsync();
     }
 
-    private async Task<(bool ok, bool usedAddOn, string? message)> EnsureCapacityAndMaybeReserveAddOnAsyncScoped(
-        AppDbContext scopedDb, IQuotaService scopedQuota, User sUser)
+    private async Task RefundReservedCreditAsyncScoped(AppDbContext scopedDb, User sUser, bool usedAddOn)
     {
-        if (sUser.Membership == MembershipPlan.Free && sUser.BooksGenerated >= 1)
-            return (false, false, "Free users can only generate one story.");
+        if (sUser.BooksGenerated > 0) sUser.BooksGenerated -= 1;
+        if (usedAddOn)
+        {
+            sUser.AddOnBalance += 1;
+            if (sUser.AddOnSpentThisPeriod > 0) sUser.AddOnSpentThisPeriod -= 1;
+        }
 
-        var baseQuota = scopedQuota.BaseQuotaFor(sUser.Membership.ToString());
-        var baseRemaining = Math.Max(baseQuota - sUser.BooksGenerated, 0);
-
-        if (baseRemaining > 0)
-            return (true, false, null);
-
-        if (sUser.AddOnBalance <= 0)
-            return (false, false, $"Your {sUser.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
-
-        sUser.AddOnBalance -= 1;
-        sUser.AddOnSpentThisPeriod += 1;
         scopedDb.Users.Update(sUser);
         await scopedDb.SaveChangesAsync();
-
-        return (true, true, null);
     }
 
-    private async Task RefundReservedAddOnAsyncScoped(AppDbContext scopedDb, User sUser)
+    private async Task DeletePendingStoryAndRefundReservedCreditAsync(AppDbContext scopedDb, User sUser, Story story, bool usedAddOn)
     {
-        sUser.AddOnBalance += 1;
-        if (sUser.AddOnSpentThisPeriod > 0) sUser.AddOnSpentThisPeriod -= 1;
-        scopedDb.Users.Update(sUser);
-        await scopedDb.SaveChangesAsync();
+        scopedDb.Stories.Remove(story);
+        await RefundReservedCreditAsyncScoped(scopedDb, sUser, usedAddOn);
     }
 
     // Immutable effective request according to StoryOptions + membership
     private StoryRequest BuildEffectiveRequest(MembershipPlan membership, StoryRequest request)
     {
+        var sanitizedCharacters = (request.Characters ?? new List<CharacterSpec>())
+            .Take(MembershipEntitlements.MaxCharactersPerStory)
+            .Select(c => MembershipEntitlements.SanitizeCharacterForMembership(membership, c))
+            .ToList();
+
+        var sanitizedRequest = request with
+        {
+            Characters = sanitizedCharacters,
+            StoryLength = null,
+            PageCount = null
+        };
+
         if (!_storyOpts.Value.LengthHintEnabled)
         {
-            return request with { StoryLength = null, PageCount = null };
+            return sanitizedRequest;
         }
 
         string[] allowed = membership switch
@@ -394,10 +473,20 @@ public class StoryController : ControllerBase
             ["long"] = 12
         };
 
-        return request with
+        return sanitizedRequest with
         {
             StoryLength = requested,
             PageCount = lengthToCount[requested]
         };
+    }
+
+    private static string? SerializeCharacters(List<CharacterSpec>? characters)
+    {
+        if (characters is null || characters.Count == 0)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(characters, StoryRequestJsonOptions);
     }
 }

@@ -1,9 +1,12 @@
 ﻿import api from "../api";
 import { useEffect, useState, useRef, useCallback } from "react";
+import posthog from '../analytics';
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import "./StoryViewerPage.css";
 import { useAuth } from "../context/AuthContext";
 import FeedbackModal from "../components/FeedbackModal";
+import ScrollableTextPane from "../components/ScrollableTextPane";
 
 export default function StoryViewerPage({ mode = "private" }) {
     const navigate = useNavigate();
@@ -22,10 +25,15 @@ export default function StoryViewerPage({ mode = "private" }) {
     const [bookEligible, setBookEligible] = useState(() => computeEligibility());
 
     useEffect(() => {
-        const onResize = () => setBookEligible(computeEligibility());
+        let raf;
+        const onResize = () => {
+            cancelAnimationFrame(raf);
+            raf = requestAnimationFrame(() => setBookEligible(computeEligibility()));
+        };
         window.addEventListener("resize", onResize);
         window.addEventListener("orientationchange", onResize);
         return () => {
+            cancelAnimationFrame(raf);
             window.removeEventListener("resize", onResize);
             window.removeEventListener("orientationchange", onResize);
         };
@@ -41,8 +49,17 @@ export default function StoryViewerPage({ mode = "private" }) {
     const [showControls, setShowControls] = useState(true);
     const [showCompletion, setShowCompletion] = useState(false);
 
+    const [showProgressPill, setShowProgressPill] = useState(false);
+
+    useEffect(() => {
+        api.get("/config")
+            .then(({ data }) => setShowProgressPill(!!data.showProgressPill))
+            .catch(() => {}); // fall back to hidden
+    }, []);
+
     const [showFeedback, setShowFeedback] = useState(false);
     const [feedbackSent, setFeedbackSent] = useState(false);
+    const estimatedReadMinutes = Math.max(1, Math.round((story?.pages?.length ?? 0) * 0.625));
 
     // ===== Book Mode & Flip =====
     const [bookMode, setBookMode] = useState(() => localStorage.getItem("bookMode") === "1");
@@ -73,6 +90,7 @@ export default function StoryViewerPage({ mode = "private" }) {
     const indicatorsRef = useRef(null);
     const dotRefs = useRef([]);
     const contentRef = useRef(null);
+    const preloadedImageUrls = useRef(new Set());
 
     // ===== RESET SCROLL WHEN PAGE / SPREAD CHANGES =====
     const scrollToTop = useCallback(() => {
@@ -138,7 +156,10 @@ export default function StoryViewerPage({ mode = "private" }) {
             if (mode === "public" && token) {
                 try {
                     const { data } = await api.get(`/share/${token}`, { skipAuth401Handler: true });
-                    if (alive) setStory(data);
+                    if (alive) {
+                        setStory(data);
+                        posthog.capture('story_viewed', { story_id: data.id, story_theme: data.theme })
+                    }
                 } catch (e) {
                     if (alive) setError("This shared story link is invalid or expired.");
                     console.error("Share load failed:", e);
@@ -151,10 +172,15 @@ export default function StoryViewerPage({ mode = "private" }) {
                 if (alive) {
                     setStory(state.story);
                     localStorage.setItem("story", JSON.stringify(state.story));
+                    posthog.capture('story_viewed', { story_id: state.story.id, story_theme: state.story.theme })
                 }
             } else {
                 const saved = localStorage.getItem("story");
-                if (saved && alive) setStory(JSON.parse(saved));
+                if (saved && alive) {
+                    const parsedStory = JSON.parse(saved)
+                    setStory(parsedStory)
+                    posthog.capture('story_viewed', { story_id: parsedStory.id, story_theme: parsedStory.theme })
+                }
             }
         }
         load();
@@ -162,6 +188,53 @@ export default function StoryViewerPage({ mode = "private" }) {
     }, [mode, token, state]);
 
     const pageCount = story?.pages?.length ?? 0;
+
+    const preloadImage = useCallback((url) => {
+        if (!url || preloadedImageUrls.current.has(url)) return;
+        preloadedImageUrls.current.add(url);
+
+        const img = new Image();
+        img.decoding = "async";
+        img.src = url;
+    }, []);
+
+    useEffect(() => {
+        if (!story) return;
+
+        const priorityUrls = [
+            story.coverImageUrl,
+            ...story.pages.slice(0, isBook ? 4 : 2).map((page) => page?.imageUrl),
+        ].filter(Boolean);
+
+        priorityUrls.forEach(preloadImage);
+
+        const remainingUrls = story.pages
+            .slice(isBook ? 4 : 2)
+            .map((page) => page?.imageUrl)
+            .filter(Boolean);
+
+        if (remainingUrls.length === 0) return;
+
+        let cancelled = false;
+        const idle = window.requestIdleCallback
+            ? window.requestIdleCallback(() => {
+                if (cancelled) return;
+                remainingUrls.forEach(preloadImage);
+            }, { timeout: 1200 })
+            : window.setTimeout(() => {
+                if (cancelled) return;
+                remainingUrls.forEach(preloadImage);
+            }, 250);
+
+        return () => {
+            cancelled = true;
+            if (window.cancelIdleCallback && typeof idle === "number" && window.requestIdleCallback) {
+                window.cancelIdleCallback(idle);
+                return;
+            }
+            clearTimeout(idle);
+        };
+    }, [story, isBook, preloadImage]);
 
     // page helpers
     const hasOddPageCount = pageCount % 2 === 1;
@@ -189,8 +262,30 @@ export default function StoryViewerPage({ mode = "private" }) {
         if (idx <= pageCount - 1) return idx; // real right page exists
         return pageCount;                     // virtual right page when odd
     };
+    const toBookRightIndex = useCallback((idx) => {
+        if (idx < 0) return -1;
+        if (idx % 2 === 1) return idx;
+        return Math.min(idx + 1, lastRightIndex);
+    }, [lastRightIndex]);
+    const toClassicPageIndex = useCallback((idx) => {
+        if (idx < 0) return -1;
+        return Math.max(0, Math.min(idx - 1, pageCount - 1));
+    }, [pageCount]);
 
     const spreadNumber = isCover ? 0 : spreadOf(currentPage);
+
+    const prevIsBookRef = useRef(isBook);
+    useEffect(() => {
+        const wasBook = prevIsBookRef.current;
+        if (wasBook === isBook) return;
+
+        setCurrentPage((prev) => (
+            isBook
+                ? toBookRightIndex(prev)
+                : toClassicPageIndex(prev)
+        ));
+        prevIsBookRef.current = isBook;
+    }, [isBook, toBookRightIndex, toClassicPageIndex]);
 
     // Scroll active dot into view
     useEffect(() => {
@@ -574,111 +669,6 @@ export default function StoryViewerPage({ mode = "private" }) {
     const page = isCover ? null : story.pages[currentPage];
     const isLastPage = !isCover && currentPage === story.pages.length - 1;
 
-    const ScrollableTextPane = ({ text, showFinish, finishLayout = "section", onFinish }) => {
-        const textRef = useRef(null);
-        const [scrollInfo, setScrollInfo] = useState({
-            canScroll: false,
-            thumbTop: 0,
-            thumbHeight: 100,
-        });
-
-        useEffect(() => {
-            const el = textRef.current;
-            if (!el) return;
-
-            const update = () => {
-                const scrollHeight = el.scrollHeight;
-                const clientHeight = el.clientHeight;
-
-                // If there is no overflow, hide the fake scrollbar
-                if (scrollHeight <= clientHeight + 1) {
-                    setScrollInfo((prev) =>
-                        prev.canScroll
-                            ? { canScroll: false, thumbTop: 0, thumbHeight: 100 }
-                            : prev
-                    );
-                    return;
-                }
-
-                const maxScrollTop = scrollHeight - clientHeight;
-                const scrollTop = el.scrollTop;
-                const ratio = clientHeight / scrollHeight;
-                const thumbHeight = Math.max(ratio * 100, 10); // don't get too tiny
-                const top =
-                    maxScrollTop > 0
-                        ? (scrollTop / maxScrollTop) * (100 - thumbHeight)
-                        : 0;
-
-                setScrollInfo({
-                    canScroll: true,
-                    thumbTop: top,
-                    thumbHeight,
-                });
-            };
-
-            update();
-            el.addEventListener("scroll", update);
-            window.addEventListener("resize", update);
-
-            return () => {
-                el.removeEventListener("scroll", update);
-                window.removeEventListener("resize", update);
-            };
-        }, [text]);
-
-        const handleFinishClick = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onFinish && onFinish();
-        };
-
-        return (
-            <div className="page-text-container">
-                {/* inner scrollable area */}
-                <div className="page-text-inner" ref={textRef}>
-                    <p className="page-text">{text}</p>
-
-                    {showFinish && (
-                        finishLayout === "inline" ? (
-                            <div className="finish-inline">
-                                <button
-                                    onClick={handleFinishClick}
-                                    className="finish-story-btn"
-                                >
-                                    <span className="button-icon">🌟</span>
-                                    Finish Story
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="finish-story-section">
-                                <button
-                                    onClick={handleFinishClick}
-                                    className="finish-story-btn"
-                                >
-                                    <span className="button-icon">🌟</span>
-                                    Finish Story
-                                </button>
-                            </div>
-                        )
-                    )}
-                </div>
-
-                {/* fake static scrollbar on the side */}
-                {scrollInfo.canScroll && (
-                    <div className="fake-scrollbar">
-                        <div
-                            className="fake-scrollbar-thumb"
-                            style={{
-                                height: `${scrollInfo.thumbHeight}%`,
-                                top: `${scrollInfo.thumbTop}%`,
-                            }}
-                        />
-                    </div>
-                )}
-            </div>
-        );
-    };
-
     // Face renderer for a page index (-1 = cover)
     const PageFace = ({ idx }) => {
         // ----- Cover -----
@@ -772,9 +762,13 @@ export default function StoryViewerPage({ mode = "private" }) {
             className={`story-viewer ${isBook ? "is-book" : "is-classic"}`}
             onClick={handleContentClick}
         >
+            <Helmet>
+                <title>Story Viewer | Starlit Stories</title>
+                <meta name="robots" content="noindex, nofollow" />
+            </Helmet>
             <div className="stars"></div><div className="twinkling"></div><div className="clouds"></div>
 
-            {!isBook && (
+            {!isBook && showProgressPill && (
                 <div className={`story-header only-progress ${showControls ? "visible" : "hidden"}`}>
                     <div className="story-progress">
                         <span className="progress-text">{headerText}</span>
@@ -843,7 +837,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                                     </div>
                                     <div className="paper-face back">
                                         {openingFromCover && isFlipping && flipDir === "next" ? (
-                                            <SpreadBackFace rightIdx={openingTargetRight ?? (pageCount >= 2 ? 1 : 0)} />
+                                            <PageFace idx={0} />
                                         ) : (
                                             <PageFace idx={backIndex} />
                                         )}
@@ -875,7 +869,7 @@ export default function StoryViewerPage({ mode = "private" }) {
                                         <p className="story-info">A magical adventure awaits!</p>
                                         <div className="story-stats">
                                             <span className="stat"><span className="stat-icon">📄</span>{story.pages.length} pages</span>
-                                            <span className="stat"><span className="stat-icon">⏱️</span>~{Math.ceil(story.pages.length * 1.5)} min read</span>
+                                            <span className="stat"><span className="stat-icon">⏱️</span>~{estimatedReadMinutes} min read</span>
                                         </div>
                                     </div>
                                 </div>
@@ -905,17 +899,81 @@ export default function StoryViewerPage({ mode = "private" }) {
 
             {/* Navigation Controls */}
             <div className={`story-navigation ${showControls ? "visible" : "hidden"}`}>
-                <button
-                    onClick={prevPage}
-                    disabled={isCover || isFlipping}
-                    className="nav-button prev-button"
-                    title={isBook && onFirstSpread ? "Close book" : "Previous"}
-                >
-                    <span className="nav-icon">←</span>
-                    <span className="nav-text">{isBook && onFirstSpread ? "Close" : "Previous"}</span>
-                </button>
+                <div className="nav-spacer" aria-hidden="true" />
 
-                <div className="nav-middle">
+                <div className="nav-reading-controls">
+                    <button
+                        onClick={prevPage}
+                        disabled={isCover || isFlipping}
+                        className="nav-button prev-button"
+                        title={isBook && onFirstSpread ? "Close book" : "Previous"}
+                    >
+                        <span className="nav-icon">←</span>
+                        <span className="nav-text">{isBook && onFirstSpread ? "Close" : "Previous"}</span>
+                    </button>
+
+                    <div className="nav-middle">
+                        <div className="page-indicators" ref={indicatorsRef}>
+                            <button
+                                ref={(el) => (dotRefs.current[0] = el)}
+                                onClick={() => goToPage(-1)}
+                                className={`page-dot ${isCover ? "active" : ""}`}
+                                title="Cover"
+                                disabled={isFlipping}
+                            >
+                                <span className="dot-icon">📖</span>
+                            </button>
+
+                            {isBook
+                                ? (
+                                    Array.from({ length: totalSpreads }, (_, i) => {
+                                        const spreadNum = i + 1;
+                                        const active = !isCover && spreadOf(currentPage) === spreadNum;
+                                        return (
+                                            <button
+                                                key={`spread-${spreadNum}`}
+                                                ref={(el) => (dotRefs.current[spreadNum] = el)}
+                                                onClick={() => goToPage(rightIndexOfSpread(spreadNum))}
+                                                className={`page-dot ${active ? "active" : ""}`}
+                                                title={`Spread ${spreadNum}`}
+                                                disabled={isFlipping}
+                                            >
+                                                {spreadNum}
+                                            </button>
+                                        );
+                                    })
+                                )
+                                : (
+                                    story.pages.map((_, index) => (
+                                        <button
+                                            key={index}
+                                            ref={(el) => (dotRefs.current[index + 1] = el)}
+                                            onClick={() => goToPage(index)}
+                                            className={`page-dot ${currentPage === index ? "active" : ""}`}
+                                            title={`Page ${index + 1}`}
+                                            disabled={isFlipping}
+                                        >
+                                            {index + 1}
+                                        </button>
+                                    ))
+                                )
+                            }
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={nextPage}
+                        disabled={isFlipping}
+                        className="nav-button next-button"
+                    >
+                        <span className="nav-text">
+                            {isBook && isLastSpread ? "Finish" : isLastPage ? "Finish" : "Next"}
+                        </span>
+                        <span className="nav-icon">{(isBook && isLastSpread) || isLastPage ? "🌟" : "→"}</span>
+                    </button>
+                </div>
+
+                <div className="nav-utility">
                     {bookEligible && (
                         <label className="flip-toggle" title="Toggle book mode">
                             <input
@@ -928,68 +986,13 @@ export default function StoryViewerPage({ mode = "private" }) {
                                     localStorage.setItem("bookMode", final ? "1" : "0");
                                 }}
                             />
-                            <span>Book mode (Beta)</span>
+                            <span className="flip-toggle-switch" aria-hidden="true">
+                                <span className="flip-toggle-thumb" />
+                            </span>
+                            <span className="flip-toggle-label">Book mode</span>
                         </label>
                     )}
-
-                    <div className="page-indicators" ref={indicatorsRef}>
-                        <button
-                            ref={(el) => (dotRefs.current[0] = el)}
-                            onClick={() => goToPage(-1)}
-                            className={`page-dot ${isCover ? "active" : ""}`}
-                            title="Cover"
-                            disabled={isFlipping}
-                        >
-                            <span className="dot-icon">📖</span>
-                        </button>
-
-                        {isBook
-                            ? (
-                                Array.from({ length: totalSpreads }, (_, i) => {
-                                    const spreadNum = i + 1;
-                                    const active = !isCover && spreadOf(currentPage) === spreadNum;
-                                    return (
-                                        <button
-                                            key={`spread-${spreadNum}`}
-                                            ref={(el) => (dotRefs.current[spreadNum] = el)}
-                                            onClick={() => goToPage(rightIndexOfSpread(spreadNum))}
-                                            className={`page-dot ${active ? "active" : ""}`}
-                                            title={`Spread ${spreadNum}`}
-                                            disabled={isFlipping}
-                                        >
-                                            {spreadNum}
-                                        </button>
-                                    );
-                                })
-                            )
-                            : (
-                                story.pages.map((_, index) => (
-                                    <button
-                                        key={index}
-                                        ref={(el) => (dotRefs.current[index + 1] = el)}
-                                        onClick={() => goToPage(index)}
-                                        className={`page-dot ${currentPage === index ? "active" : ""}`}
-                                        title={`Page ${index + 1}`}
-                                        disabled={isFlipping}
-                                    >
-                                        {index + 1}
-                                    </button>
-                                ))
-                            )
-                        }
-                    </div>
                 </div>
-
-                <button
-                    onClick={nextPage}
-                    disabled={isFlipping}
-                    className="nav-button next-button"
-                >
-                    <span className="nav-text">
-                        {isBook && isLastSpread ? "Finish" : isLastPage ? "Finish" : "Next"}
-                    </span>
-                    <span className="nav-icon">{(isBook && isLastSpread) || isLastPage ? "🌟" : "→"}</span>
-                </button>
             </div>
 
             {/* Completion Screen */}
@@ -1024,8 +1027,6 @@ export default function StoryViewerPage({ mode = "private" }) {
                     pageCount: story?.pages?.length ?? 0,
                     estReadMin: Math.ceil((story?.pages?.length ?? 0) * 1.5),
                 }}
-                apiBase="/api"
-                emailTargets={["support@starlitstories.app"]}
                 onSubmitted={() => {
                     setFeedbackSent(true);
                     if (story?.id) localStorage.setItem(`fb:${story.id}`, "1");

@@ -17,6 +17,10 @@ import VerifyEmailPage from "./pages/VerifyEmailPage"
 import FAQPage from "./pages/FAQPage"
 import SupportPage from "./pages/SupportPage"
 import StoryCustomizePage from "./pages/StoryCustomizePage"
+import BlogPage from "./pages/BlogPage"
+import BlogPostPage from "./pages/BlogPostPage"
+import SeoTopicPage from "./pages/SeoTopicPage"
+import AdminPage from "./pages/AdminPage"
 import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
@@ -42,6 +46,15 @@ function App() {
                     <Route path="/faq" element={<FAQPage />} />
                     <Route path="/support" element={<SupportPage />} />
                     <Route path="/customize" element={<StoryCustomizePage />} />
+                    <Route path="/blog" element={<BlogPage />} />
+                    <Route path="/blog/personalized-bedtime-storybooks" element={<SeoTopicPage slug="personalized-bedtime-storybooks" />} />
+                    <Route path="/blog/ai-story-generator-for-kids" element={<SeoTopicPage slug="ai-story-generator-for-kids" />} />
+                    <Route path="/blog/personalized-childrens-books" element={<SeoTopicPage slug="personalized-childrens-books" />} />
+                    <Route path="/blog/:slug" element={<BlogPostPage />} />
+                    <Route path="/personalized-bedtime-storybooks" element={<SeoTopicPage slug="personalized-bedtime-storybooks" />} />
+                    <Route path="/ai-story-generator-for-kids" element={<SeoTopicPage slug="ai-story-generator-for-kids" />} />
+                    <Route path="/personalized-childrens-books" element={<SeoTopicPage slug="personalized-childrens-books" />} />
+                    <Route path="/admin" element={<AdminPage />} />
                 </Routes>
             </BrowserRouter>
         </AuthProvider>

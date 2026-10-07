@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<StoryPage> StoryPages => Set<StoryPage>();
     public DbSet<ProcessedWebhook> ProcessedWebhooks => Set<ProcessedWebhook>();
     public DbSet<StoryShare> StoryShares => Set<StoryShare>();
+    public DbSet<SavedCharacter> SavedCharacters => Set<SavedCharacter>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -98,6 +99,21 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(500);
 
+            e.Property(s => s.RequestTheme)
+                .HasMaxLength(200);
+
+            e.Property(s => s.RequestReadingLevel)
+                .HasMaxLength(64);
+
+            e.Property(s => s.RequestArtStyle)
+                .HasMaxLength(64);
+
+            e.Property(s => s.RequestStoryLength)
+                .HasMaxLength(32);
+
+            e.Property(s => s.RequestLessonLearned)
+                .HasMaxLength(500);
+
             e.Property(s => s.CreatedAt)
                 .IsRequired();
 
@@ -167,6 +183,32 @@ public class AppDbContext : DbContext
 
             e.Property(p => p.ProcessedAtUtc)
                 .IsRequired();
+        });
+
+        // ------------------ SavedCharacter ------------------
+        modelBuilder.Entity<SavedCharacter>(e =>
+        {
+            e.HasKey(sc => sc.Id);
+
+            e.Property(sc => sc.Name)
+                .IsRequired()
+                .HasMaxLength(120);
+
+            e.Property(sc => sc.CharacterJson)
+                .IsRequired();
+
+            e.Property(sc => sc.CreatedAtUtc)
+                .IsRequired();
+
+            e.Property(sc => sc.UpdatedAtUtc)
+                .IsRequired();
+
+            e.HasIndex(sc => sc.UserId);
+
+            e.HasOne<User>()
+             .WithMany()
+             .HasForeignKey(sc => sc.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         base.OnModelCreating(modelBuilder);

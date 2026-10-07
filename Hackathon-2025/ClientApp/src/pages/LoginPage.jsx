@@ -2,12 +2,20 @@
 
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { Helmet } from "react-helmet-async"
 import api from "../api"
 import { useAuth } from "../context/AuthContext"
 import "./LoginPage.css"
 import EyeOpen from "../assets/eye-open.svg";
 import EyeClosed from "../assets/eye-closed.svg";
 import useWarmup from "../hooks/useWarmup";
+import posthog from '../analytics';
+
+import savedStoriesIcon from "../assets/ui-icons/books.png";
+import sparkleIcon from "../assets/ui-icons/sparkle4.png";
+import familyIcon from "../assets/ui-icons/family1.png";
+
+import crystalBallIcon from "../assets/ui-icons/crystal-ball.png";
 
 const SESSION_KEY = "needsVerification"
 
@@ -64,6 +72,11 @@ const LoginPage = () => {
                 { skipAuth401Handler: true }
             )
             login(response.data)
+            posthog.identify(response.data.email, {
+                email: response.data.email,
+                name: response.data.username,
+                plan: response.data.membership || 'free',
+            })
             sessionStorage.removeItem(SESSION_KEY)
             navigate("/profile")
         } catch (err) {
@@ -140,6 +153,22 @@ const LoginPage = () => {
 
     return (
         <div className="login-page">
+            <Helmet>
+                <title>Log In | Starlit Stories</title>
+                <meta name="description" content="Log in to your Starlit Stories account to create and manage your personalized children's storybooks." />
+                <link rel="canonical" href="https://starlitstories.app/login" />
+                <meta property="og:title" content="Log In | Starlit Stories" />
+                <meta property="og:description" content="Log in to your Starlit Stories account to create and manage your personalized children's storybooks." />
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://starlitstories.app/login" />
+                <meta property="og:image" content="https://starlitstories.app/og-image.png" />
+                <meta property="og:site_name" content="Starlit Stories" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content="Log In | Starlit Stories" />
+                <meta name="twitter:description" content="Log in to your Starlit Stories account to create and manage your personalized children's storybooks." />
+                <meta name="twitter:image" content="https://starlitstories.app/og-image.png" />
+                <meta name="robots" content="noindex, follow" />
+            </Helmet>
             <div className="stars"></div>
             <div className="twinkling"></div>
             <div className="clouds"></div>
@@ -175,6 +204,7 @@ const LoginPage = () => {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 disabled={isLoading}
+                                className="ph-no-capture"
                             />
                             <button
                                 type="button"
@@ -210,7 +240,20 @@ const LoginPage = () => {
                     )}
 
                     <button type="submit" className="login-button" disabled={isLoading}>
-                        <span className="button-icon">{isLoading ? "⏳" : "🔮"}</span>
+                        <span className="button-icon">
+                            {isLoading ? (
+                                <span className="btn-spinner" aria-hidden="true" />
+                            ) : (
+                                <img
+                                    className="button-icon-img"
+                                    src={crystalBallIcon}
+                                    alt=""
+                                    aria-hidden="true"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            )}
+                        </span>
                         <span>{isLoading ? `Signing in${dots}` : "Sign In"}</span>
                     </button>
                 </form>
@@ -221,9 +264,47 @@ const LoginPage = () => {
                 </div>
 
                 <div className="login-features">
-                    <div className="feature-item"><span className="feature-icon">📚</span><span>Access your saved stories</span></div>
-                    <div className="feature-item"><span className="feature-icon">✨</span><span>Continue creating magic</span></div>
-                    <div className="feature-item"><span className="feature-icon">👨‍👩‍👧‍👦</span><span>Share with your family</span></div>
+                    <div className="feature-item">
+                        <span className="feature-icon">
+                            <img
+                                className="feature-icon-img"
+                                src={savedStoriesIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
+                        <span>Access your saved stories</span>
+                    </div>
+
+                    <div className="feature-item">
+                        <span className="feature-icon">
+                            <img
+                                className="feature-icon-img"
+                                src={sparkleIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
+                        <span>Continue creating magic</span>
+                    </div>
+
+                    <div className="feature-item">
+                        <span className="feature-icon">
+                            <img
+                                className="feature-icon-img"
+                                src={familyIcon}
+                                alt=""
+                                aria-hidden="true"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </span>
+                        <span>Share with your family</span>
+                    </div>
                 </div>
             </div>
         </div>

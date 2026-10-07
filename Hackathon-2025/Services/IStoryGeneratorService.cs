@@ -4,5 +4,7 @@ namespace Hackathon_2025.Services;
 
 public interface IStoryGeneratorService
 {
-    Task<StoryResult> GenerateFullStoryAsync(StoryRequest request);
+    Task<StoryResult> GenerateFullStoryAsync(
+        StoryRequest request,
+        Action<ProgressUpdate>? onProgress = null);
 }
