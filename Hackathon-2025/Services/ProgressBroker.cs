@@ -6,25 +6,48 @@ namespace Hackathon_2025.Services;
 
 public class ProgressBroker : IProgressBroker
 {
+    // Finished jobs are kept long enough for the client's result fetch/poll, then dropped.
+    public static readonly TimeSpan CompletedJobRetention = TimeSpan.FromHours(1);
+    // Backstop for jobs that never reach Complete().
+    public static readonly TimeSpan MaxJobAge = TimeSpan.FromHours(24);
+
     private class Job
     {
         public Channel<ProgressUpdate> Pipe { get; }
 
         public object? Result { get; set; }
 
-        public Job()
+        public int OwnerUserId { get; }
+
+        public DateTimeOffset CreatedAt { get; }
+
+        public DateTimeOffset? CompletedAt { get; set; }
+
+        public Job(int ownerUserId, DateTimeOffset createdAt)
         {
+            OwnerUserId = ownerUserId;
+            CreatedAt = createdAt;
             Pipe = Channel.CreateUnbounded<ProgressUpdate>(
                 new UnboundedChannelOptions { SingleReader = false, SingleWriter = false });
         }
     }
 
     private readonly ConcurrentDictionary<string, Job> _jobs = new();
+    private readonly TimeProvider _time;
 
-    public string CreateJob()
+    public ProgressBroker() : this(TimeProvider.System) { }
+
+    public ProgressBroker(TimeProvider time)
     {
+        _time = time;
+    }
+
+    public string CreateJob(int ownerUserId)
+    {
+        RemoveExpiredJobs();
+
         var id = Guid.NewGuid().ToString("N");
-        _jobs[id] = new Job();
+        _jobs[id] = new Job(ownerUserId, _time.GetUtcNow());
         return id;
     }
 
@@ -56,7 +79,10 @@ public class ProgressBroker : IProgressBroker
     public void Complete(string jobId)
     {
         if (_jobs.TryGetValue(jobId, out var job))
+        {
             job.Pipe.Writer.TryComplete();
+            job.CompletedAt ??= _time.GetUtcNow();
+        }
     }
 
     public void SetResult(string jobId, object result)
@@ -65,6 +91,20 @@ public class ProgressBroker : IProgressBroker
             job.Result = result;
     }
 
-    public object? GetResult(string jobId)
-        => _jobs.TryGetValue(jobId, out var job) ? job.Result : null;
+    public object? GetResult(string jobId, int requestingUserId)
+        => _jobs.TryGetValue(jobId, out var job) && job.OwnerUserId == requestingUserId
+            ? job.Result
+            : null;
+
+    private void RemoveExpiredJobs()
+    {
+        var now = _time.GetUtcNow();
+        foreach (var (id, job) in _jobs)
+        {
+            var finishedLongAgo = job.CompletedAt is { } done && now - done > CompletedJobRetention;
+            var tooOld = now - job.CreatedAt > MaxJobAge;
+            if (finishedLongAgo || tooOld)
+                _jobs.TryRemove(id, out _);
+        }
+    }
 }

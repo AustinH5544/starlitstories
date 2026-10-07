@@ -193,7 +193,7 @@ public class StoryController : ControllerBase
 
         var pendingStoryId = pendingStory.Id;
 
-        var jobId = _progress.CreateJob();
+        var jobId = _progress.CreateJob(user.Id);
 
         _ = Task.Run(async () =>
         {
@@ -347,7 +347,11 @@ public class StoryController : ControllerBase
     [HttpGet("result/{jobId}")]
     public IActionResult Result(string jobId)
     {
-        var result = _progress.GetResult(jobId);
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(userIdStr, out var userId)) return Unauthorized();
+
+        // 404 (not 403) for other users' jobs so job IDs can't be probed
+        var result = _progress.GetResult(jobId, userId);
         if (result is null) return NotFound();
         return Ok(result);
     }
