@@ -8,6 +8,30 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # The API deploys from its own workflow; running its tests here too means an API failure
+  # also holds back the frontend, so prod never ends up with only one half updated.
+  api-test:
+    name: Build & test (API)
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Hackathon-2025.Tests/Hackathon-2025.Tests.csproj
+
+      - name: Build
+        run: dotnet build Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-restore
+
+      - name: Test (includes SQL Server tests via Docker)
+        run: dotnet test Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-build
+
   verify:
     name: Lint & build (frontend)
     if: ${{ github.event_name == 'pull_request' }}
@@ -35,6 +59,7 @@ jobs:
 
   deploy-staging:
     name: Frontend deploy (staging)
+    needs: api-test
     if: ${{ github.ref == 'refs/heads/staging' }}
     runs-on: ubuntu-latest
     environment: staging
@@ -88,6 +113,7 @@ jobs:
 
   deploy-prod:
     name: Frontend deploy (prod)
+    needs: api-test
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: production
