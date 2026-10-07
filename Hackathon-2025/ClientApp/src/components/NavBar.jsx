@@ -127,6 +127,9 @@ const NavBar = () => {
                                 className={location.pathname === "/about" ? "active" : ""}>
                                 About
                             </Link>
+                            <Link to="/support" className={location.pathname === "/support" ? "active" : ""}>
+                                Help
+                            </Link>
 
                             <button className="logout-button mobile-only" onClick={logout}>Logout</button>
                         </>

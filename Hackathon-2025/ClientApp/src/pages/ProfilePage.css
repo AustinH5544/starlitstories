@@ -390,6 +390,25 @@
     flex-wrap: wrap;
 }
 
+.profile-help {
+    margin: -2rem 0 3rem;
+    text-align: center;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.profile-help a {
+    color: #a18cd1;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.profile-help a:hover,
+.profile-help a:focus-visible {
+    color: #c9b8f0;
+}
+
 .create-story-btn {
     display: flex;
     align-items: center;
