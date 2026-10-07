@@ -54,10 +54,6 @@ const prettyMembershipLabel = (key) => {
 
 const ProfilePage = () => {
     const { user, setUser } = useAuth();
-    const [editingU, setEditingU] = useState(false);
-    const [uname, setUname] = useState(user?.username || "");
-    const [uStatus, setUStatus] = useState("");
-    const [savingU, setSavingU] = useState(false);
     const [stories, setStories] = useState([])
     const [loading, setLoading] = useState(true);      // initial load only
     const [loadingMore, setLoadingMore] = useState(false);
@@ -133,32 +129,6 @@ const ProfilePage = () => {
         return isNaN(d.getTime()) ? null : d;
     };
 
-    const saveUsername = async () => {
-        setUStatus("");
-        const trimmed = (uname || "").trim();
-        const re = /^[a-z0-9._-]{3,24}$/;
-        if (!re.test(trimmed)) {
-            setUStatus("Use 3–24 chars: a–z, 0–9, dot, underscore, hyphen.");
-            return;
-        }
-        setSavingU(true);
-        try {
-            await api.put("/profile/username", { username: trimmed });
-            // Update local auth state so UI reflects immediately
-            if (setUser) setUser((prev) => ({ ...prev, username: trimmed }));
-            setEditingU(false);
-            setUStatus("Username updated.");
-            setTimeout(() => setUStatus(""), 1500);
-        } catch (err) {
-            const msg =
-                err?.response?.data?.message ||
-                (err?.response?.status === 409 ? "That username is taken." : "Could not update username.");
-            setUStatus(msg);
-        } finally {
-            setSavingU(false);
-        }
-    };
-
     const coerceBilling = (raw) => {
         if (!raw || typeof raw !== "object") return null;
         const src = raw.subscription ?? raw.data ?? raw;
@@ -215,9 +185,10 @@ const ProfilePage = () => {
             } catch (e) {
                 if (alive) console.error("Error loading story summaries:", e);
             } finally {
-                if (!alive) return;
-                setLoading(false);
-                setLoadingMore(false);
+                if (alive) {
+                    setLoading(false);
+                    setLoadingMore(false);
+                }
             }
         })();
 
@@ -235,6 +206,7 @@ const ProfilePage = () => {
                 plan: user.membership || 'free',
             })
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: adding deps would change when this effect runs
     }, [user?.email, storiesTotal]);
 
     useEffect(() => {
@@ -291,6 +263,7 @@ const ProfilePage = () => {
             }
         })();
         return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: adding deps would change when this effect runs
     }, [user?.email, user?.membership]);
 
     const isPaid = membershipKey !== "free" || Boolean(billing?.cancelAt);
@@ -465,7 +438,7 @@ const ProfilePage = () => {
         setStories(prev.filter(s => s.id !== storyId));
         try {
             await api.delete(`story/${storyId}`);
-        } catch (err) {
+        } catch {
             setStories(prev);
             alert("Could not delete the story. Please try again.");
         }
@@ -505,45 +478,6 @@ const ProfilePage = () => {
         };
     }, [user?.email, hasGeneratingStory, stories.length, storiesPage, loading, loadingMore]);
 
-    const loadImageAsBase64 = (url) => new Promise((resolve, reject) => {
-        const img = new Image()
-        img.crossOrigin = "anonymous"
-        img.onload = () => {
-            const canvas = document.createElement("canvas")
-            canvas.width = img.width
-            canvas.height = img.height
-            const ctx = canvas.getContext("2d")
-            ctx.drawImage(img, 0, 0)
-            resolve(canvas.toDataURL("image/png"))
-        }
-        img.onerror = reject
-        img.src = url
-    })
-
-    const downloadAsPDF = async (story) => {
-        const { jsPDF } = await import("jspdf")
-        const pdf = new jsPDF()
-        pdf.setFontSize(24); pdf.text(story.title || "Untitled", 20, 30)
-        pdf.setFontSize(12)
-        if (story.createdAt) pdf.text(`Created on ${new Date(story.createdAt).toLocaleDateString()}`, 20, 50)
-        if (story.coverImageUrl && !story.coverImageUrl.includes("placeholder")) {
-            try { const coverImg = await loadImageAsBase64(story.coverImageUrl); pdf.addImage(coverImg, "PNG", 20, 70, 170, 120) } catch { }
-        }
-        for (let i = 0; i < (story.pages?.length ?? 0); i++) {
-            const page = story.pages[i]
-            pdf.addPage()
-            if (page.imageUrl && !page.imageUrl.includes("placeholder")) {
-                try { const pageImg = await loadImageAsBase64(page.imageUrl); pdf.addImage(pageImg, "PNG", 20, 20, 170, 120) } catch { }
-            }
-            pdf.setFontSize(12)
-            const splitText = pdf.splitTextToSize(page.text || "", 170)
-            pdf.text(splitText, 20, 160)
-            pdf.setFontSize(10)
-            pdf.text(`Page ${i + 1}`, 180, 280)
-        }
-        pdf.save(`${story.title || "story"}.pdf`)
-    }
-
     const downloadAsImages = async (story) => {
         // Guard so summaries don't slip through
         if (!Array.isArray(story.pages) || story.pages.length === 0) {
@@ -554,12 +488,12 @@ const ProfilePage = () => {
         const JSZip = zip.default
         const zipFile = new JSZip()
         if (story.coverImageUrl && !story.coverImageUrl.includes("placeholder")) {
-            try { const coverBlob = await fetch(story.coverImageUrl).then(r => r.blob()); zipFile.file("00-cover.png", coverBlob) } catch { }
+            try { const coverBlob = await fetch(story.coverImageUrl).then(r => r.blob()); zipFile.file("00-cover.png", coverBlob) } catch { /* best-effort: ignore failure */ }
         }
         for (let i = 0; i < (story.pages?.length ?? 0); i++) {
             const page = story.pages[i]
             if (page.imageUrl && !page.imageUrl.includes("placeholder")) {
-                try { const pageBlob = await fetch(page.imageUrl).then(r => r.blob()); zipFile.file(`${String(i + 1).padStart(2, "0")}-page-${i + 1}.png`, pageBlob) } catch { }
+                try { const pageBlob = await fetch(page.imageUrl).then(r => r.blob()); zipFile.file(`${String(i + 1).padStart(2, "0")}-page-${i + 1}.png`, pageBlob) } catch { /* best-effort: ignore failure */ }
             }
         }
         const storyText = `${story.title || "Untitled"}\n\n${(story.pages || []).map((p, i) => `Page ${i + 1}:\n${p.text || ""}`).join("\n\n")}`

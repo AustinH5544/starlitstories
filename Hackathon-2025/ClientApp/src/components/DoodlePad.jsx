@@ -140,6 +140,7 @@ export default function DoodlePad({
             ro.disconnect()
             media?.removeEventListener?.("change", onChangeDPR)
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: adding deps would change when this effect runs
     }, [lineWidth, strokeStyle, background, brushSize, brushType, currentColor])
 
     useEffect(() => {
@@ -153,6 +154,7 @@ export default function DoodlePad({
     useEffect(() => {
         if (!ctxRef.current) return
         applyBrushSettings(ctxRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: adding deps would change when this effect runs
     }, [brushSize, brushType, currentColor])
 
     useEffect(() => {
@@ -232,7 +234,7 @@ export default function DoodlePad({
         const canvas = canvasRef.current
         try {
             canvas.releasePointerCapture?.(e.pointerId)
-        } catch { }
+        } catch { /* best-effort: ignore failure */ }
         drawingRef.current = false
         lastPointRef.current = null
     }

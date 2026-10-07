@@ -9,7 +9,7 @@ export default function useWarmup() {
                 await api.get("/healthz", { timeout: 4000 });
                 await api.post("/warmup", { shallow: true }, { timeout: 7000 });
                 sessionStorage.setItem("ss_warmed", "1");
-            } catch { }
+            } catch { /* best-effort: ignore failure */ }
         })();
     }, []);
 }

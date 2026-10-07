@@ -4,7 +4,6 @@ import posthog from '../analytics';
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import "./StoryViewerPage.css";
-import { useAuth } from "../context/AuthContext";
 import FeedbackModal from "../components/FeedbackModal";
 import ScrollableTextPane from "../components/ScrollableTextPane";
 
@@ -12,7 +11,6 @@ export default function StoryViewerPage({ mode = "private" }) {
     const navigate = useNavigate();
     const { state } = useLocation();
     const { token } = useParams();
-    const { user } = useAuth();
 
     // ---------- Book-mode eligibility (>= 768 x 1024) ----------
     const computeEligibility = () => {
@@ -84,7 +82,6 @@ export default function StoryViewerPage({ mode = "private" }) {
     const FLIP_MS = 650;
     const HALF_FLIP_MS = Math.round(FLIP_MS / 2);
     const flipHalfTimer = useRef(null);
-    const pendingTargetAfterOpen = useRef(null);
     const [openingTargetRight, setOpeningTargetRight] = useState(null);
 
     const indicatorsRef = useRef(null);
@@ -108,7 +105,6 @@ export default function StoryViewerPage({ mode = "private" }) {
     }, []);
 
     // ===== NEW: flip queuing to play multi-step close sequence =====
-    const flipQueue = useRef([]);              // [{ dir: "prev"|"to-cover", targetRight?: number }, ...]
     const currentPageRef = useRef(currentPage);
     useEffect(() => { currentPageRef.current = currentPage; }, [currentPage]);
 
@@ -272,7 +268,6 @@ export default function StoryViewerPage({ mode = "private" }) {
         return Math.max(0, Math.min(idx - 1, pageCount - 1));
     }, [pageCount]);
 
-    const spreadNumber = isCover ? 0 : spreadOf(currentPage);
 
     const prevIsBookRef = useRef(isBook);
     useEffect(() => {
