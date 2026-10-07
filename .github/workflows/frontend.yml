@@ -3,9 +3,36 @@ name: Frontend (SWA)
 on:
   push:
     branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
   workflow_dispatch: {}
 
 jobs:
+  verify:
+    name: Lint & build (frontend)
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Hackathon-2025/ClientApp/package-lock.json
+
+      - name: Install deps
+        working-directory: Hackathon-2025/ClientApp
+        run: npm ci
+
+      - name: Lint
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run lint
+
+      - name: Build (staging config)
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run build:staging
+
   deploy-staging:
     name: Frontend deploy (staging)
     if: ${{ github.ref == 'refs/heads/staging' }}
@@ -24,6 +51,10 @@ jobs:
       - name: Install deps
         working-directory: Hackathon-2025/ClientApp
         run: npm ci
+
+      - name: Lint
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run lint
 
       - name: Prepare robots.txt (staging)
         working-directory: Hackathon-2025/ClientApp
@@ -73,6 +104,10 @@ jobs:
       - name: Install deps
         working-directory: Hackathon-2025/ClientApp
         run: npm ci
+
+      - name: Lint
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run lint
 
       - name: Prepare robots.txt (prod)
         working-directory: Hackathon-2025/ClientApp

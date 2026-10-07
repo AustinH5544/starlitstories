@@ -3,6 +3,8 @@ name: API (App Service)
 on:
   push:
     branches: [ main, staging ]
+  pull_request:
+    branches: [ main, staging ]
   workflow_dispatch: {}
 
 permissions:
@@ -10,9 +12,31 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Build & test (API)
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Hackathon-2025.Tests/Hackathon-2025.Tests.csproj
+
+      - name: Build (warnings are errors in the API project)
+        run: dotnet build Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-restore
+
+      - name: Test (includes SQL Server tests via Docker)
+        run: dotnet test Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-build --logger "console;verbosity=normal"
+
   deploy-staging:
     name: API deploy (staging)
-    if: ${{ github.ref_name == 'staging' }}
+    needs: test
+    if: ${{ github.event_name != 'pull_request' && github.ref_name == 'staging' }}
     runs-on: ubuntu-latest
     environment: staging
     env:
@@ -46,7 +70,8 @@ jobs:
 
   deploy-prod:
     name: API deploy (prod)
-    if: ${{ github.ref_name == 'main' }}
+    needs: test
+    if: ${{ github.event_name != 'pull_request' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     environment: production
     env:
