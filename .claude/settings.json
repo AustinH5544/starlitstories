@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/protect_main.py\"",
+            "timeout": 20,
+            "statusMessage": "Checking git command against main protection"
+          }
+        ]
+      }
+    ]
+  }
+}
