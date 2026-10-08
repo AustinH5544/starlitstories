@@ -1,21 +1,30 @@
 using System.Net;
 using System.Net.Http.Json;
 using Hackathon_2025.Models;
+using Hackathon_2025.Tests.SqlServer;
 using Hackathon_2025.Tests.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hackathon_2025.Tests.Controllers;
 
+/// <summary>
+/// Story generation through the real controller. Runs on SQL Server (Testcontainers) because credit
+/// reservation and refunds are atomic UPDATE statements the in-memory provider can't execute.
+/// </summary>
 [TestClass]
+[TestCategory("SqlServer")]
 public class StoryGenerationTests
 {
     private TestWebAppFactory _factory = null!;
 
     [TestInitialize]
-    public void Init() => _factory = new TestWebAppFactory();
+    public async Task Init() => _factory = await SqlServerWebAppFactory.CreateAsync();
 
     [TestCleanup]
-    public void Cleanup() => _factory.Dispose();
+    public void Cleanup() => _factory?.Dispose();
 
     private static object StoryBody(string? storyLength = null, Dictionary<string, string>? fields = null, int characterCount = 1)
     {
@@ -194,7 +203,7 @@ public class StoryGenerationTests
     [DataRow(MembershipPlan.Premium, "long", "long", 12)]
     public async Task GenerateFull_Length_Is_Gated_By_Plan_When_Enabled(MembershipPlan plan, string requested, string expected, int expectedPages)
     {
-        using var factory = new TestWebAppFactory(new Dictionary<string, string?> { ["Story:LengthHintEnabled"] = "true" });
+        using var factory = await SqlServerWebAppFactory.CreateAsync(new Dictionary<string, string?> { ["Story:LengthHintEnabled"] = "true" });
         var user = await factory.SeedAsync(TestData.NewUser(plan));
 
         var resp = await factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full", StoryBody(storyLength: requested));
@@ -268,5 +277,25 @@ public class StoryGenerationTests
             var saved = await ReloadAsync(user.Id);
             return saved.AddOnBalance == 1 && saved.BooksGenerated == 5 && await StoryCountAsync(user.Id) == 0;
         }, "failed background job should refund the add-on and delete the draft");
+    }
+
+    [TestMethod]
+    public async Task Start_Still_Generates_When_The_Client_Disconnects_Right_After_Being_Accepted()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        using var disconnecting = _factory.WithWebHostBuilder(b => b.ConfigureTestServices(services =>
+            services.Configure<MvcOptions>(o => o.Filters.Add(new ClientDisconnectsAfterAcceptFilter()))));
+        var client = disconnecting.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, user.Id.ToString());
+
+        var start = await client.PostAsJsonAsync("/api/story/generate-full/start", StoryBody());
+
+        Assert.AreEqual(HttpStatusCode.OK, start.StatusCode);
+        // The credit was reserved when the request was accepted, so the story must still be made.
+        await Eventually.AssertAsync(
+            () => disconnecting.QueryDbAsync(db => db.Stories.Include(s => s.Pages)
+                .AnyAsync(s => s.UserId == user.Id && s.Pages.Count > 0)),
+            "the background job should run even though the client went away");
+        Assert.AreEqual(1, _factory.StoryGenerator.CallCount);
     }
 }

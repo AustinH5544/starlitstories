@@ -150,7 +150,7 @@ public class WebhookTests
     {
         var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
         var cancelAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-        GatewayReturns(WebhookEvents.Make("evt_cancel", userId: user.Id, status: "canceled", cancelAtUtc: cancelAt));
+        GatewayReturns(WebhookEvents.Make("evt_cancel", userId: user.Id, subscriptionRef: "sub_1", status: "canceled", cancelAtUtc: cancelAt));
 
         await PostWebhookAsync();
 
@@ -196,5 +196,74 @@ public class WebhookTests
             "statuses: " + string.Join(",", responses.Select(r => (int)r.StatusCode)));
         Assert.AreEqual(5, (await ReloadAsync(user.Id)).AddOnBalance);
         Assert.AreEqual(1, await _factory.QueryDbAsync(db => db.ProcessedWebhooks.CountAsync(w => w.EventId == "evt_race")));
+    }
+
+    [TestMethod]
+    public async Task AddOn_Purchase_Retried_After_A_Deadlock_Is_Credited_Once()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Premium, addOnBalance: 2));
+        GatewayReturns(WebhookEvents.Make("evt_retry_addon", userId: user.Id, addOnSku: "addon_plus5", addOnQty: 1));
+        _factory.FailNextSave.Arm();
+
+        Assert.AreEqual(HttpStatusCode.OK, (await PostWebhookAsync()).StatusCode);
+
+        Assert.AreEqual(1, _factory.FailNextSave.TimesFired, "the first attempt should have failed and been retried");
+        Assert.AreEqual(7, (await ReloadAsync(user.Id)).AddOnBalance, "2 + one 5-pack, credited exactly once");
+        Assert.AreEqual(1, await _factory.QueryDbAsync(db => db.ProcessedWebhooks.CountAsync(w => w.EventId == "evt_retry_addon")));
+    }
+
+    private async Task<User> SeedSubscriberWithScheduledCancellationAsync(DateTime cancelAt)
+    {
+        var user = TestData.NewUser(MembershipPlan.Premium, addOnBalance: 1);
+        user.BillingSubscriptionRef = "sub_1";
+        user.BillingCustomerRef = "cus_1";
+        user.PlanStatus = "active";
+        user.CancelAtUtc = cancelAt;
+        return await _factory.SeedAsync(user);
+    }
+
+    [TestMethod]
+    public async Task AddOn_Purchase_Keeps_Scheduled_Cancellation_And_Plan_Status()
+    {
+        var cancelAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var user = await SeedSubscriberWithScheduledCancellationAsync(cancelAt);
+        GatewayReturns(WebhookEvents.Make("evt_addon_keep_cancel", userId: user.Id, customerRef: "cus_1",
+            status: "paid", addOnSku: "addon_plus5", addOnQty: 1));
+
+        Assert.AreEqual(HttpStatusCode.OK, (await PostWebhookAsync()).StatusCode);
+
+        var saved = await ReloadAsync(user.Id);
+        Assert.AreEqual(6, saved.AddOnBalance);
+        Assert.AreEqual(cancelAt, saved.CancelAtUtc, "a one-off purchase must not undo a scheduled cancellation");
+        Assert.AreEqual("active", saved.PlanStatus, "a one-off purchase is not a subscription status");
+    }
+
+    [TestMethod]
+    public async Task Renewal_Invoice_Keeps_Scheduled_Cancellation_But_Updates_Period()
+    {
+        var cancelAt = new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
+        var user = await SeedSubscriberWithScheduledCancellationAsync(cancelAt);
+        GatewayReturns(WebhookEvents.Make("evt_invoice_keep_cancel", customerRef: "cus_1",
+            status: "active", periodStartUtc: PeriodStart, periodEndUtc: PeriodEnd));
+
+        Assert.AreEqual(HttpStatusCode.OK, (await PostWebhookAsync()).StatusCode);
+
+        var saved = await ReloadAsync(user.Id);
+        Assert.AreEqual(cancelAt, saved.CancelAtUtc, "an invoice doesn't carry the cancellation, so it must not clear it");
+        Assert.AreEqual(PeriodStart, saved.CurrentPeriodStartUtc);
+        Assert.AreEqual(PeriodEnd, saved.CurrentPeriodEndUtc);
+        Assert.AreEqual("active", saved.PlanStatus);
+    }
+
+    [TestMethod]
+    public async Task Resuming_A_Subscription_Clears_The_Scheduled_Cancellation()
+    {
+        var user = await SeedSubscriberWithScheduledCancellationAsync(new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+        GatewayReturns(WebhookEvents.Make("evt_resume", customerRef: "cus_1", subscriptionRef: "sub_1",
+            planKey: "premium", status: "active", cancelAtUtc: null));
+
+        Assert.AreEqual(HttpStatusCode.OK, (await PostWebhookAsync()).StatusCode);
+
+        Assert.IsNull((await ReloadAsync(user.Id)).CancelAtUtc);
     }
 }

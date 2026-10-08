@@ -95,7 +95,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await RefundReservedCreditAsync(user, capacity.usedAddOn);
+            await RefundReservedCreditAsync(_db, user.Id, capacity.usedAddOn);
             throw;
         }
 
@@ -107,7 +107,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn);
+            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user.Id, pendingStory.Id, capacity.usedAddOn);
             throw;
         }
 
@@ -146,7 +146,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user, pendingStory, capacity.usedAddOn);
+            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user.Id, pendingStory.Id, capacity.usedAddOn);
             throw;
         }
     }
@@ -189,7 +189,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await RefundReservedCreditAsync(user, reserved.usedAddOn);
+            await RefundReservedCreditAsync(_db, user.Id, reserved.usedAddOn);
             throw;
         }
 
@@ -235,7 +235,7 @@ public class StoryController : ControllerBase
                 }
                 catch
                 {
-                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn);
+                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser.Id, story.Id, reserved.usedAddOn);
                     throw;
                 }
 
@@ -292,7 +292,7 @@ public class StoryController : ControllerBase
                 }
                 catch
                 {
-                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser, story, reserved.usedAddOn);
+                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser.Id, story.Id, reserved.usedAddOn);
                     throw;
                 }
             }
@@ -316,7 +316,7 @@ public class StoryController : ControllerBase
             {
                 _progress.Complete(jobId);
             }
-        }, ct);
+        }, CancellationToken.None); // The credit is already reserved; a client disconnect must not stop the job from starting.
 
         return Ok(new { jobId });
     }
@@ -413,72 +413,96 @@ public class StoryController : ControllerBase
         return await _db.Users.FindAsync(userId);
     }
 
+    // Credit bookkeeping uses single conditional UPDATE statements that touch only the counters involved.
+    // Read-modify-write of the whole User row let simultaneous requests spend one credit twice, and let a
+    // refund written minutes later overwrite plan changes or purchases made while the story was generating.
+
     private async Task RolloverIfNeededAsync(User user, DateTime now)
     {
-        if (_period.IsPeriodBoundary(user, now))
-        {
-            _period.OnPeriodRollover(user, now);
-            _db.Users.Update(user);
-            await _db.SaveChangesAsync();
-        }
+        if (!_period.IsPeriodBoundary(user, now)) return;
+
+        var observedLastReset = user.LastReset;
+        var observedPeriodEnd = user.CurrentPeriodEndUtc;
+        var observedBalance = user.AddOnBalance;
+
+        _period.OnPeriodRollover(user, now); // computes the new period values on the in-memory copy
+        var clearWallet = observedBalance != 0 && user.AddOnBalance == 0; // carryover disabled by policy
+        var newLastReset = user.LastReset;
+        var newPeriodStart = user.CurrentPeriodStartUtc;
+        var newPeriodEnd = user.CurrentPeriodEndUtc;
+
+        // Only the first request to see this boundary applies it; the rest just pick up the result.
+        await _db.Users
+            .Where(u => u.Id == user.Id && u.LastReset == observedLastReset && u.CurrentPeriodEndUtc == observedPeriodEnd)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.BooksGenerated, 0)
+                .SetProperty(u => u.AddOnSpentThisPeriod, 0)
+                .SetProperty(u => u.AddOnBalance, u => clearWallet ? 0 : u.AddOnBalance)
+                .SetProperty(u => u.LastReset, newLastReset)
+                .SetProperty(u => u.CurrentPeriodStartUtc, newPeriodStart)
+                .SetProperty(u => u.CurrentPeriodEndUtc, newPeriodEnd));
+
+        await _db.Entry(user).ReloadAsync();
     }
 
     private async Task<(bool ok, bool usedAddOn, string? message)> EnsureCapacityAndReserveCreditAsync(User user)
     {
-        if (user.Membership == MembershipPlan.Free && user.BooksGenerated >= 1)
+        var isFree = user.Membership == MembershipPlan.Free;
+        var baseQuota = _quota.BaseQuotaFor(user.Membership.ToString());
+        var baseLimit = isFree ? Math.Min(baseQuota, 1) : baseQuota;
+
+        // 1) A credit from the plan's quota, only if one is still free at the moment of the update.
+        var reserved = await _db.Users
+            .Where(u => u.Id == user.Id && u.BooksGenerated < baseLimit)
+            .ExecuteUpdateAsync(s => s.SetProperty(u => u.BooksGenerated, u => u.BooksGenerated + 1));
+        if (reserved == 1)
+        {
+            await _db.Entry(user).ReloadAsync();
+            return (true, false, null);
+        }
+
+        if (isFree)
             return (false, false, "Free users can only generate one story.");
 
-        var baseQuota = _quota.BaseQuotaFor(user.Membership.ToString());
-        var baseRemaining = Math.Max(baseQuota - user.BooksGenerated, 0);
-
-        var usedAddOn = false;
-        if (baseRemaining <= 0)
+        // 2) Otherwise an add-on credit, only if the balance is still positive.
+        reserved = await _db.Users
+            .Where(u => u.Id == user.Id && u.AddOnBalance > 0)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.AddOnBalance, u => u.AddOnBalance - 1)
+                .SetProperty(u => u.AddOnSpentThisPeriod, u => u.AddOnSpentThisPeriod + 1)
+                .SetProperty(u => u.BooksGenerated, u => u.BooksGenerated + 1));
+        if (reserved == 1)
         {
-            if (user.AddOnBalance <= 0)
-                return (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
-
-            user.AddOnBalance -= 1;
-            user.AddOnSpentThisPeriod += 1;
-            usedAddOn = true;
+            await _db.Entry(user).ReloadAsync();
+            return (true, true, null);
         }
 
-        user.BooksGenerated += 1;
-        _db.Users.Update(user);
-        await _db.SaveChangesAsync();
-
-        return (true, usedAddOn, null);
+        return (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
     }
 
-    private async Task RefundReservedCreditAsync(User user, bool usedAddOn)
+    private static Task RefundReservedCreditAsync(AppDbContext db, int userId, bool usedAddOn)
     {
-        if (user.BooksGenerated > 0) user.BooksGenerated -= 1;
-        if (usedAddOn)
+        var user = db.Users.Where(u => u.Id == userId);
+        return usedAddOn
+            ? user.ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.BooksGenerated, u => u.BooksGenerated > 0 ? u.BooksGenerated - 1 : 0)
+                .SetProperty(u => u.AddOnBalance, u => u.AddOnBalance + 1)
+                .SetProperty(u => u.AddOnSpentThisPeriod, u => u.AddOnSpentThisPeriod > 0 ? u.AddOnSpentThisPeriod - 1 : 0))
+            : user.ExecuteUpdateAsync(s => s
+                .SetProperty(u => u.BooksGenerated, u => u.BooksGenerated > 0 ? u.BooksGenerated - 1 : 0));
+    }
+
+    private static async Task DeletePendingStoryAndRefundReservedCreditAsync(AppDbContext db, int userId, int storyId, bool usedAddOn)
+    {
+        // Remove the draft and return the credit together, retrying the pair on transient SQL errors.
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            user.AddOnBalance += 1;
-            if (user.AddOnSpentThisPeriod > 0) user.AddOnSpentThisPeriod -= 1;
-        }
-
-        _db.Users.Update(user);
-        await _db.SaveChangesAsync();
-    }
-
-    private async Task RefundReservedCreditAsyncScoped(AppDbContext scopedDb, User sUser, bool usedAddOn)
-    {
-        if (sUser.BooksGenerated > 0) sUser.BooksGenerated -= 1;
-        if (usedAddOn)
-        {
-            sUser.AddOnBalance += 1;
-            if (sUser.AddOnSpentThisPeriod > 0) sUser.AddOnSpentThisPeriod -= 1;
-        }
-
-        scopedDb.Users.Update(sUser);
-        await scopedDb.SaveChangesAsync();
-    }
-
-    private async Task DeletePendingStoryAndRefundReservedCreditAsync(AppDbContext scopedDb, User sUser, Story story, bool usedAddOn)
-    {
-        scopedDb.Stories.Remove(story);
-        await RefundReservedCreditAsyncScoped(scopedDb, sUser, usedAddOn);
+            await using var tx = await db.Database.BeginTransactionAsync();
+            await db.Stories.Where(s => s.Id == storyId && s.UserId == userId).ExecuteDeleteAsync();
+            await RefundReservedCreditAsync(db, userId, usedAddOn);
+            await tx.CommitAsync();
+        });
     }
 
     // Immutable effective request according to StoryOptions + membership

@@ -21,6 +21,8 @@ Loaded when working in `Hackathon-2025/`. Generation, membership, and billing ru
 - Plans are the `MembershipPlan` enum (`Free`, `Pro`, `Premium`). Plan limits are split across two places:
   - `Credits:BaseQuotas` in `appsettings.json` (stories per period, 1/5/11), enforced by `QuotaService`. `PeriodService` handles the monthly rollover.
   - `Services/MembershipEntitlements.cs` (saved-character limits 1/5/10, and which character fields Free users may set).
+- **Credit counters (`BooksGenerated`, `AddOnBalance`, `AddOnSpentThisPeriod`) are changed only with single conditional `ExecuteUpdateAsync` statements** (reserve, refund, rollover in `StoryController`). Never load a user, change a counter, and save the whole row (`_db.Users.Update(user)`): simultaneous requests double-spend, and a late refund overwrites plan changes or purchases made meanwhile.
+- The webhook runs inside EF's retrying execution strategy and clears the change tracker at the start of each attempt, so a retried event is applied once. `CancelAtUtc` is only set by events that carry a subscription ID; add-on checkouts don't change `PlanStatus`.
 - `StripeGateway` implements `IPaymentGateway`: it verifies and parses webhook events. `PaymentsController.Webhook` then writes the idempotency fence with a raw SQL `MERGE` into `ProcessedWebhooks` keyed on the event ID, and skips events it has already processed. `Jobs.WebhookPruner` deletes old fence rows.
 - Billing, auth, and webhook changes are high-risk: production takes real payments. Test against Stripe test mode first (see [../docs/stripe-test-mode-notes.md](../docs/stripe-test-mode-notes.md)).
 
@@ -33,6 +35,7 @@ Loaded when working in `Hackathon-2025/`. Generation, membership, and billing ru
 ## Tests
 
 - `Hackathon-2025.Tests/Utils/TestWebAppFactory.cs` boots the app in the `Testing` environment (InMemory DB, no Key Vault) and swaps out `IEmailService`, `StripeClient`, `OpenAIClient`, and `ITurnstileService`. Any new external dependency needs a test double registered there.
+- Anything that reserves or refunds credits (story generation, webhooks) must be tested with `SqlServerWebAppFactory` (`[TestCategory("SqlServer")]`, needs Docker locally): InMemory can't run `ExecuteUpdate`, raw SQL, or real transactions. `FailNextSave` simulates a deadlock retry; `FakeStoryGenerator.Hold` pauses generation mid-story.
 
 ## Endpoint security
 
