@@ -14,9 +14,9 @@ Folder-specific rules live next to the code — read them before working there:
 | `StarlitStories.sln` | Solution entry point |
 | `Hackathon-2025/` | ASP.NET Core 8 API (`Controllers/`, `Services/`, `Models/`, `Options/`, `Data/`, `Migrations/`, `Program.cs`, `PromptBuilder.cs`) |
 | `Hackathon-2025/ClientApp/` | React 19 + Vite 6 SPA with build-time pre-rendering of public pages |
-| `Hackathon-2025.Tests/` | MSTest + Moq + `WebApplicationFactory` (in-memory DB) |
+| `Hackathon-2025.Tests/` | MSTest + Moq + `WebApplicationFactory` (in-memory DB). `SqlServer/` tests run against a throwaway SQL Server in Docker (Testcontainers); without Docker they are skipped locally, but CI runs them. |
 | `Jobs.WebhookPruner/` | Azure Function (timer) that prunes old `ProcessedWebhook` rows |
-| `.github/workflows/` | Deploy-only CI: push to `main` → prod, `staging` → staging (API to App Service, client to Static Web Apps). No test/build gate. |
+| `.github/workflows/` | Push to `main` → prod, `staging` → staging (API to App Service, client to Static Web Apps). Every deploy is gated: API build + all tests and frontend lint + build must pass, and each workflow waits on both sides. PRs into `main`/`staging` run the same checks without deploying. |
 | `docs/` | Internal notes, architecture diagram, in-progress work logs |
 
 ## Commands

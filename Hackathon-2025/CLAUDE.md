@@ -4,13 +4,13 @@ Loaded when working in `Hackathon-2025/`. Generation, membership, and billing ru
 
 ## Where things are wired
 
-- `Program.cs` holds all composition: Key Vault, options binding + `ValidateOnStart`, EF Core, JWT, DI registrations, CORS, rate limiting (`login-ip`, `signup-ip`, `feedback-ip`), security headers, and minimal-API endpoints (`/__ping`, `/healthz`, `/readyz`, `/api/healthz`, `POST /api/warmup`, `/sitemap.xml`, `/sitemaps/sitemap-{index}.xml`).
+- `Program.cs` holds all composition: Key Vault, options binding + `ValidateOnStart`, EF Core, JWT, DI registrations, CORS, rate limiting (`login-ip`, `signup-ip`, `feedback-ip`, `support-ip`), security headers, and minimal-API endpoints (`/__ping`, `/healthz`, `/readyz`, `/api/healthz`, `POST /api/warmup`, `/sitemap.xml`, `/sitemaps/sitemap-{index}.xml`).
 - Controllers use `[Route("api/[controller]")]`, so the **class** name sets the URL. `Controllers/PaymentController.cs` contains `PaymentsController`, which gives `/api/payments/...`.
-- Typed options live in `Options/`, plus a few in `Models/` (`CreditsOptions`, `StoryOptions`, `StripeSettings`, `OpenAISettings`). Config sections: `ConnectionStrings`, `Jwt`, `Email`, `Stripe`, `AzureBlobStorage`, `OpenAI`, `App`, `Billing`, `Admin`, `Turnstile`, `Credits`, `Story`, `Sharing`, `ImageGeneration`.
+- Typed options live in `Options/`, plus a few in `Models/` (`CreditsOptions`, `StoryOptions`, `StripeSettings`, `OpenAISettings`). Config sections: `ConnectionStrings`, `Jwt`, `Email`, `Stripe`, `AzureBlobStorage`, `OpenAI`, `App`, `Billing`, `Admin`, `Turnstile`, `Credits`, `Story`, `Sharing`, `ImageGeneration`, `Feedback`, `Support`.
 
 ## Story generation
 
-- `StoryController` → `IStoryGeneratorService` (`Services/StoryGenerator.cs`) → `PromptBuilder.cs` for prompts → `IImageGeneratorService` → `BlobUploadService`.
+- `StoryController` → `IStoryGeneratorService` (`Services/StoryGenerator.cs`) → `PromptBuilder.cs` for prompts → `IImageGeneratorService` → `IBlobUploadService` (`BlobUploadService`). Tests swap in `FakeBlobUploadService`.
 - Two paths: sync `POST /api/story/generate-full`, and async `POST /api/story/generate-full/start`. The async path streams progress over SSE at `GET /api/story/progress/{jobId}` via the singleton `ProgressBroker`; fetch the result with `GET /api/story/result/{jobId}`.
 - Text model: `gpt-4.1-mini`. Images: `gpt-image-2` at `quality = "low"`. Low quality is a **deliberate, validated cost decision**; do not raise it.
 - `IImageGeneratorService` has a single implementation, `OpenAIImageGeneratorService`, registered in `Program.cs`.
@@ -36,4 +36,6 @@ Loaded when working in `Hackathon-2025/`. Generation, membership, and billing ru
 
 ## Endpoint security
 
-New controllers and actions must carry `[Authorize]` unless they are deliberately public. The public ones today are auth, feedback (rate-limited), config, the Stripe webhook, public share fetch, story `ping`, and the SSE `progress/{jobId}` stream (`EventSource` can't send auth headers). A public endpoint that calls OpenAI or writes to Blob storage costs real money.
+New controllers and actions must carry `[Authorize]` unless they are deliberately public. The public ones today are auth, feedback (rate-limited), the support contact form `POST /api/support` (rate-limited + Turnstile), config, the Stripe webhook, public share fetch, story `ping`, and the SSE `progress/{jobId}` stream (`EventSource` can't send auth headers). A public endpoint that calls OpenAI or writes to Blob storage costs real money.
+
+`EndpointAuthorizationTests` enforces this: any endpoint reachable without login must be on its `AllowedPublic` list, so adding a public endpoint means adding it there in the same commit.
