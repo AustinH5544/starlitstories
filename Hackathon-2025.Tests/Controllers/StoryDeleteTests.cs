@@ -80,21 +80,8 @@ public class StoryDeleteTests
         Assert.IsTrue(await _factory.QueryDbAsync(db => db.Stories.AnyAsync(s => s.Id == draft.Id)));
     }
 
-    [TestMethod]
-    public async Task Stuck_Draft_Older_Than_Generation_Window_Can_Be_Deleted()
-    {
-        var user = await _factory.SeedAsync(TestData.NewUser());
-        var draft = TestData.NewStory(user.Id, pageCount: 0);
-        draft.CreatedAt = DateTime.UtcNow.AddHours(-2);
-        draft.CoverImageUrl = "/story-generating-cover.png"; // the placeholder a draft really has
-        await _factory.SeedAsync(draft);
-
-        var resp = await _factory.ClientFor(user.Id).DeleteAsync($"/api/story/{draft.Id}");
-
-        Assert.AreEqual(HttpStatusCode.NoContent, resp.StatusCode);
-        Assert.IsFalse(await _factory.QueryDbAsync(db => db.Stories.AnyAsync(s => s.Id == draft.Id)));
-        Assert.AreEqual(0, _factory.BlobUploads.Deleted.Count, "the shared placeholder cover is not a blob and must not be deleted");
-    }
+    // Deleting an abandoned (stuck) draft also refunds its credit, which needs SQL Server:
+    // see SqlServer/StaleDraftRecoveryTests.Deleting_A_Stuck_Draft_Yourself_Also_Returns_The_Credit.
 
     [TestMethod]
     public async Task Image_Cleanup_Failure_Does_Not_Block_Delete()

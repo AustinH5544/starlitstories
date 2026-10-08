@@ -35,6 +35,9 @@ public class Story
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Which credit the draft reserved while generating, so an abandoned draft refunds the right one.
+    public bool ReservedFromAddOn { get; set; }
+
     // required FK + nav
     public int UserId { get; set; }
     public User User { get; set; } = null!;
