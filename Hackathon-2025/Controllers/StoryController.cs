@@ -316,7 +316,7 @@ public class StoryController : ControllerBase
             {
                 _progress.Complete(jobId);
             }
-        }, ct);
+        }, CancellationToken.None); // The credit is already reserved; a client disconnect must not stop the job from starting.
 
         return Ok(new { jobId });
     }

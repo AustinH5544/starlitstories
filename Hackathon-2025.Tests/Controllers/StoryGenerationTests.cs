@@ -3,6 +3,9 @@ using System.Net.Http.Json;
 using Hackathon_2025.Models;
 using Hackathon_2025.Tests.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hackathon_2025.Tests.Controllers;
 
@@ -268,5 +271,25 @@ public class StoryGenerationTests
             var saved = await ReloadAsync(user.Id);
             return saved.AddOnBalance == 1 && saved.BooksGenerated == 5 && await StoryCountAsync(user.Id) == 0;
         }, "failed background job should refund the add-on and delete the draft");
+    }
+
+    [TestMethod]
+    public async Task Start_Still_Generates_When_The_Client_Disconnects_Right_After_Being_Accepted()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        using var disconnecting = _factory.WithWebHostBuilder(b => b.ConfigureTestServices(services =>
+            services.Configure<MvcOptions>(o => o.Filters.Add(new ClientDisconnectsAfterAcceptFilter()))));
+        var client = disconnecting.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, user.Id.ToString());
+
+        var start = await client.PostAsJsonAsync("/api/story/generate-full/start", StoryBody());
+
+        Assert.AreEqual(HttpStatusCode.OK, start.StatusCode);
+        // The credit was reserved when the request was accepted, so the story must still be made.
+        await Eventually.AssertAsync(
+            () => disconnecting.QueryDbAsync(db => db.Stories.Include(s => s.Pages)
+                .AnyAsync(s => s.UserId == user.Id && s.Pages.Count > 0)),
+            "the background job should run even though the client went away");
+        Assert.AreEqual(1, _factory.StoryGenerator.CallCount);
     }
 }
