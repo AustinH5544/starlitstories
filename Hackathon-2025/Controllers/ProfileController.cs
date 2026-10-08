@@ -65,6 +65,15 @@ public class ProfileController : ControllerBase
         });
     }
 
+    // Built-in avatars only (files in ClientApp/public/avatars). Keep in sync with `profileImages` in ProfilePage.jsx.
+    private static readonly HashSet<string> AvatarPresets = new(StringComparer.Ordinal)
+    {
+        "wizard-avatar.png", "princess-avatar.png", "knight-avatar.png",
+        "whimsical-fairy-avatar.png", "dragon-avatar.png", "unicorn-avatar.png",
+        "pirate-avatar.png", "astronaut-avatar.png", "whimsical-mermaid-avatar.png",
+        "superhero-avatar.png", "cat-avatar.png"
+    };
+
     [Authorize]
     [HttpPut("avatar")]
     public async Task<IActionResult> UpdateAvatar([FromBody] AvatarDto dto)
@@ -73,14 +82,7 @@ public class ProfileController : ControllerBase
         var user = await _db.Users.FindAsync(int.Parse(userId));
         if (user is null) return NotFound();
 
-        // If you only allow preset avatars, validate against a whitelist
-        var allowed = new HashSet<string>{
-        "wizard-avatar.png","princess-avatar.png","knight-avatar.png",
-        "whimsical-fairy-avatar.png","dragon-avatar.png","unicorn-avatar.png",
-        "pirate-avatar.png","astronaut-avatar.png","whimsical-mermaid-avatar.png",
-        "superhero-avatar.png","cat-avatar.png"
-    };
-        if (!allowed.Contains(dto.ProfileImage) && !Uri.IsWellFormedUriString(dto.ProfileImage, UriKind.Absolute))
+        if (string.IsNullOrEmpty(dto.ProfileImage) || !AvatarPresets.Contains(dto.ProfileImage))
             return BadRequest("Invalid avatar");
 
         user.ProfileImage = dto.ProfileImage;

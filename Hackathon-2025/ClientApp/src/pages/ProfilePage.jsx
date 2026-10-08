@@ -322,6 +322,7 @@ const ProfilePage = () => {
     );
     const [imgError, setImgError] = useState(false)
 
+    // Files in public/avatars. The API only accepts these names: keep in sync with AvatarPresets in ProfileController.cs.
     const profileImages = [
         "wizard-avatar.png", "princess-avatar.png", "knight-avatar.png", "whimsical-fairy-avatar.png",
         "dragon-avatar.png", "unicorn-avatar.png", "pirate-avatar.png", "astronaut-avatar.png",

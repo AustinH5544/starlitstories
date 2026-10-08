@@ -52,13 +52,20 @@ public class ProfileControllerTests
         Assert.AreEqual(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/api/profile/avatar", new { profileImage = "evil.png" })).StatusCode);
     }
 
-    [TestMethod]
-    public async Task Avatar_Absolute_Url_Is_Currently_Accepted()
+    [DataTestMethod]
+    [DataRow("https://cdn.test/a.png")]
+    [DataRow("http://tracker.test/pixel.gif")]
+    [DataRow("../avatars/wizard-avatar.png")]
+    [DataRow("")]
+    public async Task Avatar_Must_Be_One_Of_The_Built_In_Pictures(string profileImage)
     {
-        // Documents current behavior: any absolute URL is allowed as an avatar.
+        // Decided 2026-10-08: only the built-in presets; outside URLs were never used by the app.
         var user = await _factory.SeedAsync(TestData.NewUser());
-        var resp = await _factory.ClientFor(user.Id).PutAsJsonAsync("/api/profile/avatar", new { profileImage = "https://cdn.test/a.png" });
-        Assert.AreEqual(HttpStatusCode.NoContent, resp.StatusCode);
+
+        var resp = await _factory.ClientFor(user.Id).PutAsJsonAsync("/api/profile/avatar", new { profileImage });
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.AreNotEqual(profileImage, (await ReloadAsync(user.Id)).ProfileImage);
     }
 
     [TestMethod]
