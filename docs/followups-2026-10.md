@@ -9,7 +9,8 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 - Share links: cap expiry at **365 days** (default stays 30).
 - Free users holding add-on credits: **may spend them** (Free-plan limits like story length still apply).
 - Avatars: **built-in presets only**; also **add more preset avatars**.
-- Prompt fallback: **undecided**. User wants to see what the fallback prompts actually produce first; cancelling may be better than an unrelated image.
+- Prompt fallback (decided after review): **no fallback prompts**. Retry the scene-writing call patiently (4 attempts, 1s/2s/4s); if it still fails, the story fails and is refunded. The forest keyword fallback drew unrelated pictures.
+- Avatars: user chose all four new categories (animals, fantasy, everyday heroes, diverse kids), ~15 total, redo existing in one style; generate with the user's Higgsfield account after comparing model pricing.
 
 ## Order and status
 
@@ -22,6 +23,6 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 | 5 | Let Free users spend add-on credits | product | done (feat/free-users-spend-addons) |
 | 6 | Cap share-link expiry at 365 days | product | done (fix/share-expiry-cap) |
 | 7 | Avatars: presets only; add more presets | product | in progress |
-| 8 | Prompt fallback: review fallback prompts with user, then fix or remove | product | todo (needs user) |
+| 8 | Prompt fallback: patient retries, no off-topic fallback | product | done (fix/prompt-retries-no-fallback) |
 | 9 | Image prompting / reference-image experiments | exploration | todo |
 | 10 | Deferred CI/test minors (workflow permissions, pin mssql image, job timeouts, refund-on-upload-failure test, etc.) | hygiene | todo |
