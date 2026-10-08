@@ -20,8 +20,8 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 | 3 | Client disconnect can strand a reserved credit (`Start` passes request token to `Task.Run`) | credits | done (fix/start-job-ignores-disconnect) |
 | 4 | Two tabs / double click can spend quota twice (no concurrency guard on reserve) | credits | done (fix/atomic-credit-reservation); also fixed: a refund after a failed story overwrote plan upgrades and credit purchases made during generation |
 | 5 | Let Free users spend add-on credits | product | done (feat/free-users-spend-addons) |
-| 6 | Cap share-link expiry at 365 days | product | in progress |
-| 7 | Avatars: presets only; add more presets | product | todo |
+| 6 | Cap share-link expiry at 365 days | product | done (fix/share-expiry-cap) |
+| 7 | Avatars: presets only; add more presets | product | in progress |
 | 8 | Prompt fallback: review fallback prompts with user, then fix or remove | product | todo (needs user) |
 | 9 | Image prompting / reference-image experiments | exploration | todo |
 | 10 | Deferred CI/test minors (workflow permissions, pin mssql image, job timeouts, refund-on-upload-failure test, etc.) | hygiene | todo |
