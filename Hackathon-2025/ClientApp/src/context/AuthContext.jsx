@@ -2,6 +2,7 @@
 import api from "../api";
 import posthog from '../analytics';
 
+// eslint-disable-next-line react-refresh/only-export-components -- context and hook intentionally live with the provider
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -52,4 +53,5 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components -- context and hook intentionally live with the provider
 export const useAuth = () => useContext(AuthContext);

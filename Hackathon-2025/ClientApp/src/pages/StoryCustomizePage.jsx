@@ -324,6 +324,7 @@ export default function StoryCustomizePage() {
             setBoxesByPage(base);
             localStorage.setItem(key, JSON.stringify(base));
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: adding deps would change when this effect runs
     }, [state]);
 
     // Persist on change
@@ -337,6 +338,7 @@ export default function StoryCustomizePage() {
     }, [story, boxesByPage, layoutBaseSize]);
 
     // Helpers
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: recomputing selectedBox each render is cheap and correct
     const currentBoxes = boxesByPage?.[pageIndex] || [];
     const selectedBox = useMemo(
         () => currentBoxes.find((b) => b.id === selectedBoxId) || null,
@@ -378,29 +380,6 @@ export default function StoryCustomizePage() {
             return next;
         });
         if (selectedBoxId === id) setSelectedBoxId(null);
-    }
-
-    function onDragAbs(id, nextX, nextY) {
-        setBoxesByPage((prev) => {
-            const stage = stageRef.current;
-            const bounds = stage ? stage.getBoundingClientRect() : null;
-            const scaleX = bounds ? bounds.width / (layoutBaseSize.stageW || bounds.width) : 1;
-            const scaleY = bounds ? bounds.height / (layoutBaseSize.stageH || bounds.height) : 1;
-            const next = { ...prev };
-            next[pageIndex] = (next[pageIndex] || []).map((b) => {
-                if (b.id !== id) return b;
-                let x = nextX,
-                    y = nextY;
-                if (bounds) {
-                    const maxX = bounds.width / scaleX - b.w - 2;
-                    const maxY = bounds.height / scaleY - b.h - 2;
-                    x = Math.max(2, Math.min(x, maxX));
-                    y = Math.max(2, Math.min(y, maxY));
-                }
-                return { ...b, x, y };
-            });
-            return next;
-        });
     }
 
     function onDrag(id, dx, dy) {
@@ -1094,7 +1073,7 @@ function edgeShadow(color = "#ffffff", width = 1) {
 }
 
 /** Draggable, resizable text box */
-function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1, onSelect, onDrag, onResize, onTextChange }) {
+function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1, onSelect, onDrag, onResize }) {
     const ref = useRef(null);
     const dragState = useRef(null);
 
@@ -1123,7 +1102,7 @@ function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1,
                 if (pointerId != null) {
                     el.releasePointerCapture?.(pointerId);
                 }
-            } catch { }
+            } catch { /* best-effort: ignore failure */ }
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", up);
             window.removeEventListener("pointercancel", cancel);
@@ -1144,7 +1123,7 @@ function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1,
 
             try {
                 el.setPointerCapture?.(e.pointerId);
-            } catch { }
+            } catch { /* best-effort: ignore failure */ }
             window.addEventListener("pointermove", move, { passive: false });
             window.addEventListener("pointerup", up, { once: true });
             window.addEventListener("pointercancel", cancel, { once: true });
@@ -1203,7 +1182,7 @@ function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1,
 
         try {
             e.currentTarget.setPointerCapture?.(e.pointerId);
-        } catch { }
+        } catch { /* best-effort: ignore failure */ }
         window.addEventListener("pointermove", onResizeMove, { passive: false });
         window.addEventListener("pointerup", onResizeUp, { once: true });
         window.addEventListener("pointercancel", onResizeUp, { once: true });
@@ -1232,7 +1211,7 @@ function DraggableBox({ box, selected, scaleX = 1, scaleY = 1, contentScale = 1,
     function onResizeUp(e) {
         try {
             e.currentTarget?.releasePointerCapture?.(e.pointerId);
-        } catch { }
+        } catch { /* best-effort: ignore failure */ }
         window.removeEventListener("pointermove", onResizeMove);
         window.removeEventListener("pointerup", onResizeUp);
         window.removeEventListener("pointercancel", onResizeUp);

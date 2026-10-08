@@ -1,6 +1,7 @@
 ﻿using Hackathon_2025.Data;
 using Hackathon_2025.Models;
 using Hackathon_2025.Models.Auth;
+using Hackathon_2025.Services;
 using Hackathon_2025.Tests.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -459,5 +460,44 @@ public class AuthControllerTests
         Assert.AreEqual(HttpStatusCode.OK, signup.StatusCode);
         Assert.AreEqual(HttpStatusCode.OK, forgot.StatusCode);
         Assert.AreEqual(HttpStatusCode.BadRequest, reset.StatusCode);
+    }
+
+    private async Task<string> SignupVerifiedAsync(string email, string username, string password)
+    {
+        var signup = await _client.PostAsJsonAsync("/api/auth/signup", new SignupRequest { Email = email, Username = username, Password = password });
+        Assert.AreEqual(HttpStatusCode.OK, signup.StatusCode);
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var user = await db.Users.SingleAsync(u => u.Email == email);
+        user.IsEmailVerified = true;
+        await db.SaveChangesAsync();
+        return user.Id.ToString();
+    }
+
+    [TestMethod]
+    public async Task Login_Wrong_Password_And_Unknown_Account_Give_The_Same_Error()
+    {
+        await SignupVerifiedAsync("enum@x.com", "enumuser", "Pass123!");
+
+        var wrongPassword = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest { Identifier = "enum@x.com", Password = "Wrong999!" });
+        var unknownEmail = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest { Identifier = "nobody@x.com", Password = "Pass123!" });
+
+        Assert.AreEqual(HttpStatusCode.Unauthorized, wrongPassword.StatusCode);
+        Assert.AreEqual(HttpStatusCode.Unauthorized, unknownEmail.StatusCode);
+        Assert.AreEqual(await wrongPassword.Content.ReadAsStringAsync(), await unknownEmail.Content.ReadAsStringAsync());
+    }
+
+    [TestMethod]
+    public async Task Login_Token_Carries_User_Id_And_Email()
+    {
+        var userId = await SignupVerifiedAsync("claims@x.com", "claimsuser", "Pass123!");
+
+        var resp = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest { Identifier = "claims@x.com", Password = "Pass123!" });
+        var token = (await ReadJson(resp)).GetProperty("token").GetString();
+        var jwt = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().ReadJwtToken(token);
+
+        // Claim names may be written short ("nameid"/"email") or as full ClaimTypes URIs, depending on how the token is built.
+        Assert.AreEqual(userId, jwt.Claims.Single(c => c.Type is "nameid" or System.Security.Claims.ClaimTypes.NameIdentifier).Value);
+        Assert.AreEqual("claims@x.com", jwt.Claims.Single(c => c.Type is "email" or System.Security.Claims.ClaimTypes.Email).Value);
     }
 }

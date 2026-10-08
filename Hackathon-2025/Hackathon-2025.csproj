@@ -24,9 +24,11 @@
       <PackageReference Include="OpenAI" Version="2.1.0" />
       <PackageReference Include="Stripe.net" Version="48.1.0" />
 
+      <!-- Pin past 8.0.2 (pulled in by Microsoft.AspNetCore.Identity 2.3.1) to clear CVE-2026-26171 / CVE-2026-50648 -->
+      <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.4" />
+
       <!-- EF Core -->
       <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.11" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.11" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.11" />
 
       <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.11">
@@ -43,6 +45,10 @@
   <ItemGroup>
     <Folder Include="ClientApp\src\assets\vision\" />
     <Folder Include="ClientApp\src\assets\social\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hackathon-2025.Tests" />
   </ItemGroup>
 
 </Project>

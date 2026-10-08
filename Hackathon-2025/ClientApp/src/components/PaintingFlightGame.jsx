@@ -534,6 +534,7 @@ export default function PaintingFlightGame() {
             canvas?.removeEventListener?.("contextlost", onContextLost)
             canvas?.removeEventListener?.("contextrestored", onContextRestored)
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: adding deps would change when this effect runs
     }, [])
 
     return (

@@ -81,7 +81,7 @@ export default function StoryCard({
 
     const handleDelete = async () => {
         if (deleting) return;
-        const ok = confirm(`Delete \"${story?.title || "this story"}\"? This cannot be undone.`);
+        const ok = confirm(`Delete "${story?.title || "this story"}"? This cannot be undone.`);
         if (!ok) return;
 
         try {

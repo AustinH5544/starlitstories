@@ -105,7 +105,7 @@ async function renderPageCanvas({ page, boxes = [], stageW, stageH }) {
 
     // Ensure fonts are ready before snapshot
     if (document.fonts && document.fonts.ready) {
-        try { await document.fonts.ready; } catch { }
+        try { await document.fonts.ready; } catch { /* best-effort: ignore failure */ }
     }
 
     // Snapshot

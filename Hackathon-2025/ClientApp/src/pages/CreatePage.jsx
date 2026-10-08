@@ -436,6 +436,7 @@ const CreatePage = () => {
                 stories_created: userProfile?.booksGenerated,
             })
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: adding deps would change when this effect runs
     }, [isFreeUserAtLimit]);
 
     // Not logged in

@@ -3,11 +3,63 @@ name: Frontend (SWA)
 on:
   push:
     branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
   workflow_dispatch: {}
 
 jobs:
+  # The API deploys from its own workflow; running its tests here too means an API failure
+  # also holds back the frontend, so prod never ends up with only one half updated.
+  api-test:
+    name: Build & test (API)
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore Hackathon-2025.Tests/Hackathon-2025.Tests.csproj
+
+      - name: Build
+        run: dotnet build Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-restore
+
+      - name: Test (includes SQL Server tests via Docker)
+        run: dotnet test Hackathon-2025.Tests/Hackathon-2025.Tests.csproj -c Release --no-build
+
+  verify:
+    name: Lint & build (frontend)
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Hackathon-2025/ClientApp/package-lock.json
+
+      - name: Install deps
+        working-directory: Hackathon-2025/ClientApp
+        run: npm ci
+
+      - name: Lint
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run lint
+
+      - name: Build (staging config)
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run build:staging
+
   deploy-staging:
     name: Frontend deploy (staging)
+    needs: api-test
     if: ${{ github.ref == 'refs/heads/staging' }}
     runs-on: ubuntu-latest
     environment: staging
@@ -24,6 +76,10 @@ jobs:
       - name: Install deps
         working-directory: Hackathon-2025/ClientApp
         run: npm ci
+
+      - name: Lint
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run lint
 
       - name: Prepare robots.txt (staging)
         working-directory: Hackathon-2025/ClientApp
@@ -57,6 +113,7 @@ jobs:
 
   deploy-prod:
     name: Frontend deploy (prod)
+    needs: api-test
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment: production
@@ -73,6 +130,10 @@ jobs:
       - name: Install deps
         working-directory: Hackathon-2025/ClientApp
         run: npm ci
+
+      - name: Lint
+        working-directory: Hackathon-2025/ClientApp
+        run: npm run lint
 
       - name: Prepare robots.txt (prod)
         working-directory: Hackathon-2025/ClientApp

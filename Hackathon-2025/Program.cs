@@ -189,7 +189,7 @@ builder.Services.AddAuthorization();
 // -----------------------------
 builder.Services.AddScoped<IImageGeneratorService, OpenAIImageGeneratorService>();
 builder.Services.AddScoped<IStoryGeneratorService, StoryGenerator>();
-builder.Services.AddSingleton<BlobUploadService>();
+builder.Services.AddSingleton<IBlobUploadService, BlobUploadService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
@@ -275,6 +275,18 @@ builder.Services.AddRateLimiter(options =>
         return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
         {
             PermitLimit = 3,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0
+        });
+    });
+
+    // Public support contact form: room for a follow-up or two, tight enough to stop mail flooding.
+    options.AddPolicy("support-ip", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
             Window = TimeSpan.FromMinutes(10),
             QueueLimit = 0
         });

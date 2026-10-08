@@ -332,8 +332,8 @@ __pycache__/
 *.odx.cs
 *.xsd.cs
 
-#Claude
-CLAUDE.md
+#Claude (CLAUDE.md files are committed; personal overrides are not)
+.claude/settings.local.json
 
 # OpenCover UI analysis results
 OpenCover/

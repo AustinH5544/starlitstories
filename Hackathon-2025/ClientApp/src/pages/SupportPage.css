@@ -386,6 +386,37 @@
     margin: 0;
 }
 
+.error-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1rem 1.05rem;
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255, 228, 228, 0.94), rgba(255, 240, 240, 0.94));
+    border: 1px solid rgba(176, 42, 42, 0.2);
+    color: #6b1a1a;
+}
+
+.error-message p,
+.error-message strong {
+    margin: 0;
+}
+
+.error-message p {
+    margin-top: 0.2rem;
+    color: rgba(107, 26, 26, 0.88);
+}
+
+.error-message a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.support-human-check {
+    min-height: 65px;
+}
+
 .success-message p {
     margin-top: 0.2rem;
     color: rgba(22, 82, 50, 0.84);
