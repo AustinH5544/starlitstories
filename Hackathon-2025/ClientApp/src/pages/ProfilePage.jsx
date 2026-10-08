@@ -327,6 +327,7 @@ const ProfilePage = () => {
         "wizard-avatar.png", "princess-avatar.png", "knight-avatar.png", "whimsical-fairy-avatar.png",
         "dragon-avatar.png", "unicorn-avatar.png", "pirate-avatar.png", "astronaut-avatar.png",
         "whimsical-mermaid-avatar.png", "superhero-avatar.png", "cat-avatar.png",
+        "puppy-avatar.png", "robot-avatar.png", "alien-avatar.png", "panda-avatar.png",
     ]
 
     const handleImageSelect = async (fileName) => {

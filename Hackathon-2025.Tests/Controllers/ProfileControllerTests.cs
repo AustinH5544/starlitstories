@@ -53,6 +53,22 @@ public class ProfileControllerTests
     }
 
     [DataTestMethod]
+    [DataRow("puppy-avatar.png")]
+    [DataRow("robot-avatar.png")]
+    [DataRow("alien-avatar.png")]
+    [DataRow("panda-avatar.png")]
+    [DataRow("whimsical-mermaid-avatar.png")]
+    public async Task New_And_Existing_Preset_Avatars_Are_Accepted(string profileImage)
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser());
+
+        var resp = await _factory.ClientFor(user.Id).PutAsJsonAsync("/api/profile/avatar", new { profileImage });
+
+        Assert.AreEqual(HttpStatusCode.NoContent, resp.StatusCode);
+        Assert.AreEqual(profileImage, (await ReloadAsync(user.Id)).ProfileImage);
+    }
+
+    [DataTestMethod]
     [DataRow("https://cdn.test/a.png")]
     [DataRow("http://tracker.test/pixel.gif")]
     [DataRow("../avatars/wizard-avatar.png")]
