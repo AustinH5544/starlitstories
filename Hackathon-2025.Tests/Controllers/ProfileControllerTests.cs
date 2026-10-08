@@ -22,13 +22,14 @@ public class ProfileControllerTests
     [TestMethod]
     public async Task Me_Returns_Profile_With_Membership_Name()
     {
-        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 2));
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 2, addOnBalance: 4));
 
         var json = await (await _factory.ClientFor(user.Id).GetAsync("/api/profile/me")).ReadJsonAsync();
 
         Assert.AreEqual(user.Username, json.GetProperty("username").GetString());
         Assert.AreEqual("Pro", json.GetProperty("membership").GetString());
         Assert.AreEqual(2, json.GetProperty("booksGenerated").GetInt32());
+        Assert.AreEqual(4, json.GetProperty("addOnBalance").GetInt32());
         Assert.IsFalse(json.GetProperty("isAdmin").GetBoolean());
     }
 
@@ -51,13 +52,36 @@ public class ProfileControllerTests
         Assert.AreEqual(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync("/api/profile/avatar", new { profileImage = "evil.png" })).StatusCode);
     }
 
-    [TestMethod]
-    public async Task Avatar_Absolute_Url_Is_Currently_Accepted()
+    [DataTestMethod]
+    [DataRow("puppy-avatar.png")]
+    [DataRow("robot-avatar.png")]
+    [DataRow("alien-avatar.png")]
+    [DataRow("panda-avatar.png")]
+    [DataRow("whimsical-mermaid-avatar.png")]
+    public async Task New_And_Existing_Preset_Avatars_Are_Accepted(string profileImage)
     {
-        // Documents current behavior: any absolute URL is allowed as an avatar.
         var user = await _factory.SeedAsync(TestData.NewUser());
-        var resp = await _factory.ClientFor(user.Id).PutAsJsonAsync("/api/profile/avatar", new { profileImage = "https://cdn.test/a.png" });
+
+        var resp = await _factory.ClientFor(user.Id).PutAsJsonAsync("/api/profile/avatar", new { profileImage });
+
         Assert.AreEqual(HttpStatusCode.NoContent, resp.StatusCode);
+        Assert.AreEqual(profileImage, (await ReloadAsync(user.Id)).ProfileImage);
+    }
+
+    [DataTestMethod]
+    [DataRow("https://cdn.test/a.png")]
+    [DataRow("http://tracker.test/pixel.gif")]
+    [DataRow("../avatars/wizard-avatar.png")]
+    [DataRow("")]
+    public async Task Avatar_Must_Be_One_Of_The_Built_In_Pictures(string profileImage)
+    {
+        // Decided 2026-10-08: only the built-in presets; outside URLs were never used by the app.
+        var user = await _factory.SeedAsync(TestData.NewUser());
+
+        var resp = await _factory.ClientFor(user.Id).PutAsJsonAsync("/api/profile/avatar", new { profileImage });
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.AreNotEqual(profileImage, (await ReloadAsync(user.Id)).ProfileImage);
     }
 
     [TestMethod]

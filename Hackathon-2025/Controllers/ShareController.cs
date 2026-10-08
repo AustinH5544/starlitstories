@@ -10,6 +10,7 @@ using Hackathon_2025.Data;
 public class ShareController : ControllerBase
 {
     private const int FallbackShareExpirationDays = 30;
+    private const int MaxShareExpirationDays = 365; // links last at most a year
     private readonly AppDbContext _db;
     private readonly IConfiguration _cfg;
 
@@ -118,10 +119,10 @@ public class ShareController : ControllerBase
     {
         if (requestedDays is > 0)
         {
-            return requestedDays.Value;
+            return Math.Min(requestedDays.Value, MaxShareExpirationDays);
         }
 
         var configuredDays = _cfg.GetValue<int?>("Sharing:DefaultExpirationDays");
-        return configuredDays is > 0 ? configuredDays.Value : FallbackShareExpirationDays;
+        return Math.Min(configuredDays is > 0 ? configuredDays.Value : FallbackShareExpirationDays, MaxShareExpirationDays);
     }
 }

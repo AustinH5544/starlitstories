@@ -14,6 +14,9 @@ jobs:
     name: Build & test (API)
     if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read # check jobs never need write access or deploy credentials
     env:
       CI: "true"
     steps:
@@ -36,6 +39,9 @@ jobs:
     name: Lint & build (frontend)
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read # check jobs never need write access or deploy credentials
     steps:
       - uses: actions/checkout@v4
 

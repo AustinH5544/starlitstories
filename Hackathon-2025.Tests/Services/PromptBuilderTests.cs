@@ -19,12 +19,11 @@ public class PromptBuilderTests
     [TestMethod]
     public void Known_Art_Style_Is_Used_With_Guardrails()
     {
-        var prompt = PromptBuilder.BuildImagePrompt(Human(), "They met a wise owl.", "comic");
+        var prompt = PromptBuilder.BuildBaseCharacterPrompt(Human(), "comic");
 
         StringAssert.StartsWith(prompt, "Children's comic book illustration");
         StringAssert.Contains(prompt, "Portrait orientation");
         StringAssert.Contains(prompt, "7-year-old boy");
-        StringAssert.Contains(prompt, "talking to a wise owl");
     }
 
     [DataTestMethod]
@@ -32,11 +31,11 @@ public class PromptBuilderTests
     [DataRow("watercolor")]
     [DataRow("not-a-real-style")]
     public void Missing_Or_Unknown_Style_Falls_Back_To_Watercolor(string? style)
-        => StringAssert.StartsWith(PromptBuilder.BuildImagePrompt(Human(), "A walk.", style), "Children's watercolor illustration");
+        => StringAssert.StartsWith(PromptBuilder.BuildBaseCharacterPrompt(Human(), style), "Children's watercolor illustration");
 
     [TestMethod]
     public void Animal_Character_Uses_Species()
-        => StringAssert.Contains(PromptBuilder.BuildImagePrompt(Fox(), "A walk.", "pixel"), "fox");
+        => StringAssert.Contains(PromptBuilder.BuildBaseCharacterPrompt(Fox(), "pixel"), "fox");
 
     [TestMethod]
     public void Base_Character_Prompt_Is_A_Plain_Reference_Portrait()
@@ -48,39 +47,65 @@ public class PromptBuilderTests
         StringAssert.Contains(prompt, "no text");
     }
 
-    [TestMethod]
-    public void Cover_Prompt_Includes_Theme_And_No_Text_Rule()
+    /// <summary>Fails the first <c>failures</c> calls like a network/OpenAI hiccup, then answers like the chat API.</summary>
+    private sealed class FlakySceneApi(int failures, string scene = "floating past glowing jellyfish") : HttpMessageHandler
     {
-        var prompt = PromptBuilder.BuildCoverPrompt(Human(), "Under the Sea", "early", "gouache");
+        private int _calls;
+        public int Calls => _calls;
 
-        StringAssert.Contains(prompt, "Under the Sea");
-        StringAssert.Contains(prompt, "gouache");
-        StringAssert.Contains(prompt, "no text");
-    }
-
-    private sealed class FailingHandler : HttpMessageHandler
-    {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            => throw new HttpRequestException("network down");
+        {
+            if (Interlocked.Increment(ref _calls) <= failures)
+                throw new HttpRequestException("network down");
+
+            var body = System.Text.Json.JsonSerializer.Serialize(new { choices = new[] { new { message = new { content = scene } } } });
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(body) });
+        }
     }
 
-    // FINDING (spec open question): the retry loops use `catch when (attempt < maxAttempts)`, so the
-    // last failure escapes and the keyword/static fallback below the loop is unreachable. StoryGenerator
-    // calls both methods, so two OpenAI scene failures fail the whole story instead of falling back.
-    // These tests pin current behavior; when the fix is approved, flip them to assert the fallback prompt.
+    // Decided 2026-10-08: when the scene-writing call fails, retry patiently (4 attempts, 1s/2s/4s apart);
+    // if it still fails, let the story fail and refund rather than drawing an off-topic fallback picture.
 
     [TestMethod]
-    public async Task Image_Prompt_Throws_Instead_Of_Falling_Back_When_Scene_Api_Fails_OpenQuestion()
+    public async Task Image_Prompt_Rides_Out_A_Brief_Outage()
     {
+        var api = new FlakySceneApi(failures: 2);
+
+        var prompt = await PromptBuilder.BuildImagePromptAsync(Human(), "They swam with jellyfish.", new HttpClient(api), "test-key", "comic");
+
+        StringAssert.Contains(prompt, "floating past glowing jellyfish");
+        Assert.AreEqual(3, api.Calls);
+    }
+
+    [TestMethod]
+    public async Task Image_Prompt_Gives_Up_After_Four_Attempts_Instead_Of_Drawing_Something_Unrelated()
+    {
+        var api = new FlakySceneApi(failures: int.MaxValue);
+
         await Assert.ThrowsExceptionAsync<HttpRequestException>(() => PromptBuilder.BuildImagePromptAsync(
-            Human(), "They met an owl.\r\nThen they rested.", new HttpClient(new FailingHandler()), "test-key", "comic"));
+            Human(), "They flew to the moon.", new HttpClient(api), "test-key", "comic"));
+        Assert.AreEqual(4, api.Calls);
     }
 
     [TestMethod]
-    public async Task Cover_Prompt_Throws_Instead_Of_Falling_Back_When_Scene_Api_Fails_OpenQuestion()
+    public async Task Cover_Prompt_Rides_Out_A_Brief_Outage()
     {
+        var api = new FlakySceneApi(failures: 2, scene: "racing a comet across a starry sky");
+
+        var prompt = await PromptBuilder.BuildCoverPromptAsync(
+            Human(), "Space", "early", "comic", new[] { "They flew.", "They landed." }, new HttpClient(api), "test-key");
+
+        StringAssert.Contains(prompt, "racing a comet across a starry sky");
+        Assert.AreEqual(3, api.Calls);
+    }
+
+    [TestMethod]
+    public async Task Cover_Prompt_Gives_Up_After_Four_Attempts()
+    {
+        var api = new FlakySceneApi(failures: int.MaxValue);
+
         await Assert.ThrowsExceptionAsync<HttpRequestException>(() => PromptBuilder.BuildCoverPromptAsync(
-            Human(), "Under the Sea", "early", "comic", new[] { "They swam.", "They rested." },
-            new HttpClient(new FailingHandler()), "test-key"));
+            Human(), "Under the Sea", "early", "comic", new[] { "They swam.", "They rested." }, new HttpClient(api), "test-key"));
+        Assert.AreEqual(4, api.Calls);
     }
 }

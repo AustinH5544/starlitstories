@@ -427,7 +427,9 @@ const CreatePage = () => {
         })
     }, [story, storyReady, isValidStory]);
 
-    const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1;
+    // Free users who hold add-on credits (kept after a downgrade) can keep creating until they run out.
+    const isFreeUserAtLimit = userProfile && user?.membership === "free" && userProfile.booksGenerated >= 1
+        && !(userProfile.addOnBalance > 0);
 
     useEffect(() => {
         if (isFreeUserAtLimit) {

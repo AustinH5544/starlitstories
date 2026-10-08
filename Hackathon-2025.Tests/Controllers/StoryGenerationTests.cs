@@ -1,21 +1,30 @@
 using System.Net;
 using System.Net.Http.Json;
 using Hackathon_2025.Models;
+using Hackathon_2025.Tests.SqlServer;
 using Hackathon_2025.Tests.Utils;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hackathon_2025.Tests.Controllers;
 
+/// <summary>
+/// Story generation through the real controller. Runs on SQL Server (Testcontainers) because credit
+/// reservation and refunds are atomic UPDATE statements the in-memory provider can't execute.
+/// </summary>
 [TestClass]
+[TestCategory("SqlServer")]
 public class StoryGenerationTests
 {
     private TestWebAppFactory _factory = null!;
 
     [TestInitialize]
-    public void Init() => _factory = new TestWebAppFactory();
+    public async Task Init() => _factory = await SqlServerWebAppFactory.CreateAsync();
 
     [TestCleanup]
-    public void Cleanup() => _factory.Dispose();
+    public void Cleanup() => _factory?.Dispose();
 
     private static object StoryBody(string? storyLength = null, Dictionary<string, string>? fields = null, int characterCount = 1)
     {
@@ -85,16 +94,33 @@ public class StoryGenerationTests
     }
 
     [TestMethod]
-    public async Task GenerateFull_Free_User_With_AddOns_Is_Still_Forbidden_OpenQuestion()
+    public async Task GenerateFull_Free_User_With_AddOns_Spends_An_AddOn()
     {
-        // Current behavior: Free users are capped at one story even when holding purchased credits
-        // (possible after a downgrade, since carryover keeps the balance). Open question in the spec.
+        // Decided 2026-10-08: credits a Free user holds (kept after a downgrade, or the carried-over free
+        // story) are spendable once the free story is used.
         var user = await _factory.SeedAsync(TestData.NewUser(booksGenerated: 1, addOnBalance: 3));
 
         var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full", StoryBody());
 
-        Assert.AreEqual((HttpStatusCode)403, resp.StatusCode);
-        Assert.AreEqual(3, (await ReloadAsync(user.Id)).AddOnBalance);
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        var saved = await ReloadAsync(user.Id);
+        Assert.AreEqual(2, saved.AddOnBalance);
+        Assert.AreEqual(1, saved.AddOnSpentThisPeriod);
+        Assert.AreEqual(2, saved.BooksGenerated);
+    }
+
+    [TestMethod]
+    public async Task GenerateFull_Free_User_Spending_An_AddOn_Still_Gets_Free_Plan_Limits()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(booksGenerated: 1, addOnBalance: 1));
+
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full",
+            StoryBody(fields: new Dictionary<string, string> { ["hairColor"] = "brown", ["favoriteFood"] = "pizza" }));
+
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        var fields = _factory.StoryGenerator.LastRequest!.Characters[0].DescriptionFields;
+        Assert.IsTrue(fields.ContainsKey("hairColor"));
+        Assert.IsFalse(fields.ContainsKey("favoriteFood"), "paid-only character details stay locked for Free, even with a credit");
     }
 
     [TestMethod]
@@ -194,7 +220,7 @@ public class StoryGenerationTests
     [DataRow(MembershipPlan.Premium, "long", "long", 12)]
     public async Task GenerateFull_Length_Is_Gated_By_Plan_When_Enabled(MembershipPlan plan, string requested, string expected, int expectedPages)
     {
-        using var factory = new TestWebAppFactory(new Dictionary<string, string?> { ["Story:LengthHintEnabled"] = "true" });
+        using var factory = await SqlServerWebAppFactory.CreateAsync(new Dictionary<string, string?> { ["Story:LengthHintEnabled"] = "true" });
         var user = await factory.SeedAsync(TestData.NewUser(plan));
 
         var resp = await factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full", StoryBody(storyLength: requested));
@@ -268,5 +294,68 @@ public class StoryGenerationTests
             var saved = await ReloadAsync(user.Id);
             return saved.AddOnBalance == 1 && saved.BooksGenerated == 5 && await StoryCountAsync(user.Id) == 0;
         }, "failed background job should refund the add-on and delete the draft");
+    }
+
+    [TestMethod]
+    public async Task Start_Still_Generates_When_The_Client_Disconnects_Right_After_Being_Accepted()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        using var disconnecting = _factory.WithWebHostBuilder(b => b.ConfigureTestServices(services =>
+            services.Configure<MvcOptions>(o => o.Filters.Add(new ClientDisconnectsAfterAcceptFilter()))));
+        var client = disconnecting.CreateClient();
+        client.DefaultRequestHeaders.Add(TestAuthHandler.UserIdHeader, user.Id.ToString());
+
+        var start = await client.PostAsJsonAsync("/api/story/generate-full/start", StoryBody());
+
+        Assert.AreEqual(HttpStatusCode.OK, start.StatusCode);
+        // The credit was reserved when the request was accepted, so the story must still be made.
+        await Eventually.AssertAsync(
+            () => disconnecting.QueryDbAsync(db => db.Stories.Include(s => s.Pages)
+                .AnyAsync(s => s.UserId == user.Id && s.Pages.Count > 0)),
+            "the background job should run even though the client went away");
+        Assert.AreEqual(1, _factory.StoryGenerator.CallCount);
+    }
+
+    [TestMethod]
+    public async Task GenerateFull_Upload_Failure_Deletes_Draft_And_Refunds_The_Credit()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        _factory.BlobUploads.ThrowOnUpload = new InvalidOperationException("blob storage down (test)");
+
+        await ServerErrors.AssertServerErrorAsync(() =>
+            _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full", StoryBody()));
+
+        Assert.AreEqual(0, (await ReloadAsync(user.Id)).BooksGenerated, "the reserved credit is returned");
+        Assert.AreEqual(0, await _factory.QueryDbAsync(db => db.Stories.CountAsync(s => s.UserId == user.Id)), "no half-saved story is left behind");
+    }
+
+    [TestMethod]
+    public async Task Start_With_No_Characters_Is_Rejected_Without_Spending_Credit()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full/start", StoryBody(characterCount: 0));
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.AreEqual(0, (await ReloadAsync(user.Id)).BooksGenerated);
+        Assert.AreEqual(0, _factory.StoryGenerator.CallCount);
+    }
+
+    [TestMethod]
+    public async Task Start_Streams_Progress_From_Start_To_Done()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        var start = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full/start", StoryBody());
+        var jobId = (await start.ReadJsonAsync()).GetProperty("jobId").GetString();
+
+        // The stream replays buffered updates and ends after the "done" update.
+        var events = await _factory.AnonymousClient().GetStringAsync($"/api/story/progress/{jobId}");
+
+        var stages = events.Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
+            .Select(e => System.Text.Json.JsonDocument.Parse(e["data: ".Length..]).RootElement.GetProperty("stage").GetString())
+            .ToList();
+        Assert.AreEqual("start", stages.First());
+        CollectionAssert.Contains(stages, "text", "the generator's own progress is forwarded");
+        Assert.AreEqual("done", stages.Last());
     }
 }

@@ -136,31 +136,6 @@ public static class PromptBuilder
     //"Soft lighting, gentle pastel tones, hand-painted look, minimal outlines. " +
     //"Show exactly the listed characters once each (no clones or duplicates). ";
 
-    public static string BuildImagePrompt(List<CharacterSpec> characters, string paragraph, string? artStyleKey)
-    {
-        string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
-        string scene = SummarizeScene(paragraph);
-        var style = GetArtStyle(artStyleKey);
-        return $"{style} Character: {anchors}. Setting: {scene}.";
-    }
-
-    /// <summary>
-    /// Image prompt that considers reading level (no reader age).
-    /// </summary>
-    public static string BuildImagePrompt(
-        List<CharacterSpec> characters,
-        string paragraph,
-        string? readingLevel,
-        string? artStyleKey)
-    {
-        string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
-        string scene = SummarizeScene(paragraph);
-        var (visualMood, tone) = GetReadingProfile(readingLevel);
-        var style = GetArtStyle(artStyleKey);
-
-        return $"{style} Use {visualMood}. Keep the tone {tone}. Character: {anchors}. Setting: {scene}.";
-    }
-
     private static string GetArtStyle(string? key)
     {
         var k = (key ?? "watercolor").Trim().ToLowerInvariant();
@@ -196,31 +171,32 @@ public static class PromptBuilder
         string apiKey,
         string? artStyleKey)
     {
-        // 1) Clean once up front (used by both primary & fallback paths)
+        // 1) Clean once up front
         paragraph = CleanForModel(paragraph);
 
-        // 2) Bounded retries for transient failures
-        const int maxAttempts = 2;
-        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        // 2) Retry transient failures; if it keeps failing the story fails and the credit is refunded.
+        return await WithSceneRetriesAsync(() => BuildImagePromptWithSceneAsync(
+            characters, paragraph, httpClient, apiKey, artStyleKey));
+    }
+
+    // Scene-writing calls to OpenAI are retried patiently (rate limits and blips usually clear within seconds).
+    // There is deliberately no offline fallback: a guessed scene draws a picture unrelated to the story.
+    private static readonly TimeSpan[] SceneRetryDelays =
+        { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(4) };
+
+    private static async Task<string> WithSceneRetriesAsync(Func<Task<string>> call)
+    {
+        for (var retry = 0; ; retry++)
         {
             try
             {
-                return await BuildImagePromptWithSceneAsync(
-                    characters, paragraph, httpClient, apiKey, artStyleKey);
+                return await call();
             }
-            catch when (attempt < maxAttempts)
+            catch when (retry < SceneRetryDelays.Length)
             {
-                await Task.Delay(300 * attempt); // simple backoff
+                await Task.Delay(SceneRetryDelays[retry]);
             }
         }
-
-        // 3) Fallback: keyword heuristic if API keeps failing
-        var style = GetArtStyle(artStyleKey);
-        var scene = string.IsNullOrWhiteSpace(paragraph)
-            ? "posing for a simple portrait in a calm setting"
-            : SummarizeScene(paragraph);
-
-        return $"{style} {scene}.";
     }
 
     private static string CleanForModel(string s, int maxLen = 800)
@@ -336,36 +312,6 @@ public static class PromptBuilder
     /// <summary>
     /// Maps readingLevel to guidance we can inject into prompts.
     /// </summary>
-    private static (string VisualMood, string Tone) GetReadingProfile(string? readingLevel)
-    {
-        // Defaults (covers null/unknown)
-        string visualMood = "gentle, friendly, inviting visuals";
-        string tone = "warm, comforting, imaginative";
-
-        switch ((readingLevel ?? "").Trim().ToLowerInvariant())
-        {
-            case "pre":
-                visualMood = "very soft, simple, friendly visuals with clear shapes";
-                tone = "soothing, rhythmic, very simple concepts";
-                break;
-
-            case "early":
-                visualMood = "bright, engaging visuals with clear actions and expressions";
-                tone = "short, clear, age-appropriate language";
-                break;
-
-            case "independent":
-                visualMood = "slightly more detailed, adventurous visuals";
-                tone = "engaging, varied, age-appropriate language";
-                break;
-
-            default:
-                break;
-        }
-
-        return (visualMood, tone);
-    }
-
     private static string BuildAnimalDescription(Dictionary<string, string> fields)
     {
         var parts = new List<string>();
@@ -390,20 +336,6 @@ public static class PromptBuilder
         AccessoryFieldNames
             .Select(fieldName => fields.TryGetValue(fieldName, out var value) ? value : null)
             .Where(value => !string.IsNullOrWhiteSpace(value))!;
-
-    private static string SummarizeScene(string paragraph)
-    {
-        paragraph = (paragraph ?? "").ToLower();
-
-        if (paragraph.Contains("owl")) return "talking to a wise owl in a glowing forest";
-        if (paragraph.Contains("fireflies")) return "walking through a grove of glowing fireflies";
-        if (paragraph.Contains("riddle")) return "solving a riddle under a large tree";
-        if (paragraph.Contains("clearing")) return "standing in a forest clearing";
-        if (paragraph.Contains("path")) return "walking down a winding forest path";
-        if (paragraph.Contains("glow")) return "surrounded by magical glowing plants";
-
-        return "exploring a magical forest";
-    }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
     List<CharacterSpec> characters,
@@ -526,48 +458,9 @@ Paragraph: "{paragraph}"
     // --- Cover prompts -------------------------------------------------------
 
     /// <summary>
-    /// Cover prompt that considers reading level and art style.
-    /// Produces a single, true cover composition with no palettes/panels/duplicates.
-    /// </summary>
-    public static string BuildCoverPrompt(
-    List<CharacterSpec> characters,
-    string theme,
-    string? readingLevel,
-    string? artStyleKey)
-    {
-        string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
-        var (visualMood, tone) = GetReadingProfile(readingLevel);
-        var style = GetArtStyle(artStyleKey);
-
-        //const string coverComp =
-        //    "Cover page";
-        //+
-        //" Cover composition: portrait 4:5 or 5:7 aspect with a clear focal subject. " +
-        //" Soft, cohesive background; avoid busy layouts. Do not draw any text. " +
-        //" Gentle, even lighting; keep the scene readable at thumbnail size. ";
-
-        //const string negatives =
-        //    " ";
-        //" Depict the group once as a single scene. Do not repeat or mirror any character. ";
-
-        return $"{style} Character: {anchors}. Standing confidently in a centered portrait pose, facing the viewer with a warm expression. The background is a rich, atmospheric setting inspired by {theme}, with soft depth and magical detail. Book cover composition — no text, no panels.";
-    }
-
-    /// <summary>
-    /// Overload without artStyleKey (defaults to watercolor style).
-    /// </summary>
-    public static string BuildCoverPrompt(
-        List<CharacterSpec> characters,
-        string theme,
-        string? readingLevel)
-    {
-        return BuildCoverPrompt(characters, theme, readingLevel, null);
-    }
-
-    /// <summary>
     /// Story-aware cover prompt: asks the LLM to pick the most iconic or visually
     /// exciting moment from the full story and describe it as a cover scene.
-    /// Falls back to the static BuildCoverPrompt on failure.
+    /// Retries transient failures; if it keeps failing, the story fails (and is refunded).
     /// </summary>
     public static async Task<string> BuildCoverPromptAsync(
         List<CharacterSpec> characters,
@@ -578,22 +471,8 @@ Paragraph: "{paragraph}"
         HttpClient httpClient,
         string apiKey)
     {
-        const int maxAttempts = 2;
-        for (int attempt = 1; attempt <= maxAttempts; attempt++)
-        {
-            try
-            {
-                return await BuildCoverPromptWithSceneAsync(
-                    characters, theme, artStyleKey, storyParagraphs, httpClient, apiKey);
-            }
-            catch when (attempt < maxAttempts)
-            {
-                await Task.Delay(300 * attempt);
-            }
-        }
-
-        // Fallback: use the static prompt if the AI call keeps failing
-        return BuildCoverPrompt(characters, theme, readingLevel, artStyleKey);
+        return await WithSceneRetriesAsync(() => BuildCoverPromptWithSceneAsync(
+            characters, theme, artStyleKey, storyParagraphs, httpClient, apiKey));
     }
 
     private static async Task<string> BuildCoverPromptWithSceneAsync(

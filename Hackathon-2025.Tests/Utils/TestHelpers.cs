@@ -24,7 +24,7 @@ internal static class ServerErrors
 
 internal static class Eventually
 {
-    public static async Task AssertAsync(Func<Task<bool>> condition, string because, int timeoutMs = 5000)
+    public static async Task AssertAsync(Func<Task<bool>> condition, string because, int timeoutMs = 15000)
     {
         var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
         while (DateTime.UtcNow < deadline)
