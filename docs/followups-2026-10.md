@@ -30,8 +30,7 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 
 ## Resume here (state at 2026-10-08, before compacting)
 
-- **PR #68** (staging -> main: items 1-8, 10, new avatars incl. the sleepy-moon default): open, CI green, mergeable.
-  The user is testing on staging, then merges it with **"Create a merge commit"** (not squash; keep `staging` branch).
+- **PR #68** (staging -> main: items 1-8, 10, new avatars incl. the sleepy-moon default): **merged 2026-10-08 as merge commit ada0d05**.
   After the merge: watch both prod runs (checks before deploy), then check `https://api.starlitstories.app/healthz`, `/readyz`, `/api/healthz`, `/api/config`.
 - **Item 11 is committed on `fix/recover-interrupted-stories` (commit e0d2ce3), NOT merged to staging on purpose**, so it gets its own PR.
   After #68 merges: merge the branch into `staging`, push (deploys staging), watch CI, then open a staging -> main PR for the user.
@@ -56,3 +55,8 @@ Item 9 (image prompting / reference images) folds into these. Each is product wo
    reference to every page/cover edit (`GenerateImagesWithCharacterBaseAsync`). Idea: render every character in the story on one sheet and use it as the reference for all images
    (gpt-image-2 edits accept multiple `image[]` references; see the earlier research in this conversation's notes).
    Note: extra characters are currently disabled (`MembershipEntitlements.MaxCharactersPerStory = 1`, `showCharacterTypeAndExtraButton = false` in `StoryForm.jsx`), so this pairs with deciding whether to re-enable multiple characters.
+5. **Painting flight game is too zoomed in on small screens** (user's Galaxy Z Fold cover screen; the game shows on the create page while a story generates).
+   `components/PaintingFlightGame.jsx` sizes the canvas in CSS pixels with minimums (`Math.max(360, width)`, `Math.max(240, height)`) and uses fixed pixel
+   sizes for the brush, obstacle width (74) and gaps (112-170), so on a ~344-360px-wide screen it overflows and everything looks oversized.
+   Likely fix: simulate in a fixed logical world (the existing 760x340 default) and scale the drawing uniformly to fit the container (letterbox if needed),
+   so it looks and plays the same everywhere. Verify at Z Fold cover width (~344px) and a normal phone (~390px).
