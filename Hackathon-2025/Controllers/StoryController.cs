@@ -18,9 +18,6 @@ public class StoryController : ControllerBase
     private const string PendingStoryTitle = "Your story is being generated...";
     private const string PendingStoryCoverUrl = "/story-generating-cover.png";
 
-    // A page-less story younger than this is still being generated; older ones are stuck drafts.
-    private static readonly TimeSpan GenerationWindow = TimeSpan.FromMinutes(30);
-
     private readonly IStoryGeneratorService _storyService;
     private readonly AppDbContext _db;
     private readonly IBlobUploadService _blobService;
@@ -80,6 +77,7 @@ public class StoryController : ControllerBase
             CoverImageUrl = PendingStoryCoverUrl,
             CreatedAt = now,
             UserId = user.Id,
+            ReservedFromAddOn = capacity.usedAddOn,
             RequestTheme = effectiveRequest.Theme?.Trim(),
             RequestReadingLevel = effectiveRequest.ReadingLevel?.Trim(),
             RequestArtStyle = effectiveRequest.ArtStyle?.Trim(),
@@ -95,7 +93,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await RefundReservedCreditAsync(_db, user.Id, capacity.usedAddOn);
+            await StoryCredits.RefundReservedCreditAsync(_db, user.Id, capacity.usedAddOn);
             throw;
         }
 
@@ -107,7 +105,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user.Id, pendingStory.Id, capacity.usedAddOn);
+            await StoryCredits.DeleteDraftAndRefundAsync(_db, user.Id, pendingStory.Id, capacity.usedAddOn);
             throw;
         }
 
@@ -146,7 +144,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await DeletePendingStoryAndRefundReservedCreditAsync(_db, user.Id, pendingStory.Id, capacity.usedAddOn);
+            await StoryCredits.DeleteDraftAndRefundAsync(_db, user.Id, pendingStory.Id, capacity.usedAddOn);
             throw;
         }
     }
@@ -174,6 +172,7 @@ public class StoryController : ControllerBase
             CoverImageUrl = PendingStoryCoverUrl,
             CreatedAt = now,
             UserId = user.Id,
+            ReservedFromAddOn = reserved.usedAddOn,
             RequestTheme = effectiveRequest.Theme?.Trim(),
             RequestReadingLevel = effectiveRequest.ReadingLevel?.Trim(),
             RequestArtStyle = effectiveRequest.ArtStyle?.Trim(),
@@ -189,7 +188,7 @@ public class StoryController : ControllerBase
         }
         catch
         {
-            await RefundReservedCreditAsync(_db, user.Id, reserved.usedAddOn);
+            await StoryCredits.RefundReservedCreditAsync(_db, user.Id, reserved.usedAddOn);
             throw;
         }
 
@@ -235,7 +234,7 @@ public class StoryController : ControllerBase
                 }
                 catch
                 {
-                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser.Id, story.Id, reserved.usedAddOn);
+                    await StoryCredits.DeleteDraftAndRefundAsync(scopedDb, sUser.Id, story.Id, reserved.usedAddOn);
                     throw;
                 }
 
@@ -292,7 +291,7 @@ public class StoryController : ControllerBase
                 }
                 catch
                 {
-                    await DeletePendingStoryAndRefundReservedCreditAsync(scopedDb, sUser.Id, story.Id, reserved.usedAddOn);
+                    await StoryCredits.DeleteDraftAndRefundAsync(scopedDb, sUser.Id, story.Id, reserved.usedAddOn);
                     throw;
                 }
             }
@@ -373,8 +372,15 @@ public class StoryController : ControllerBase
         if (story is null) return NotFound("Story not found.");
 
         // Deleting a draft mid-generation would make the background job lose track of the reserved credit.
-        if (story.Pages.Count == 0 && DateTime.UtcNow - story.CreatedAt < GenerationWindow)
+        if (story.Pages.Count == 0 && DateTime.UtcNow - story.CreatedAt < StoryCredits.GenerationWindow)
             return Conflict("This story is still being generated. Try again once it's finished.");
+
+        // An abandoned draft (its job died, e.g. in a restart) still holds a spent credit: give it back.
+        if (story.Pages.Count == 0)
+        {
+            await StoryCredits.DeleteDraftAndRefundAsync(_db, user.Id, story.Id, story.ReservedFromAddOn);
+            return NoContent();
+        }
 
         var imageUrls = story.Pages
             .Select(p => p.ImageUrl)
@@ -478,31 +484,6 @@ public class StoryController : ControllerBase
         return isFree
             ? (false, false, "Free users can only generate one story.")
             : (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
-    }
-
-    private static Task RefundReservedCreditAsync(AppDbContext db, int userId, bool usedAddOn)
-    {
-        var user = db.Users.Where(u => u.Id == userId);
-        return usedAddOn
-            ? user.ExecuteUpdateAsync(s => s
-                .SetProperty(u => u.BooksGenerated, u => u.BooksGenerated > 0 ? u.BooksGenerated - 1 : 0)
-                .SetProperty(u => u.AddOnBalance, u => u.AddOnBalance + 1)
-                .SetProperty(u => u.AddOnSpentThisPeriod, u => u.AddOnSpentThisPeriod > 0 ? u.AddOnSpentThisPeriod - 1 : 0))
-            : user.ExecuteUpdateAsync(s => s
-                .SetProperty(u => u.BooksGenerated, u => u.BooksGenerated > 0 ? u.BooksGenerated - 1 : 0));
-    }
-
-    private static async Task DeletePendingStoryAndRefundReservedCreditAsync(AppDbContext db, int userId, int storyId, bool usedAddOn)
-    {
-        // Remove the draft and return the credit together, retrying the pair on transient SQL errors.
-        var strategy = db.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
-        {
-            await using var tx = await db.Database.BeginTransactionAsync();
-            await db.Stories.Where(s => s.Id == storyId && s.UserId == userId).ExecuteDeleteAsync();
-            await RefundReservedCreditAsync(db, userId, usedAddOn);
-            await tx.CommitAsync();
-        });
     }
 
     // Immutable effective request according to StoryOptions + membership
