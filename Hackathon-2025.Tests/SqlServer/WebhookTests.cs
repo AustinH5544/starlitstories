@@ -266,4 +266,20 @@ public class WebhookTests
 
         Assert.IsNull((await ReloadAsync(user.Id)).CancelAtUtc);
     }
+
+    [TestMethod]
+    public async Task User_Id_Wins_When_It_Disagrees_With_The_Customer_Ref()
+    {
+        var buyer = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Premium));
+        var other = TestData.NewUser(MembershipPlan.Premium);
+        other.BillingCustomerRef = "cus_other";
+        other = await _factory.SeedAsync(other);
+        GatewayReturns(WebhookEvents.Make("evt_uid_wins", userId: buyer.Id, customerRef: "cus_other",
+            addOnSku: "addon_plus5", addOnQty: 1));
+
+        Assert.AreEqual(HttpStatusCode.OK, (await PostWebhookAsync()).StatusCode);
+
+        Assert.AreEqual(5, (await ReloadAsync(buyer.Id)).AddOnBalance, "the checkout's own user ID decides who is credited");
+        Assert.AreEqual(0, (await ReloadAsync(other.Id)).AddOnBalance);
+    }
 }

@@ -54,9 +54,14 @@ internal sealed class FakeBlobUploadService : IBlobUploadService
 {
     public ConcurrentBag<string> Uploaded { get; } = new();
 
+    /// <summary>When set, uploads throw this (simulates Blob Storage being unavailable).</summary>
+    public Exception? ThrowOnUpload { get; set; }
+
     // Completes synchronously on purpose: this is the harshest timing for callers that upload pages in parallel.
     public Task<string> UploadImageAsync(string imageUrl, string fileName)
     {
+        if (ThrowOnUpload is not null)
+            return Task.FromException<string>(ThrowOnUpload);
         Uploaded.Add(fileName);
         return Task.FromResult($"https://blob.test/{fileName}");
     }
