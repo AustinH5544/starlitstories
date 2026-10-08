@@ -22,13 +22,14 @@ public class ProfileControllerTests
     [TestMethod]
     public async Task Me_Returns_Profile_With_Membership_Name()
     {
-        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 2));
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 2, addOnBalance: 4));
 
         var json = await (await _factory.ClientFor(user.Id).GetAsync("/api/profile/me")).ReadJsonAsync();
 
         Assert.AreEqual(user.Username, json.GetProperty("username").GetString());
         Assert.AreEqual("Pro", json.GetProperty("membership").GetString());
         Assert.AreEqual(2, json.GetProperty("booksGenerated").GetInt32());
+        Assert.AreEqual(4, json.GetProperty("addOnBalance").GetInt32());
         Assert.IsFalse(json.GetProperty("isAdmin").GetBoolean());
     }
 

@@ -44,6 +44,7 @@ public class ProfileController : ControllerBase
                 u.Username,
                 u.Membership,
                 u.BooksGenerated,
+                u.AddOnBalance,
                 u.LastReset,
                 profileImage = u.ProfileImage
             })
@@ -57,6 +58,7 @@ public class ProfileController : ControllerBase
             user.Username,
             user.Membership,
             user.BooksGenerated,
+            user.AddOnBalance,
             user.LastReset,
             user.profileImage,
             isAdmin = _adminAccess.IsAdminEmail(user.Email)
