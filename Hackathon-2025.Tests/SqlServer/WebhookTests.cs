@@ -197,4 +197,18 @@ public class WebhookTests
         Assert.AreEqual(5, (await ReloadAsync(user.Id)).AddOnBalance);
         Assert.AreEqual(1, await _factory.QueryDbAsync(db => db.ProcessedWebhooks.CountAsync(w => w.EventId == "evt_race")));
     }
+
+    [TestMethod]
+    public async Task AddOn_Purchase_Retried_After_A_Deadlock_Is_Credited_Once()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Premium, addOnBalance: 2));
+        GatewayReturns(WebhookEvents.Make("evt_retry_addon", userId: user.Id, addOnSku: "addon_plus5", addOnQty: 1));
+        _factory.FailNextSave.Arm();
+
+        Assert.AreEqual(HttpStatusCode.OK, (await PostWebhookAsync()).StatusCode);
+
+        Assert.AreEqual(1, _factory.FailNextSave.TimesFired, "the first attempt should have failed and been retried");
+        Assert.AreEqual(7, (await ReloadAsync(user.Id)).AddOnBalance, "2 + one 5-pack, credited exactly once");
+        Assert.AreEqual(1, await _factory.QueryDbAsync(db => db.ProcessedWebhooks.CountAsync(w => w.EventId == "evt_retry_addon")));
+    }
 }

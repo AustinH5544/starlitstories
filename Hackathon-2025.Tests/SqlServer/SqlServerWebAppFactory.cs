@@ -10,6 +10,9 @@ internal sealed class SqlServerWebAppFactory : TestWebAppFactory
 {
     private readonly string _connectionString;
 
+    /// <summary>Arm to make the next SaveChanges fail like a deadlock, so the retry path runs.</summary>
+    public FailNextSaveInterceptor FailNextSave { get; } = new();
+
     private SqlServerWebAppFactory(string connectionString) => _connectionString = connectionString;
 
     public static async Task<SqlServerWebAppFactory> CreateAsync()
@@ -21,9 +24,9 @@ internal sealed class SqlServerWebAppFactory : TestWebAppFactory
         return factory;
     }
 
-    // Mirrors Program.cs (SqlServer + retry on transient errors such as deadlocks).
+    // Mirrors Program.cs (SqlServer + retry on transient errors such as deadlocks), and lets tests simulate one.
     protected override void ConfigureDatabase(IServiceCollection services)
-        => services.AddDbContext<AppDbContext>(o => o.UseSqlServer(
-            _connectionString,
-            sql => sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(2), errorNumbersToAdd: null)));
+        => services.AddDbContext<AppDbContext>(o => o
+            .UseSqlServer(_connectionString, sql => sql.ExecutionStrategy(d => new RetryIncludingSimulatedDeadlocks(d)))
+            .AddInterceptors(FailNextSave));
 }

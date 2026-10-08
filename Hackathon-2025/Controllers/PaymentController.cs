@@ -274,6 +274,11 @@ namespace Hackathon_2025.Controllers
                 var strategy = _db.Database.CreateExecutionStrategy();
                 await strategy.ExecuteAsync(async () =>
                 {
+                    // A retry (e.g. after a deadlock) re-runs this block after the transaction rolled back.
+                    // Drop entities tracked by the failed attempt so the user is re-read from the database;
+                    // otherwise its in-memory changes survive and credits are applied twice.
+                    _db.ChangeTracker.Clear();
+
                     await using var tx = await _db.Database.BeginTransactionAsync(
                         System.Data.IsolationLevel.Serializable);
 
