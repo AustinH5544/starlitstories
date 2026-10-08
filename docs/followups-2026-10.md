@@ -26,3 +26,4 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 | 8 | Prompt fallback: patient retries, no off-topic fallback | product | done (fix/prompt-retries-no-fallback) |
 | 9 | Image prompting / reference-image experiments | exploration | todo |
 | 10 | Deferred CI/test minors (workflow permissions, pin mssql image, job timeouts, refund-on-upload-failure test, etc.) | hygiene | done (chore/ci-test-hygiene) |
+| 11 | Stories interrupted by a restart/deploy keep the credit spent and leave a stuck draft | credits | done (fix/recover-interrupted-stories; adds migration AddStoryReservedFromAddOn) |

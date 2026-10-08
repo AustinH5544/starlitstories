@@ -193,6 +193,11 @@ builder.Services.AddSingleton<IBlobUploadService, BlobUploadService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddSingleton<IProgressBroker, ProgressBroker>();
+builder.Services.AddSingleton<StaleDraftRecovery>();
+// Refunds drafts abandoned when a restart kills a story mid-generation. Not in Testing (InMemory can't run it);
+// the SqlServer tests call StaleDraftRecovery directly.
+if (!builder.Environment.IsEnvironment("Testing"))
+    builder.Services.AddHostedService<StaleDraftRecoveryService>();
 builder.Services.AddScoped<IQuotaService, QuotaService>();
 builder.Services.AddScoped<IPeriodService, PeriodService>();
 builder.Services.AddScoped<ITurnstileService, TurnstileService>();

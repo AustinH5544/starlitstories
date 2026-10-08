@@ -12,6 +12,7 @@ Loaded when working in `Hackathon-2025/`. Generation, membership, and billing ru
 
 - `StoryController` → `IStoryGeneratorService` (`Services/StoryGenerator.cs`) → `PromptBuilder.cs` for prompts → `IImageGeneratorService` → `IBlobUploadService` (`BlobUploadService`). Tests swap in `FakeBlobUploadService`.
 - Two paths: sync `POST /api/story/generate-full`, and async `POST /api/story/generate-full/start`. The async path streams progress over SSE at `GET /api/story/progress/{jobId}` via the singleton `ProgressBroker`; fetch the result with `GET /api/story/result/{jobId}`.
+- Jobs run in-process, so a restart (every deploy) kills stories mid-generation. Each draft records `ReservedFromAddOn`; `StaleDraftRecovery` (run every 10 minutes by `StaleDraftRecoveryService`) removes page-less drafts older than `StoryCredits.GenerationWindow` (30 min) and refunds the right credit. Owners deleting such a draft get the refund too.
 - Text model: `gpt-4.1-mini`. Images: `gpt-image-2` at `quality = "low"`. Low quality is a **deliberate, validated cost decision**; do not raise it.
 - `IImageGeneratorService` has a single implementation, `OpenAIImageGeneratorService`, registered in `Program.cs`.
 - On failure the controller deletes the pending `Story` and refunds any reserved add-on credit. Keep that invariant.
@@ -30,7 +31,7 @@ Loaded when working in `Hackathon-2025/`. Generation, membership, and billing ru
 
 - `Data/AppDbContext.cs`. SQL Server outside `Testing`.
 - Add migrations from this folder: `dotnet ef migrations add <Name>`. Never edit an applied migration; production applies them in order.
-- Two migrations don't follow the usual pattern: `Migrations/MakeStoryPageRequiredWithCascade.cs` has no timestamp or namespace, and `20260317120000_AddStoryRequestMetadata.cs` has no `.Designer.cs` file. Leave them alone unless asked.
+- Some migrations don't follow the usual pattern: `Migrations/MakeStoryPageRequiredWithCascade.cs` has no timestamp or namespace, and `20260317120000_AddStoryRequestMetadata.cs` and `20261008120000_AddStoryReservedFromAddOn.cs` were hand-written without a `.Designer.cs` file (`dotnet ef` needs Key Vault access to boot the app). Hand-written migrations must update `AppDbContextModelSnapshot.cs` too. Leave the existing ones alone unless asked.
 
 ## Tests
 
