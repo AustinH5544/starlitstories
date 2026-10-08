@@ -315,4 +315,47 @@ public class StoryGenerationTests
             "the background job should run even though the client went away");
         Assert.AreEqual(1, _factory.StoryGenerator.CallCount);
     }
+
+    [TestMethod]
+    public async Task GenerateFull_Upload_Failure_Deletes_Draft_And_Refunds_The_Credit()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        _factory.BlobUploads.ThrowOnUpload = new InvalidOperationException("blob storage down (test)");
+
+        await ServerErrors.AssertServerErrorAsync(() =>
+            _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full", StoryBody()));
+
+        Assert.AreEqual(0, (await ReloadAsync(user.Id)).BooksGenerated, "the reserved credit is returned");
+        Assert.AreEqual(0, await _factory.QueryDbAsync(db => db.Stories.CountAsync(s => s.UserId == user.Id)), "no half-saved story is left behind");
+    }
+
+    [TestMethod]
+    public async Task Start_With_No_Characters_Is_Rejected_Without_Spending_Credit()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full/start", StoryBody(characterCount: 0));
+
+        Assert.AreEqual(HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.AreEqual(0, (await ReloadAsync(user.Id)).BooksGenerated);
+        Assert.AreEqual(0, _factory.StoryGenerator.CallCount);
+    }
+
+    [TestMethod]
+    public async Task Start_Streams_Progress_From_Start_To_Done()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro));
+        var start = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full/start", StoryBody());
+        var jobId = (await start.ReadJsonAsync()).GetProperty("jobId").GetString();
+
+        // The stream replays buffered updates and ends after the "done" update.
+        var events = await _factory.AnonymousClient().GetStringAsync($"/api/story/progress/{jobId}");
+
+        var stages = events.Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
+            .Select(e => System.Text.Json.JsonDocument.Parse(e["data: ".Length..]).RootElement.GetProperty("stage").GetString())
+            .ToList();
+        Assert.AreEqual("start", stages.First());
+        CollectionAssert.Contains(stages, "text", "the generator's own progress is forwarded");
+        Assert.AreEqual("done", stages.Last());
+    }
 }

@@ -140,4 +140,17 @@ public class ShareControllerTests
         var expires = (await resp.ReadJsonAsync()).GetProperty("expiresUtc").GetDateTime();
         Assert.AreEqual(365, (expires - DateTime.UtcNow).TotalDays, 0.01);
     }
+
+    [TestMethod]
+    public async Task Default_Expiry_Comes_From_Configuration()
+    {
+        using var factory = new TestWebAppFactory(new Dictionary<string, string?> { ["Sharing:DefaultExpirationDays"] = "14" });
+        var owner = await factory.SeedAsync(TestData.NewUser());
+        var story = await factory.SeedAsync(TestData.NewStory(owner.Id));
+
+        var resp = await factory.ClientFor(owner.Id).PostAsync($"/api/stories/{story.Id}/share", null);
+
+        var expires = (await resp.ReadJsonAsync()).GetProperty("expiresUtc").GetDateTime();
+        Assert.AreEqual(14, (expires - DateTime.UtcNow).TotalDays, 0.01);
+    }
 }

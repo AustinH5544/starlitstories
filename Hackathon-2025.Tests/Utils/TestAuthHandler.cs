@@ -8,7 +8,7 @@ namespace Hackathon_2025.Tests.Utils;
 
 internal class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    public const string Scheme = "TestAuth";
+    public new const string Scheme = "TestAuth"; // hides the base property on purpose: tests refer to it statically
     public const string UserIdHeader = "X-Test-UserId";
     public const string EmailHeader = "X-Test-Email";
     public const string AnonymousHeader = "X-Test-Anonymous";
@@ -16,8 +16,7 @@ internal class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptio
     public TestAuthHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
-        UrlEncoder encoder,
-        ISystemClock clock) : base(options, logger, encoder, clock) { }
+        UrlEncoder encoder) : base(options, logger, encoder) { }
 
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {

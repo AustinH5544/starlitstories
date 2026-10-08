@@ -17,7 +17,10 @@ internal static class SqlServerTestContainer
     {
         try
         {
-            var container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build();
+            // Pinned so a new upstream image can't change (or break) the CI gate unannounced.
+            // This digest is mssql/server:2022-latest as of 2026-08-26; bump deliberately.
+            var container = new MsSqlBuilder(
+                "mcr.microsoft.com/mssql/server@sha256:4402d880dd4c34bfa7d8705e56a86cd6c88da80a1f6bbbe741f999e76264a090").Build();
             await container.StartAsync();
             return container;
         }
