@@ -16,8 +16,8 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 | # | Item | Kind | Status |
 |---|------|------|--------|
 | 1 | Webhook retry can credit add-ons twice (EF execution strategy retries without clearing tracked changes) | billing | done (fix/webhook-retry-double-credit) |
-| 2 | Add-on / invoice webhooks wipe a scheduled cancellation (`CancelAtUtc` set unconditionally) | billing | in progress |
-| 3 | Client disconnect can strand a reserved credit (`Start` passes request token to `Task.Run`) | credits | todo |
+| 2 | Add-on / invoice webhooks wipe a scheduled cancellation (`CancelAtUtc` set unconditionally) | billing | done (fix/webhook-keep-cancel-date) |
+| 3 | Client disconnect can strand a reserved credit (`Start` passes request token to `Task.Run`) | credits | in progress |
 | 4 | Two tabs / double click can spend quota twice (no concurrency guard on reserve) | credits | todo |
 | 5 | Let Free users spend add-on credits | product | todo |
 | 6 | Cap share-link expiry at 365 days | product | todo |

@@ -344,10 +344,14 @@ WHEN NOT MATCHED THEN
                         }
                     }
 
-                    if (!string.IsNullOrEmpty(status)) user.PlanStatus = status;
+                    // A one-off add-on checkout says nothing about the subscription; its "paid" status must not replace it.
+                    var isOneOffPurchase = !string.IsNullOrEmpty(addOnSku) && string.IsNullOrEmpty(subRef);
+                    if (!string.IsNullOrEmpty(status) && !isOneOffPurchase) user.PlanStatus = status;
                     if (periodStart.HasValue) user.CurrentPeriodStartUtc = periodStart;
                     if (periodEnd.HasValue) user.CurrentPeriodEndUtc = periodEnd;
-                    user.CancelAtUtc = cancelAt;
+                    // Only events that describe the subscription carry its cancel date (null = not cancelling, e.g. resumed).
+                    // Add-on checkouts and invoices always send null, so they must leave a scheduled cancellation alone.
+                    if (!string.IsNullOrEmpty(subRef)) user.CancelAtUtc = cancelAt;
 
                     if (!string.IsNullOrEmpty(addOnSku) && addOnQty > 0)
                     {
