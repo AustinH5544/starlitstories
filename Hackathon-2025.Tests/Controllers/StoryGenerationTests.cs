@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Hackathon_2025.Models;
+using Hackathon_2025.Tests.SqlServer;
 using Hackathon_2025.Tests.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
@@ -9,16 +10,21 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Hackathon_2025.Tests.Controllers;
 
+/// <summary>
+/// Story generation through the real controller. Runs on SQL Server (Testcontainers) because credit
+/// reservation and refunds are atomic UPDATE statements the in-memory provider can't execute.
+/// </summary>
 [TestClass]
+[TestCategory("SqlServer")]
 public class StoryGenerationTests
 {
     private TestWebAppFactory _factory = null!;
 
     [TestInitialize]
-    public void Init() => _factory = new TestWebAppFactory();
+    public async Task Init() => _factory = await SqlServerWebAppFactory.CreateAsync();
 
     [TestCleanup]
-    public void Cleanup() => _factory.Dispose();
+    public void Cleanup() => _factory?.Dispose();
 
     private static object StoryBody(string? storyLength = null, Dictionary<string, string>? fields = null, int characterCount = 1)
     {
@@ -197,7 +203,7 @@ public class StoryGenerationTests
     [DataRow(MembershipPlan.Premium, "long", "long", 12)]
     public async Task GenerateFull_Length_Is_Gated_By_Plan_When_Enabled(MembershipPlan plan, string requested, string expected, int expectedPages)
     {
-        using var factory = new TestWebAppFactory(new Dictionary<string, string?> { ["Story:LengthHintEnabled"] = "true" });
+        using var factory = await SqlServerWebAppFactory.CreateAsync(new Dictionary<string, string?> { ["Story:LengthHintEnabled"] = "true" });
         var user = await factory.SeedAsync(TestData.NewUser(plan));
 
         var resp = await factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full", StoryBody(storyLength: requested));
