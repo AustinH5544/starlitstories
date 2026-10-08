@@ -94,16 +94,33 @@ public class StoryGenerationTests
     }
 
     [TestMethod]
-    public async Task GenerateFull_Free_User_With_AddOns_Is_Still_Forbidden_OpenQuestion()
+    public async Task GenerateFull_Free_User_With_AddOns_Spends_An_AddOn()
     {
-        // Current behavior: Free users are capped at one story even when holding purchased credits
-        // (possible after a downgrade, since carryover keeps the balance). Open question in the spec.
+        // Decided 2026-10-08: credits a Free user holds (kept after a downgrade, or the carried-over free
+        // story) are spendable once the free story is used.
         var user = await _factory.SeedAsync(TestData.NewUser(booksGenerated: 1, addOnBalance: 3));
 
         var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full", StoryBody());
 
-        Assert.AreEqual((HttpStatusCode)403, resp.StatusCode);
-        Assert.AreEqual(3, (await ReloadAsync(user.Id)).AddOnBalance);
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        var saved = await ReloadAsync(user.Id);
+        Assert.AreEqual(2, saved.AddOnBalance);
+        Assert.AreEqual(1, saved.AddOnSpentThisPeriod);
+        Assert.AreEqual(2, saved.BooksGenerated);
+    }
+
+    [TestMethod]
+    public async Task GenerateFull_Free_User_Spending_An_AddOn_Still_Gets_Free_Plan_Limits()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(booksGenerated: 1, addOnBalance: 1));
+
+        var resp = await _factory.ClientFor(user.Id).PostAsJsonAsync("/api/story/generate-full",
+            StoryBody(fields: new Dictionary<string, string> { ["hairColor"] = "brown", ["favoriteFood"] = "pizza" }));
+
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        var fields = _factory.StoryGenerator.LastRequest!.Characters[0].DescriptionFields;
+        Assert.IsTrue(fields.ContainsKey("hairColor"));
+        Assert.IsFalse(fields.ContainsKey("favoriteFood"), "paid-only character details stay locked for Free, even with a credit");
     }
 
     [TestMethod]

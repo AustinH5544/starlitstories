@@ -115,14 +115,29 @@ public class ShareControllerTests
         Assert.AreEqual(HttpStatusCode.OK, (await _factory.AnonymousClient().GetAsync($"/api/share/{share.Token}")).StatusCode);
     }
 
-    [TestMethod]
-    public async Task CreateShare_With_Absurd_Days_Currently_Fails_On_Server_OpenQuestion()
+    [DataTestMethod]
+    [DataRow(3_000_000)]
+    [DataRow(366)]
+    public async Task CreateShare_Longer_Than_A_Year_Is_Capped_At_365_Days(int days)
     {
-        // Current behavior: no cap on "days"; ~3 million days overflows DateTime and throws.
-        // Open question in the spec (cap the value, e.g. 365?).
+        // Decided 2026-10-08: links last at most a year (huge values used to overflow DateTime and 500).
         var (owner, story) = await SeedStoryAsync();
 
-        await ServerErrors.AssertServerErrorAsync(() =>
-            _factory.ClientFor(owner.Id).PostAsync($"/api/stories/{story.Id}/share?days=3000000", null));
+        var resp = await _factory.ClientFor(owner.Id).PostAsync($"/api/stories/{story.Id}/share?days={days}", null);
+
+        Assert.AreEqual(HttpStatusCode.OK, resp.StatusCode);
+        var expires = (await resp.ReadJsonAsync()).GetProperty("expiresUtc").GetDateTime();
+        Assert.AreEqual(365, (expires - DateTime.UtcNow).TotalDays, 0.01);
+    }
+
+    [TestMethod]
+    public async Task CreateShare_Within_A_Year_Keeps_The_Requested_Days()
+    {
+        var (owner, story) = await SeedStoryAsync();
+
+        var resp = await _factory.ClientFor(owner.Id).PostAsync($"/api/stories/{story.Id}/share?days=365", null);
+
+        var expires = (await resp.ReadJsonAsync()).GetProperty("expiresUtc").GetDateTime();
+        Assert.AreEqual(365, (expires - DateTime.UtcNow).TotalDays, 0.01);
     }
 }

@@ -461,10 +461,8 @@ public class StoryController : ControllerBase
             return (true, false, null);
         }
 
-        if (isFree)
-            return (false, false, "Free users can only generate one story.");
-
-        // 2) Otherwise an add-on credit, only if the balance is still positive.
+        // 2) Otherwise an add-on credit, only if the balance is still positive. Free users can spend credits
+        //    they hold too (kept after a downgrade, or a carried-over free story); Free-plan limits still apply.
         reserved = await _db.Users
             .Where(u => u.Id == user.Id && u.AddOnBalance > 0)
             .ExecuteUpdateAsync(s => s
@@ -477,7 +475,9 @@ public class StoryController : ControllerBase
             return (true, true, null);
         }
 
-        return (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
+        return isFree
+            ? (false, false, "Free users can only generate one story.")
+            : (false, false, $"Your {user.Membership} plan allows {baseQuota} books this period. You've reached your limit.");
     }
 
     private static Task RefundReservedCreditAsync(AppDbContext db, int userId, bool usedAddOn)
