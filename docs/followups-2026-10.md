@@ -27,3 +27,32 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 | 9 | Image prompting / reference-image experiments | exploration | todo |
 | 10 | Deferred CI/test minors (workflow permissions, pin mssql image, job timeouts, refund-on-upload-failure test, etc.) | hygiene | done (chore/ci-test-hygiene) |
 | 11 | Stories interrupted by a restart/deploy keep the credit spent and leave a stuck draft | credits | done (fix/recover-interrupted-stories; adds migration AddStoryReservedFromAddOn) |
+
+## Resume here (state at 2026-10-08, before compacting)
+
+- **PR #68** (staging -> main: items 1-8, 10, new avatars incl. the sleepy-moon default): open, CI green, mergeable.
+  The user is testing on staging, then merges it with **"Create a merge commit"** (not squash; keep `staging` branch).
+  After the merge: watch both prod runs (checks before deploy), then check `https://api.starlitstories.app/healthz`, `/readyz`, `/api/healthz`, `/api/config`.
+- **Item 11 is committed on `fix/recover-interrupted-stories` (commit e0d2ce3), NOT merged to staging on purpose**, so it gets its own PR.
+  After #68 merges: merge the branch into `staging`, push (deploys staging), watch CI, then open a staging -> main PR for the user.
+  The PR must call out: billing-adjacent change, **migration `20261008120000_AddStoryReservedFromAddOn`** (adds `Stories.ReservedFromAddOn bit NOT NULL DEFAULT 0`, hand-written with snapshot update), and the first-run effect below.
+- **Open decision (ask the user if not answered):** on its first prod run, recovery refunds every already-stuck draft as a plan credit
+  (old drafts don't record which credit they used; drafts from earlier months effectively give a bonus story this month).
+  Options: refund all (current behavior) or only drafts younger than 30 days (needs a small change + test).
+- Local tooling notes: Docker Desktop must be running for the SqlServer test category (skipped locally without it; CI runs them).
+  The Azure CLI login has expired (`az login` needed to read Key Vault / App Service settings or prod logs). The Higgsfield MCP has ~1,119 credits.
+- The repo lives in OneDrive; a sync lock once broke `git switch` mid-way (recovered cleanly). Recommend moving it to e.g. `C:\dev\`.
+
+## Next up (user priorities, 2026-10-08)
+
+Item 9 (image prompting / reference images) folds into these. Each is product work: brainstorm and agree on a design with the user before coding.
+
+1. **Make the story's lesson make sense.** `StoryGenerator` (around lines 65-110) asks for the lesson to be "woven in" and to end with a line starting `Lesson:`.
+   Review real outputs for whether the lesson actually follows from the plot; improve the prompt (and possibly the `Lesson:` line format).
+2. **Evaluate the text model.** Story text and scene prompts use `gpt-4.1-mini` (4 call sites). Compare current options on quality, cost, latency for children's stories;
+   keep image quality at `low` (cost policy).
+3. **Make saved characters more intuitive.** UX review of the saved-character flow in `StoryForm.jsx` (`normalizeSavedCharacter`, the saved list, save/delete) and `SavedCharacterController`.
+4. **One character sheet for all characters, used everywhere.** Today one base portrait is generated per story (`BuildBaseCharacterPrompt`) and passed as the single
+   reference to every page/cover edit (`GenerateImagesWithCharacterBaseAsync`). Idea: render every character in the story on one sheet and use it as the reference for all images
+   (gpt-image-2 edits accept multiple `image[]` references; see the earlier research in this conversation's notes).
+   Note: extra characters are currently disabled (`MembershipEntitlements.MaxCharactersPerStory = 1`, `showCharacterTypeAndExtraButton = false` in `StoryForm.jsx`), so this pairs with deciding whether to re-enable multiple characters.
