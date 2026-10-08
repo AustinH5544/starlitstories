@@ -60,3 +60,6 @@ Item 9 (image prompting / reference images) folds into these. Each is product wo
    sizes for the brush, obstacle width (74) and gaps (112-170), so on a ~344-360px-wide screen it overflows and everything looks oversized.
    Likely fix: simulate in a fixed logical world (the existing 760x340 default) and scale the drawing uniformly to fit the container (letterbox if needed),
    so it looks and plays the same everywhere. Verify at Z Fold cover width (~344px) and a normal phone (~390px).
+6. **Zero-downtime deploys.** After the PR #68 prod deploy (2026-10-08 ~20:08 UTC) every normal API request returned an empty 500 for about 2 minutes
+   while the new version started (health endpoints stayed 200), then recovered on its own. Every deploy also restarts the in-process story jobs (item 11 refunds them).
+   Options: an App Service deployment slot with warm-up + swap, or at least `WEBSITE_SWAP_WARMUP_PING_PATH` / health-check settings. Needs Azure access (`az login`).
