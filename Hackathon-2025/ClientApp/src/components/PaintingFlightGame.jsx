@@ -12,6 +12,14 @@ const circleIntersectsRect = (cx, cy, radius, rx, ry, rw, rh) => {
 
 const obstacleTypes = ["books", "shelf", "open-book", "ink"]
 
+// The game simulates in world units and always shows at least this much world.
+// Smaller containers draw it scaled down, so phones get the same view and reaction time as a laptop.
+const MIN_WORLD_WIDTH = 560
+const MIN_WORLD_HEIGHT = 300
+// Overlay text never renders smaller than this on screen, however far the world is scaled down.
+const MIN_TITLE_PX = 18
+const MIN_SUBTITLE_PX = 12
+
 export default function PaintingFlightGame() {
     const containerRef = useRef(null)
     const canvasRef = useRef(null)
@@ -22,6 +30,8 @@ export default function PaintingFlightGame() {
         width: 760,
         height: 340,
         dpr: 1,
+        scale: 1,
+        isTouch: false,
         lastTs: 0,
         brush: { x: 170, y: 170, vy: 0, hitboxRadius: 9, hitboxOffsetX: -2 },
         trail: [],
@@ -47,12 +57,15 @@ export default function PaintingFlightGame() {
         if (!canvas || !container) return
         const rect = container.getBoundingClientRect()
         const dpr = Math.max(1, window.devicePixelRatio || 1)
-        const width = Math.max(360, Math.floor(rect.width))
-        const height = Math.max(240, Math.floor(rect.height))
-        canvas.width = width * dpr
-        canvas.height = height * dpr
-        canvas.style.width = `${width}px`
-        canvas.style.height = `${height}px`
+        const cssWidth = Math.max(1, Math.floor(rect.width))
+        const cssHeight = Math.max(1, Math.floor(rect.height))
+        const scale = Math.min(1, cssWidth / MIN_WORLD_WIDTH, cssHeight / MIN_WORLD_HEIGHT)
+        const width = cssWidth / scale
+        const height = cssHeight / scale
+        canvas.width = Math.round(cssWidth * dpr)
+        canvas.height = Math.round(cssHeight * dpr)
+        canvas.style.width = `${cssWidth}px`
+        canvas.style.height = `${cssHeight}px`
 
         const g = gameRef.current
         const prevW = g.width
@@ -60,6 +73,7 @@ export default function PaintingFlightGame() {
         g.width = width
         g.height = height
         g.dpr = dpr
+        g.scale = scale
         g.brush.x = Math.round(width * 0.24)
         g.brush.y = clamp((g.brush.y / prevH) * height, 35, height - 35)
 
@@ -348,8 +362,10 @@ export default function PaintingFlightGame() {
         const ctx = canvas.getContext("2d")
         if (!ctx) return
         const g = gameRef.current
-        const { width, height, dpr } = g
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        const { width, height, dpr, scale } = g
+        ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0)
+        const fontSize = (worldPx, minScreenPx) => Math.max(worldPx, minScreenPx / scale)
+        const maxTextWidth = width - 24
 
         const bg = ctx.createLinearGradient(0, 0, 0, height)
         bg.addColorStop(0, "#20144a")
@@ -451,12 +467,12 @@ export default function PaintingFlightGame() {
             ctx.fillStyle = "rgba(3,8,25,0.52)"
             ctx.fillRect(0, 0, width, height)
             ctx.fillStyle = "#ffffff"
-            ctx.font = "700 30px 'Trebuchet MS', 'Comic Sans MS', sans-serif"
+            ctx.font = `700 ${fontSize(30, MIN_TITLE_PX)}px 'Trebuchet MS', 'Comic Sans MS', sans-serif`
             ctx.textAlign = "center"
-            ctx.fillText("Press Space to Start", width / 2, height / 2 - 4)
-            ctx.font = "500 15px 'Trebuchet MS', sans-serif"
+            ctx.fillText(g.isTouch ? "Tap to Start" : "Press Space to Start", width / 2, height / 2 - 4, maxTextWidth)
+            ctx.font = `500 ${fontSize(15, MIN_SUBTITLE_PX)}px 'Trebuchet MS', sans-serif`
             ctx.fillStyle = "rgba(255,255,255,0.92)"
-            ctx.fillText("Tap or click also works.", width / 2, height / 2 + 24)
+            ctx.fillText(g.isTouch ? "Keep tapping to float through the gaps." : "Tap or click also works.", width / 2, height / 2 + fontSize(24, 20), maxTextWidth)
             return
         }
 
@@ -464,16 +480,17 @@ export default function PaintingFlightGame() {
             ctx.fillStyle = "rgba(3,8,25,0.55)"
             ctx.fillRect(0, 0, width, height)
             ctx.fillStyle = "#ffffff"
-            ctx.font = "700 26px 'Trebuchet MS', 'Comic Sans MS', sans-serif"
+            ctx.font = `700 ${fontSize(26, MIN_TITLE_PX)}px 'Trebuchet MS', 'Comic Sans MS', sans-serif`
             ctx.textAlign = "center"
-            ctx.fillText("Splash! Tap to Fly Again", width / 2, height / 2 - 4)
-            ctx.font = "500 15px 'Trebuchet MS', sans-serif"
+            ctx.fillText("Splash! Tap to Fly Again", width / 2, height / 2 - 4, maxTextWidth)
+            ctx.font = `500 ${fontSize(15, MIN_SUBTITLE_PX)}px 'Trebuchet MS', sans-serif`
             ctx.fillStyle = "rgba(255,255,255,0.92)"
-            ctx.fillText("Your story is still being crafted in the background.", width / 2, height / 2 + 24)
+            ctx.fillText("Your story is still being crafted in the background.", width / 2, height / 2 + fontSize(24, 20), maxTextWidth)
         }
     }
 
     useEffect(() => {
+        gameRef.current.isTouch = window.matchMedia?.("(pointer: coarse)").matches ?? false
         resizeCanvas()
         restart(false)
 
@@ -559,7 +576,10 @@ export default function PaintingFlightGame() {
             >
                 <canvas ref={canvasRef} className="painting-flight-canvas" />
             </div>
-            <p className="painting-flight-help">Press Space to start. Then tap, click, or press Space/Up to float the magical paintbrush through storybook obstacles.</p>
+            <p className="painting-flight-help">
+                <span className="painting-flight-help-keys">Press Space to start. Then tap, click, or press Space/Up to float the magical paintbrush through storybook obstacles.</span>
+                <span className="painting-flight-help-touch">Tap to start, then keep tapping to float the magical paintbrush through storybook obstacles.</span>
+            </p>
         </div>
     )
 }
