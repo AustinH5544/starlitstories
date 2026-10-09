@@ -28,16 +28,13 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 | 10 | Deferred CI/test minors (workflow permissions, pin mssql image, job timeouts, refund-on-upload-failure test, etc.) | hygiene | done (chore/ci-test-hygiene) |
 | 11 | Stories interrupted by a restart/deploy keep the credit spent and leave a stuck draft | credits | done (fix/recover-interrupted-stories; adds migration AddStoryReservedFromAddOn) |
 
-## Resume here (state at 2026-10-08, before compacting)
+## Resume here (state at 2026-10-09)
 
-- **PR #68** (staging -> main: items 1-8, 10, new avatars incl. the sleepy-moon default): **merged 2026-10-08 as merge commit ada0d05**.
-  After the merge: watch both prod runs (checks before deploy), then check `https://api.starlitstories.app/healthz`, `/readyz`, `/api/healthz`, `/api/config`.
-- **Item 11 is committed on `fix/recover-interrupted-stories` (commit e0d2ce3), NOT merged to staging on purpose**, so it gets its own PR.
-  After #68 merges: merge the branch into `staging`, push (deploys staging), watch CI, then open a staging -> main PR for the user.
-  The PR must call out: billing-adjacent change, **migration `20261008120000_AddStoryReservedFromAddOn`** (adds `Stories.ReservedFromAddOn bit NOT NULL DEFAULT 0`, hand-written with snapshot update), and the first-run effect below.
-- **Open decision (ask the user if not answered):** on its first prod run, recovery refunds every already-stuck draft as a plan credit
-  (old drafts don't record which credit they used; drafts from earlier months effectively give a bonus story this month).
-  Options: refund all (current behavior) or only drafts younger than 30 days (needs a small change + test).
+- **PR #68** (items 1-8, 10, new avatars) merged 2026-10-08 as ada0d05. **PR #69** (item 11, interrupted-story recovery + migration
+  `20261008120000_AddStoryReservedFromAddOn`) merged 2026-10-08 as 027e509. Both prod runs passed; prod `/healthz` is 200 and the API started, so the migration applied.
+- The user merged #69 with the default first-run behavior: recovery refunds **every** already-stuck draft as a plan credit (no 30-day cutoff).
+- Items 1-8, 10 and 11 are all in prod. Work continues with "Next up" below, starting with item 1 (lessons).
+- **Prompt changes are reviewed with the user before any push, even to staging**: show the before/after prompt text and sample outputs first.
 - Local tooling notes: Docker Desktop must be running for the SqlServer test category (skipped locally without it; CI runs them).
   The Azure CLI login has expired (`az login` needed to read Key Vault / App Service settings or prod logs). The Higgsfield MCP has ~1,119 credits.
 - The repo lives in OneDrive; a sync lock once broke `git switch` mid-way (recovered cleanly). Recommend moving it to e.g. `C:\dev\`.
