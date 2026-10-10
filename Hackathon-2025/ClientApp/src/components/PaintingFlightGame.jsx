@@ -14,7 +14,7 @@ const obstacleTypes = ["books", "shelf", "open-book", "ink"]
 
 // The game simulates in world units and always shows at least this much world.
 // Smaller containers draw it scaled down, so phones get the same view and reaction time as a laptop.
-const MIN_WORLD_WIDTH = 560
+const MIN_WORLD_WIDTH = 460
 const MIN_WORLD_HEIGHT = 300
 // Overlay text never renders smaller than this on screen, however far the world is scaled down.
 const MIN_TITLE_PX = 18

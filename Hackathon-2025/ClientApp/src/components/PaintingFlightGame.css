@@ -70,7 +70,7 @@
 @media (max-width: 768px) {
     .painting-flight-canvas-wrap {
         height: auto;
-        aspect-ratio: 16 / 9;
+        aspect-ratio: 4 / 3;
         max-height: 240px;
     }
 }
