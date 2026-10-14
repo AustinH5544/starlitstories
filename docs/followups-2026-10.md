@@ -43,6 +43,10 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 - Local tooling notes: Docker Desktop must be running for the SqlServer test category (skipped locally without it; CI runs them).
   The Azure CLI login has expired (`az login` needed to read Key Vault / App Service settings or prod logs). The Higgsfield MCP has ~1,119 credits.
 - The repo lives in OneDrive; a sync lock once broke `git switch` mid-way (recovered cleanly). Recommend moving it to e.g. `C:\dev\`.
+- **Azure SQL cost (2026-10-14):** the one database (`hackathonserver2025/Hackathon2025Db`, serverless GP_S_Gen5, 0.5-1 vCore, 15 min auto-pause)
+  billed ~58k vCore-s/day (~$8.50/day, never paused) from 2026-10-09, because `StaleDraftRecoveryService` queried every 10 minutes on prod
+  (B1, Always On). fix/recovery-lets-db-sleep: check once at startup, re-check only while drafts are generating, then stop.
+  Open: confirm whether staging (`starlitstories-api-dev`) points at the same database; raise the $10/mo budget (B1 alone is ~$13/mo).
 
 ## Next up (user priorities, 2026-10-08)
 
