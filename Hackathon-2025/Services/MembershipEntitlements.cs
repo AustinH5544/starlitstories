@@ -32,6 +32,11 @@ public static class MembershipEntitlements
         "hairColorCustom",
         "hairStyle",
         "hairStyleCustom",
+        // A simple dress or overalls is open to every plan (2026-10-13); detailed tops, bottoms and shoe styles stay paid.
+        "onePieceColor",
+        "onePieceColorCustom",
+        "onePieceWear",
+        "onePieceWearCustom",
         "pantsColor",
         "pantsColorCustom",
         "shirtColor",

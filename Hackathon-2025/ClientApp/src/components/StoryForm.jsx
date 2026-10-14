@@ -22,6 +22,7 @@ const createEmptyCharacter = (role = "main") => ({
 })
 
 const cloneCharacter = (character) => JSON.parse(JSON.stringify(character))
+const OTHER_OPTION = "__other__"
 const MAX_CHARACTERS_PER_STORY = 1
 const MAX_ACCESSORIES_PER_CHARACTER = 5
 const ACCESSORY_FIELDS = Array.from({ length: MAX_ACCESSORIES_PER_CHARACTER }, (_, index) =>
@@ -178,7 +179,7 @@ const getAccessoryFieldCountForCharacter = (character = {}) => {
 const getAccessoryFieldCounts = (characterList = []) =>
     characterList.map((character) => getAccessoryFieldCountForCharacter(character))
 
-const getCharacterValidationResult = (character, { advanced }) => {
+const getCharacterValidationResult = (character) => {
     if (!hasValue(character?.name)) {
         return { field: "name", message: "Please enter a character name." }
     }
@@ -199,6 +200,7 @@ const getCharacterValidationResult = (character, { advanced }) => {
         return null
     }
 
+    // Only what the illustrator can't sensibly choose is required (decided 2026-10-13); every other detail is optional.
     if (!hasValue(fields.age) && !hasValue(fields.ageCustom)) {
         return { field: "age", message: "Please choose an age for the character." }
     }
@@ -208,63 +210,46 @@ const getCharacterValidationResult = (character, { advanced }) => {
     if (!hasValue(fields.skinTone) && !hasValue(fields.skinToneCustom)) {
         return { field: "skinTone", message: "Please choose a skin tone for the character." }
     }
-    if (!hasValue(fields.eyeColor) && !hasValue(fields.eyeColorCustom)) {
-        return { field: "eyeColor", message: "Please choose an eye color for the character." }
-    }
-
-    const hasOnePiece = hasValue(fields.onePieceWear) || hasValue(fields.onePieceWearCustom)
-    if (advanced) {
-        if (hasOnePiece && !hasValue(fields.onePieceColor) && !hasValue(fields.onePieceColorCustom)) {
-            return { field: "onePieceColor", message: "Please choose a one-piece color for the character." }
-        }
-
-        const hasTop = hasValue(fields.topWear) || hasValue(fields.topWearCustom)
-        const hasBottom = hasValue(fields.bottomWear) || hasValue(fields.bottomWearCustom)
-        const allowsTopLayer = onePieceAllowsTopLayer(fields.onePieceWearCustom || fields.onePieceWear || "")
-
-        if (!hasOnePiece && !hasTop) {
-            return { field: "topWear", message: "Please choose a top or a one-piece outfit for the character." }
-        }
-        if (hasTop && !hasValue(fields.topWearColor) && !hasValue(fields.topWearColorCustom)) {
-            return { field: "topWearColor", message: "Please choose a top color for the character." }
-        }
-        if (!hasOnePiece && !hasBottom) {
-            return { field: "bottomWear", message: "Please choose a bottom for the character." }
-        }
-        if (!hasOnePiece && hasBottom && !hasValue(fields.bottomWearColor) && !hasValue(fields.bottomWearColorCustom)) {
-            return { field: "bottomWearColor", message: "Please choose a bottom color for the character." }
-        }
-        if (hasOnePiece && allowsTopLayer && hasTop && !hasValue(fields.topWearColor) && !hasValue(fields.topWearColorCustom)) {
-            return { field: "topWearColor", message: "Please choose a top color for the layered outfit." }
-        }
-        if (!hasValue(fields.shoeColor) && !hasValue(fields.shoeColorCustom)) {
-            return { field: "shoeColor", message: "Please choose a shoe color for the character." }
-        }
-    } else {
-        if (!hasValue(fields.shirtColor) && !hasValue(fields.shirtColorCustom)) {
-            return { field: "shirtColor", message: "Please choose a shirt color for the character." }
-        }
-        if (!hasValue(fields.pantsColor) && !hasValue(fields.pantsColorCustom)) {
-            return { field: "pantsColor", message: "Please choose a pants color for the character." }
-        }
-        if (!hasValue(fields.shoeColor) && !hasValue(fields.shoeColorCustom)) {
-            return { field: "shoeColor", message: "Please choose a shoe color for the character." }
-        }
+    if (!hasValue(fields.hairColor) && !hasValue(fields.hairColorCustom)) {
+        return { field: "hairColor", message: "Please choose a hair color for the character." }
     }
 
     return null
 }
 
-// Characters saved with the advanced creator (tops, bottoms, one-pieces) need it switched on to load and validate correctly.
+// The simple outfit choices open to every plan; anything else (tops, bottoms, shoe styles, other one-pieces) is "detailed".
+const SHIRT_AND_PANTS = "shirt and pants"
+const SIMPLE_OUTFITS = [
+    { value: SHIRT_AND_PANTS, label: "Shirt & pants" },
+    { value: "dress", label: "Dress" },
+    { value: "overalls", label: "Overalls" },
+]
+const DETAILED_OUTFIT_FIELDS = ["topWear", "topWearColor", "bottomWear", "bottomWearColor", "shoeStyle"]
+
+// Characters saved with the detailed outfit options need them switched on to show those fields.
 const usesAdvancedOutfit = (character = {}) => {
     const fields = getSavedDescriptionFields(character)
-    return ["topWear", "bottomWear", "onePieceWear"].some(
-        (field) => hasValue(fields[field]) || hasValue(fields[`${field}Custom`])
-    )
+    const onePiece = String(fields.onePieceWearCustom || fields.onePieceWear || "").trim().toLowerCase()
+    return DETAILED_OUTFIT_FIELDS.some((field) => hasValue(fields[field]) || hasValue(fields[`${field}Custom`])) ||
+        (onePiece.length > 0 && !SIMPLE_OUTFITS.some((o) => o.value === onePiece))
 }
 
-// A short, readable line for a character card, e.g. "7-year-old girl · red pigtails · yellow dress".
-const describeCharacter = (character = {}) => {
+// With the detailed options off, drop detailed outfit fields left over from before, so the book shows what the form shows.
+const withoutDetailedOutfit = (character) => {
+    const fields = { ...getSavedDescriptionFields(character) }
+    DETAILED_OUTFIT_FIELDS.forEach((field) => {
+        delete fields[field]
+        delete fields[`${field}Custom`]
+    })
+    return { ...character, descriptionFields: fields }
+}
+
+// "brown messy hair" reads well; "red pigtails hair" doesn't, so named styles stand on their own.
+const DESCRIPTIVE_HAIR_STYLES = ["straight", "wavy", "curly", "coily", "messy", "spiky", "wind-swept", "slicked back", "braided", "shoulder-length", "long", "short", "shaved"]
+
+// A readable line about a character, e.g. "7-year-old girl · red pigtails · yellow dress" on cards,
+// with skin, eyes, shoes and accessories added for the editor's live summary.
+const describeCharacter = (character = {}, { detailed = false } = {}) => {
     const f = normalizeDescFields(getSavedDescriptionFields(character))
     const join = (...values) => values.filter(hasValue).join(" ")
 
@@ -273,19 +258,32 @@ const describeCharacter = (character = {}) => {
     }
 
     const who = join(hasValue(f.age) ? `${f.age}-year-old` : "", f.gender)
-    // "brown messy hair" reads well; "red pigtails hair" doesn't, so named styles stand on their own.
-    const styleIsDescriptive = ["straight", "wavy", "curly", "coily", "messy", "spiky", "wind-swept", "slicked back", "braided", "shoulder-length", "long", "short", "shaved"]
-        .includes(String(f.hairStyle || "").trim().toLowerCase())
+    const styleIsDescriptive = DESCRIPTIVE_HAIR_STYLES.includes(String(f.hairStyle || "").trim().toLowerCase())
     const hair = !hasValue(f.hairStyle)
         ? (hasValue(f.hairColor) ? join(f.hairColor, "hair") : "")
         : join(f.hairColor, f.hairStyle, styleIsDescriptive ? "hair" : "")
+    const onePieceOutfit = join(f.onePieceColor, f.onePieceWear)
     const outfit = hasValue(f.onePieceWear)
-        ? join(f.onePieceColor, f.onePieceWear)
+        ? (onePieceAllowsTopLayer(f.onePieceWear) && hasValue(f.shirtColor)
+            ? `${onePieceOutfit} over a ${f.shirtColor} shirt`
+            : onePieceOutfit)
         : hasValue(f.topWear)
-            ? join(f.topWearColor, f.topWear)
-            : hasValue(f.shirtColor) ? join(f.shirtColor, "shirt") : ""
+            ? [join(f.topWearColor, f.topWear), join(f.bottomWearColor, f.bottomWear)].filter(hasValue).join(" and ")
+            : [hasValue(f.shirtColor) ? join(f.shirtColor, "shirt") : "", hasValue(f.pantsColor) ? join(f.pantsColor, "pants") : ""]
+                .filter(hasValue).join(" and ")
 
-    return [who, hair, outfit].filter(hasValue).join(" · ")
+    if (!detailed) {
+        return [who, hair, hasValue(f.onePieceWear) ? onePieceOutfit : outfit.split(" and ")[0]].filter(hasValue).join(" · ")
+    }
+
+    const tone = SKIN_TONES.find((t) => t.value === f.skinTone)?.label || f.skinTone
+    const toneText = String(tone || "").toLowerCase()
+    const skin = !hasValue(toneText) ? "" : toneText.includes("skin") ? toneText : `${toneText} skin`
+    const eyes = hasValue(f.eyeColor) ? `${f.eyeColor} eyes` : ""
+    const shoes = hasValue(f.shoeStyle) ? join(f.shoeColor, f.shoeStyle) : hasValue(f.shoeColor) ? `${f.shoeColor} shoes` : ""
+    const accessories = ACCESSORY_FIELDS.map((field) => f[field]).filter(hasValue).join(", ")
+
+    return [who, skin, hair, eyes, outfit, shoes, accessories].filter(hasValue).join(" · ")
 }
 
 const StoryForm = ({ onSubmit }) => {
@@ -520,26 +518,14 @@ const StoryForm = ({ onSubmit }) => {
 
         humanAccessories: sortedUnique([
             "backpack", "bowtie", "bracelet", "cape", "crown",
-            "glasses", "hair bow", "headband", "hat", "necklace",
-            "satchel", "scarf", "wand", "watch",
+            "glasses", "hair bow", "headband", "hat", "hearing aids", "necklace",
+            "satchel", "scarf", "wand", "watch", "wheelchair",
         ]),
 
         animalAccessories: sortedUnique([
             "bandana", "bell", "bow", "collar", "flower crown",
             "harness", "ribbon", "saddle", "tiny hat",
         ]),
-    }
-
-    const basicOptions = {
-        eyeColor: sortedUnique(["amber", "blue", "brown", "gray", "green", "hazel", "violet"]),
-        hairColor: sortedUnique([
-            "auburn", "black", "blonde", "blue", "brown", "dark brown",
-            "dirty blonde", "gray", "green", "light brown", "pink",
-            "purple", "red", "white",
-        ]),
-        pantsColor: sortedUnique(["black", "blue", "brown", "gray", "green", "khaki", "white"]),
-        shirtColor: sortedUnique(["black", "blue", "green", "orange", "pink", "purple", "red", "white", "yellow"]),
-        shoeColor: sortedUnique(["black", "blue", "brown", "gold", "green", "pink", "red", "silver", "white", "yellow"]),
     }
 
     const defaultThemes = [
@@ -591,11 +577,27 @@ const StoryForm = ({ onSubmit }) => {
         setCharacters(updated)
     }
 
-    const handleFieldChange = (index, field, value) => {
-        const updated = [...characters]
-        updated[index].descriptionFields[field] = value
-        setCharacters(updated)
+    const usingDetailedOutfit = canUseAdvancedCharacterCreation && showAdvancedOptions
+    const outfitAsShown = (character) => (usingDetailedOutfit ? character : withoutDetailedOutfit(character))
+
+    // Applies several description-field changes at once; a value of undefined removes that field.
+    const updateFields = (index, patch) => {
+        setCharacters((current) => current.map((character, i) => {
+            if (i !== index) return character
+            const nextFields = { ...character.descriptionFields, ...patch }
+            Object.keys(patch).forEach((key) => {
+                if (patch[key] === undefined) delete nextFields[key]
+            })
+            return { ...character, descriptionFields: nextFields }
+        }))
     }
+
+    const handleFieldChange = (index, field, value) => updateFields(index, { [field]: value })
+
+    // Which dropdowns have their "Other…" text box open, keyed "index:field".
+    const [openCustomFields, setOpenCustomFields] = useState({})
+    const setCustomOpen = (index, field, isOpen) =>
+        setOpenCustomFields((current) => ({ ...current, [`${index}:${field}`]: isOpen }))
 
     const addAccessoryField = (index) => {
         setAccessoryFieldCounts((current) => {
@@ -634,16 +636,14 @@ const StoryForm = ({ onSubmit }) => {
 
     const handleSaveCharacter = async () => {
         const mainCharacter = characters[0]
-        const validationResult = getCharacterValidationResult(mainCharacter, {
-            advanced: canUseAdvancedCharacterCreation && showAdvancedOptions,
-        })
+        const validationResult = getCharacterValidationResult(mainCharacter)
         if (validationResult) {
             showValidationPopup(validationResult.field, validationResult.message)
             return
         }
 
         const toSave = cloneCharacter(prepareCharacterForSubmit({
-            ...mainCharacter,
+            ...outfitAsShown(mainCharacter),
             role: "main",
             roleCustom: "",
         }))
@@ -705,6 +705,7 @@ const StoryForm = ({ onSubmit }) => {
         }
         setCharacters([cloneCharacter(item.character)])
         setAccessoryFieldCounts(getAccessoryFieldCounts([item.character]))
+        setOpenCustomFields({})
         setSelectedSavedCharacterId(String(item.id))
         setEditingSavedCharacterId(item.id)
         setSavedCharacterNotice("")
@@ -753,6 +754,7 @@ const StoryForm = ({ onSubmit }) => {
     }
 
     const handleStartNewCharacter = () => {
+        setOpenCustomFields({})
         setEditingSavedCharacterId(null)
         setSelectedSavedCharacterId("")
         setCharacters([createEmptyCharacter("main")])
@@ -773,9 +775,7 @@ const StoryForm = ({ onSubmit }) => {
         }
 
         const validationResult = characters
-            .map((character) => getCharacterValidationResult(character, {
-                advanced: canUseAdvancedCharacterCreation && showAdvancedOptions,
-            }))
+            .map((character) => getCharacterValidationResult(character))
             .find(Boolean)
 
         if (validationResult) {
@@ -784,7 +784,7 @@ const StoryForm = ({ onSubmit }) => {
         }
 
         const processedCharacters = characters
-            .map((c) => prepareCharacterForSubmit(c))
+            .map((c) => prepareCharacterForSubmit(outfitAsShown(c)))
             .slice(0, MAX_CHARACTERS_PER_STORY)
 
         const finalArtStyle = isFree ? "watercolor" : artStyle
@@ -810,6 +810,8 @@ const StoryForm = ({ onSubmit }) => {
         onSubmit(request)
     }
 
+    // A dropdown whose last option, "Other…", opens a text box for the parent's own words.
+    // The text box only shows when "Other…" is picked or a custom value already exists.
     const renderDropdownWithCustom = (
         index,
         field,
@@ -817,46 +819,60 @@ const StoryForm = ({ onSubmit }) => {
         options = [],
         disabled = false
     ) => {
-        const selectedValue = characters[index].descriptionFields[field] || ""
-        const customValue = characters[index].descriptionFields[field + "Custom"] || ""
-        const isFieldDisabled = disabled || !!customValue
-        const displaySelectValue = customValue ? "" : selectedValue
-        const selectClassName = `form-select${displaySelectValue ? " is-filled" : ""}`
-        const inputClassName = `form-input${customValue ? " is-filled" : ""}`
+        const fields = characters[index].descriptionFields
+        const selectedValue = fields[field] || ""
+        const customValue = fields[field + "Custom"] || ""
+        const showCustom = !!customValue || !!openCustomFields[`${index}:${field}`]
+        // Keep a saved value visible even if it isn't in today's list.
+        const listedOptions = selectedValue && !options.includes(selectedValue) ? [...options, selectedValue] : options
+        const displaySelectValue = showCustom ? OTHER_OPTION : selectedValue
+        const selectClassName = `form-select${selectedValue || customValue ? " is-filled" : ""}`
+        const customInputId = `${field}Custom-${index}`
 
         return (
             <div className="field-group">
-                <label className="field-label">{label}</label>
-                <div className="dual-input-container">
-                    <select
-                        data-field={field}
-                        value={displaySelectValue}
-                        onChange={(e) => {
-                            clearValidationMessage(e)
-                            handleFieldChange(index, field, e.target.value)
-                        }}
-                        className={selectClassName}
-                        disabled={isFieldDisabled}
-                    >
-                        <option value="">Select {label}</option>
-                        {options.map((opt) => (
-                            <option key={opt} value={opt}>
-                                {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                            </option>
-                        ))}
-                    </select>
+                <label className="field-label" htmlFor={`${field}-${index}`}>{label}</label>
+                <select
+                    id={`${field}-${index}`}
+                    data-field={field}
+                    value={displaySelectValue}
+                    onChange={(e) => {
+                        clearValidationMessage(e)
+                        const next = e.target.value
+                        if (next === OTHER_OPTION) {
+                            setCustomOpen(index, field, true)
+                            updateFields(index, { [field]: undefined })
+                            requestAnimationFrame(() => document.getElementById(customInputId)?.focus())
+                        } else {
+                            setCustomOpen(index, field, false)
+                            updateFields(index, { [field]: next, [field + "Custom"]: undefined })
+                        }
+                    }}
+                    className={selectClassName}
+                    disabled={disabled}
+                >
+                    <option value="">Select {label.replace(/\s*\(optional\)$/i, "")}</option>
+                    {listedOptions.map((opt) => (
+                        <option key={opt} value={opt}>
+                            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                        </option>
+                    ))}
+                    <option value={OTHER_OPTION}>Other…</option>
+                </select>
+                {showCustom && (
                     <input
+                        id={customInputId}
                         data-field={`${field}Custom`}
-                        placeholder={`Or enter custom ${label.toLowerCase()}`}
+                        placeholder={`Describe the ${label.replace(/\s*\(optional\)$/i, "").toLowerCase()} in your own words`}
                         value={customValue}
                         onChange={(e) => {
                             clearValidationMessage(e)
                             handleFieldChange(index, field + "Custom", e.target.value)
                         }}
-                        className={inputClassName}
+                        className={`form-input custom-detail-input${customValue ? " is-filled" : ""}`}
                         disabled={disabled}
                     />
-                </div>
+                )}
             </div>
         )
     }
@@ -866,13 +882,15 @@ const StoryForm = ({ onSubmit }) => {
     const renderSkinTonePicker = (index) => {
         const fields = characters[index].descriptionFields
         const customValue = fields.skinToneCustom || ""
+        const showCustom = !!customValue || !!openCustomFields[`${index}:skinTone`]
         const groupName = `skinTone-${index}`
+        const customInputId = `skinToneCustom-${index}`
         const clearGroupValidity = (event) => {
             event.target.form?.querySelectorAll(`input[name="${groupName}"]`).forEach((input) => input.setCustomValidity(""))
         }
 
         return (
-            <div className="field-group">
+            <div className="field-group skin-tone-field">
                 <label className="field-label" id={`${groupName}-label`}>Skin Tone</label>
                 <div className="skin-tone-swatches" role="radiogroup" aria-labelledby={`${groupName}-label`}>
                     {SKIN_TONES.map((tone, toneIndex) => {
@@ -888,7 +906,7 @@ const StoryForm = ({ onSubmit }) => {
                                     data-field={toneIndex === 0 ? "skinTone" : undefined}
                                     onChange={(e) => {
                                         clearGroupValidity(e)
-                                        handleFieldChange(index, "skinTone", tone.value)
+                                        updateFields(index, { skinTone: tone.value, skinToneCustom: undefined })
                                     }}
                                 />
                                 <span className="skin-tone-chip" style={{ background: tone.swatch }} aria-hidden="true" />
@@ -897,17 +915,122 @@ const StoryForm = ({ onSubmit }) => {
                         )
                     })}
                 </div>
-                <input
-                    data-field="skinToneCustom"
-                    placeholder="Or describe the skin tone in your own words"
-                    value={customValue}
-                    onChange={(e) => {
-                        clearValidationMessage(e)
-                        handleFieldChange(index, "skinToneCustom", e.target.value)
-                    }}
-                    className={`form-input skin-tone-custom${customValue ? " is-filled" : ""}`}
-                />
+                {showCustom ? (
+                    <div className="custom-detail-row">
+                        <input
+                            id={customInputId}
+                            data-field="skinToneCustom"
+                            placeholder="Describe the skin tone in your own words"
+                            value={customValue}
+                            onChange={(e) => {
+                                clearValidationMessage(e)
+                                handleFieldChange(index, "skinToneCustom", e.target.value)
+                            }}
+                            className={`form-input custom-detail-input${customValue ? " is-filled" : ""}`}
+                        />
+                        <button
+                            type="button"
+                            className="text-link-btn"
+                            onClick={() => {
+                                setCustomOpen(index, "skinTone", false)
+                                updateFields(index, { skinToneCustom: undefined })
+                            }}
+                        >
+                            Use the color chips instead
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        className="text-link-btn"
+                        onClick={() => {
+                            setCustomOpen(index, "skinTone", true)
+                            requestAnimationFrame(() => document.getElementById(customInputId)?.focus())
+                        }}
+                    >
+                        Or describe it in your own words
+                    </button>
+                )}
             </div>
+        )
+    }
+
+    // Every plan: shirt & pants, a dress, or overalls (over a shirt), each with optional colors.
+    const renderSimpleOutfit = (index) => {
+        const fields = characters[index].descriptionFields
+        const onePiece = String(fields.onePieceWear || "").trim().toLowerCase()
+        const outfit = onePiece || SHIRT_AND_PANTS
+        const outfitOptions = SIMPLE_OUTFITS.some((o) => o.value === outfit)
+            ? SIMPLE_OUTFITS
+            : [...SIMPLE_OUTFITS, { value: outfit, label: outfit.charAt(0).toUpperCase() + outfit.slice(1) }]
+        const outfitLabel = outfitOptions.find((o) => o.value === outfit)?.label || "Outfit"
+
+        const chooseOutfit = (next) => {
+            if (next === SHIRT_AND_PANTS) {
+                updateFields(index, { onePieceWear: undefined, onePieceWearCustom: undefined, onePieceColor: undefined, onePieceColorCustom: undefined })
+            } else if (next === "dress") {
+                updateFields(index, {
+                    onePieceWear: "dress", onePieceWearCustom: undefined,
+                    shirtColor: undefined, shirtColorCustom: undefined, pantsColor: undefined, pantsColorCustom: undefined,
+                })
+            } else {
+                updateFields(index, { onePieceWear: next, onePieceWearCustom: undefined, pantsColor: undefined, pantsColorCustom: undefined })
+            }
+        }
+
+        return (
+            <>
+                <div className="field-group">
+                    <label className="field-label" htmlFor={`outfit-${index}`}>Outfit</label>
+                    <select
+                        id={`outfit-${index}`}
+                        data-field="outfit"
+                        className="form-select is-filled"
+                        value={outfit}
+                        onChange={(e) => chooseOutfit(e.target.value)}
+                    >
+                        {outfitOptions.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                    </select>
+                </div>
+                {outfit === SHIRT_AND_PANTS ? (
+                    <>
+                        {renderDropdownWithCustom(index, "shirtColor", "Shirt Color (optional)", defaultOptions.topWearColor)}
+                        {renderDropdownWithCustom(index, "pantsColor", "Pants Color (optional)", defaultOptions.bottomWearColor)}
+                    </>
+                ) : (
+                    <>
+                        {renderDropdownWithCustom(index, "onePieceColor", `${outfitLabel} Color (optional)`, defaultOptions.onePieceColor)}
+                        {onePieceAllowsTopLayer(outfit) &&
+                            renderDropdownWithCustom(index, "shirtColor", "Shirt Color (optional)", defaultOptions.topWearColor)}
+                    </>
+                )}
+                {renderDropdownWithCustom(index, "shoeColor", "Shoe Color (optional)", defaultOptions.shoeColor)}
+            </>
+        )
+    }
+
+    // Pro and Premium: one-piece outfits, separate tops and bottoms, and shoe styles.
+    const renderDetailedOutfit = (index) => {
+        const fields = characters[index].descriptionFields
+        const onePieceValue = (fields.onePieceWearCustom || "").trim() || (fields.onePieceWear || "").trim()
+        const hasOnePieceOutfit = onePieceValue.length > 0
+        const disableTopFields = hasOnePieceOutfit && !onePieceAllowsTopLayer(onePieceValue)
+        const disableBottomFields = hasOnePieceOutfit
+
+        return (
+            <>
+                {renderDropdownWithCustom(index, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
+                {hasOnePieceOutfit &&
+                    renderDropdownWithCustom(index, "onePieceColor", "One-Piece Color (optional)", defaultOptions.onePieceColor)}
+                {renderDropdownWithCustom(index, "topWear", "Top (optional)", defaultOptions.topWear, disableTopFields)}
+                {renderDropdownWithCustom(index, "topWearColor", "Top Color (optional)", defaultOptions.topWearColor, disableTopFields)}
+                {renderDropdownWithCustom(index, "bottomWear", "Bottom (optional)", defaultOptions.bottomWear, disableBottomFields)}
+                {renderDropdownWithCustom(index, "bottomWearColor", "Bottom Color (optional)", defaultOptions.bottomWearColor, disableBottomFields)}
+                {renderDropdownWithCustom(index, "shoeStyle", "Shoe Style (optional)", defaultOptions.shoeStyle)}
+                {renderDropdownWithCustom(index, "shoeColor", "Shoe Color (optional)", defaultOptions.shoeColor)}
+            </>
         )
     }
 
@@ -1149,30 +1272,6 @@ const StoryForm = ({ onSubmit }) => {
                         </div>
                     )}
 
-                    {i === 0 && canUseAdvancedCharacterCreation && (
-                        <div className="field-group" style={{ marginTop: "1rem" }}>
-                            <label className="toggle-label">
-                                <input
-                                    type="checkbox"
-                                    className="toggle-checkbox"
-                                    checked={showAdvancedOptions}
-                                    onChange={(e) => setShowAdvancedOptions(e.target.checked)}
-                                />
-                                <span className="toggle-slider" />
-                                <span className="toggle-text">
-                                    Show advanced character options
-                                </span>
-                            </label>
-                        </div>
-                    )}
-                    {i === 0 && !canUseAdvancedCharacterCreation && (
-                        <div className="field-group" style={{ marginTop: "1rem" }}>
-                            <p className="field-hint">
-                                Advanced character creation is available on Pro and Premium. Free includes the standard character creator.
-                            </p>
-                        </div>
-                    )}
-
                     <div className="character-details">
                         {char.isAnimal ? (
                             <>
@@ -1185,54 +1284,46 @@ const StoryForm = ({ onSubmit }) => {
                             <>
                                 {renderDropdownWithCustom(i, "age", "Age", defaultOptions.age)}
                                 {renderDropdownWithCustom(i, "gender", "Gender", defaultOptions.gender)}
-                                {(() => {
-                                    const hasOnePieceOutfit =
-                                        ((char.descriptionFields.onePieceWear || "").trim()).length > 0 ||
-                                        ((char.descriptionFields.onePieceWearCustom || "").trim()).length > 0
-                                    const onePieceValue =
-                                        (char.descriptionFields.onePieceWearCustom || "").trim() ||
-                                        (char.descriptionFields.onePieceWear || "").trim()
-                                    const allowsTopLayer = onePieceAllowsTopLayer(onePieceValue)
-                                    const disableTopFields = hasOnePieceOutfit && !allowsTopLayer
-                                    const disableBottomFields = hasOnePieceOutfit
+                                {renderSkinTonePicker(i)}
+                                {renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)}
+                                {renderDropdownWithCustom(i, "hairStyle", "Hair Style (optional)", HAIR_STYLES)}
+                                {renderDropdownWithCustom(i, "eyeColor", "Eye Color (optional)", defaultOptions.eyeColor)}
 
-                                    return (
-                                        <>
-                                            {showAdvancedOptions ? (
-                                                <>
-                                                    {renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)}
-                                                    {renderDropdownWithCustom(i, "hairStyle", "Hair Style (optional)", HAIR_STYLES)}
-                                                    {renderSkinTonePicker(i)}
-                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
-                                                    {renderDropdownWithCustom(i, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
-                                                    {hasOnePieceOutfit
-                                                        ? renderDropdownWithCustom(i, "onePieceColor", "One-Piece Color", defaultOptions.onePieceColor)
-                                                        : null}
-                                                    {renderDropdownWithCustom(i, "topWear", "Top", defaultOptions.topWear, disableTopFields)}
-                                                    {renderDropdownWithCustom(i, "topWearColor", "Top Color", defaultOptions.topWearColor, disableTopFields)}
-                                                    {renderDropdownWithCustom(i, "bottomWear", "Bottom", defaultOptions.bottomWear, disableBottomFields)}
-                                                    {renderDropdownWithCustom(i, "bottomWearColor", "Bottom Color", defaultOptions.bottomWearColor, disableBottomFields)}
-                                                    {renderDropdownWithCustom(i, "shoeStyle", "Shoe Style", defaultOptions.shoeStyle)}
-                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", defaultOptions.shoeColor)}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {renderDropdownWithCustom(i, "hairColor", "Hair Color", basicOptions.hairColor)}
-                                                    {renderDropdownWithCustom(i, "hairStyle", "Hair Style (optional)", HAIR_STYLES)}
-                                                    {renderSkinTonePicker(i)}
-                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", basicOptions.eyeColor)}
-                                                    {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", basicOptions.shirtColor)}
-                                                    {renderDropdownWithCustom(i, "pantsColor", "Pants Color", basicOptions.pantsColor)}
-                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", basicOptions.shoeColor)}
-                                                </>
-                                            )}
-                                        </>
-                                    )
-                                })()}
+                                <div className="character-subsection">
+                                    <h4 className="character-subsection-title">Outfit</h4>
+                                    {i === 0 && canUseAdvancedCharacterCreation && (
+                                        <div className="field-group">
+                                            <label className="toggle-label">
+                                                <input
+                                                    type="checkbox"
+                                                    className="toggle-checkbox"
+                                                    checked={showAdvancedOptions}
+                                                    onChange={(e) => setShowAdvancedOptions(e.target.checked)}
+                                                />
+                                                <span className="toggle-slider" />
+                                                <span className="toggle-text">Detailed outfit options</span>
+                                            </label>
+                                        </div>
+                                    )}
+                                    {canUseAdvancedCharacterCreation && showAdvancedOptions
+                                        ? renderDetailedOutfit(i)
+                                        : renderSimpleOutfit(i)}
+                                    {i === 0 && !canUseAdvancedCharacterCreation && (
+                                        <p className="field-hint">
+                                            Detailed outfits (tops, skirts, shoe styles and more) come with Pro and Premium.
+                                        </p>
+                                    )}
+                                </div>
+
                                 {renderAccessoryFields(i, defaultOptions.humanAccessories)}
                             </>
                         )}
                     </div>
+                    {!!describeCharacter(char, { detailed: true }) && (
+                        <p className="character-summary" aria-live="polite">
+                            <strong>{char.name?.trim() || "Your character"}:</strong> {describeCharacter(char, { detailed: true })}
+                        </p>
+                    )}
                 </div>
                 ))}
             </div>

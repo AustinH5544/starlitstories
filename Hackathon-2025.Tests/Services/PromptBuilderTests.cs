@@ -188,6 +188,35 @@ public class PromptBuilderTests
         StringAssert.Matches(PortraitFor(fields), new System.Text.RegularExpressions.Regex(", " + System.Text.RegularExpressions.Regex.Escape(expected) + "[,.]"));
     }
 
+    [DataTestMethod]
+    [DataRow("wheelchair", "using a wheelchair")]
+    [DataRow("hearing aids", "wearing hearing aids")]
+    [DataRow("glasses", "glasses")]
+    public void Accessories_Read_Naturally_In_Image_Prompts(string accessory, string expected)
+    {
+        var prompt = PortraitFor(new() { ["age"] = "7", ["gender"] = "boy", ["accessory"] = accessory });
+
+        StringAssert.Matches(prompt, new System.Text.RegularExpressions.Regex(", " + System.Text.RegularExpressions.Regex.Escape(expected) + "[,.]"));
+    }
+
+    [TestMethod]
+    public void Story_Notes_Tell_The_Writer_When_A_Character_Uses_A_Wheelchair()
+    {
+        var characters = new List<CharacterSpec>
+        {
+            new() { Name = "Milo", DescriptionFields = new(StringComparer.OrdinalIgnoreCase) { ["accessory2"] = "Wheelchair" } }
+        };
+
+        var notes = PromptBuilder.BuildStoryCharacterNotes(characters);
+
+        Assert.AreEqual(1, notes.Count);
+        StringAssert.StartsWith(notes[0], "Milo uses a wheelchair.");
+    }
+
+    [TestMethod]
+    public void Story_Notes_Are_Empty_When_Nothing_Changes_How_A_Character_Moves()
+        => Assert.AreEqual(0, PromptBuilder.BuildStoryCharacterNotes(Human()).Count);
+
     [TestMethod]
     public void Ethnicity_From_Older_Saved_Characters_Is_Not_Put_In_Image_Prompts()
     {

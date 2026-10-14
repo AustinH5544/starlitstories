@@ -378,10 +378,40 @@ public static class PromptBuilder
         return string.Join(", ", parts);
     }
 
+    // Most accessories read fine as-is ("glasses", "scarf"); these need a verb to be clear to the image model.
+    private static readonly Dictionary<string, string> AccessoryPhrases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["wheelchair"] = "using a wheelchair",
+        ["hearing aids"] = "wearing hearing aids",
+    };
+
     private static IEnumerable<string> GetAccessories(IReadOnlyDictionary<string, string> fields) =>
         AccessoryFieldNames
-            .Select(fieldName => fields.TryGetValue(fieldName, out var value) ? value : null)
-            .Where(value => !string.IsNullOrWhiteSpace(value))!;
+            .Select(fieldName => fields.TryGetValue(fieldName, out var value) ? value?.Trim() : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => AccessoryPhrases.TryGetValue(value!, out var phrase) ? phrase : value!);
+
+    /// <summary>
+    /// Facts the story writer needs so the text matches the pictures, e.g. a hero who uses a wheelchair
+    /// should roll and reach rather than run and climb. Empty when there is nothing to add.
+    /// </summary>
+    public static List<string> BuildStoryCharacterNotes(IEnumerable<CharacterSpec> characters)
+    {
+        var notes = new List<string>();
+        foreach (var character in characters)
+        {
+            var usesWheelchair = AccessoryFieldNames.Any(fieldName =>
+                character.DescriptionFields?.TryGetValue(fieldName, out var value) == true &&
+                string.Equals(value?.Trim(), "wheelchair", StringComparison.OrdinalIgnoreCase));
+            if (usesWheelchair)
+            {
+                var name = string.IsNullOrWhiteSpace(character.Name) ? "The main character" : character.Name.Trim();
+                notes.Add($"{name} uses a wheelchair. Write their actions to fit (rolling, wheeling, reaching) " +
+                          "without making the wheelchair the focus of the story.");
+            }
+        }
+        return notes;
+    }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
     List<CharacterSpec> characters,
