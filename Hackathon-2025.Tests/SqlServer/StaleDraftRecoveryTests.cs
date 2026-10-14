@@ -97,6 +97,43 @@ public class StaleDraftRecoveryTests
         Assert.AreEqual(1, (await ReloadAsync(user.Id)).BooksGenerated);
     }
 
+    private Task<DateTime?> NextCheckAtAsync() => _factory.Services.GetRequiredService<StaleDraftRecovery>().NextCheckAtAsync();
+
+    [TestMethod]
+    public async Task No_Check_Is_Needed_When_No_Story_Is_Generating()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 2));
+        var finished = TestData.NewStory(user.Id, pageCount: 2);
+        finished.CreatedAt = DateTime.UtcNow.AddMinutes(-5);
+        await _factory.SeedAsync(finished);
+
+        // Polling with nothing in flight keeps a serverless database from ever pausing (billed around the clock).
+        Assert.IsNull(await NextCheckAtAsync());
+    }
+
+    [TestMethod]
+    public async Task Next_Check_Is_When_The_Oldest_Generating_Draft_Would_Be_Abandoned()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 2));
+        var older = await SeedDraftAsync(user.Id, TimeSpan.FromMinutes(12));
+        await SeedDraftAsync(user.Id, TimeSpan.FromMinutes(5));
+
+        var next = await NextCheckAtAsync();
+
+        Assert.IsNotNull(next);
+        var expected = older.CreatedAt + StoryCredits.GenerationWindow;
+        Assert.IsTrue((next.Value - expected).Duration() < TimeSpan.FromSeconds(1), $"expected {expected:O}, got {next:O}");
+    }
+
+    [TestMethod]
+    public async Task Next_Check_Ignores_Drafts_Already_Past_Their_Window()
+    {
+        var user = await _factory.SeedAsync(TestData.NewUser(MembershipPlan.Pro, booksGenerated: 2));
+        await SeedDraftAsync(user.Id, TimeSpan.FromHours(2));
+
+        Assert.IsNull(await NextCheckAtAsync(), "recovery already handles these; they must not schedule another wake-up");
+    }
+
     [TestMethod]
     public async Task Deleting_A_Stuck_Draft_Yourself_Also_Returns_The_Credit()
     {

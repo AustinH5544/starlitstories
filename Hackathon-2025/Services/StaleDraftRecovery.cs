@@ -50,4 +50,21 @@ public class StaleDraftRecovery
 
         return recovered;
     }
+
+    /// <returns>
+    /// When the oldest draft still inside its generation window would count as abandoned, or null when no story is
+    /// generating (nothing can be abandoned until the next restart, so there is no reason to query again).
+    /// </returns>
+    public async Task<DateTime?> NextCheckAtAsync(CancellationToken ct = default)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var cutoff = DateTime.UtcNow - StoryCredits.GenerationWindow;
+
+        var oldestGenerating = await db.Stories
+            .Where(s => !s.Pages.Any() && s.CreatedAt >= cutoff)
+            .MinAsync(s => (DateTime?)s.CreatedAt, ct);
+
+        return oldestGenerating + StoryCredits.GenerationWindow;
+    }
 }
