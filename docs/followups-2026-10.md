@@ -46,7 +46,12 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 - **Azure SQL cost (2026-10-14):** the one database (`hackathonserver2025/Hackathon2025Db`, serverless GP_S_Gen5, 0.5-1 vCore, 15 min auto-pause)
   billed ~58k vCore-s/day (~$8.50/day, never paused) from 2026-10-09, because `StaleDraftRecoveryService` queried every 10 minutes on prod
   (B1, Always On). fix/recovery-lets-db-sleep: check once at startup, re-check only while drafts are generating, then stop.
-  Open: confirm whether staging (`starlitstories-api-dev`) points at the same database; raise the $10/mo budget (B1 alone is ~$13/mo).
+  Shipped in PR #72 (merged 2026-10-14, with System.Security.Cryptography.Xml 8.0.5 for new advisories); prod logged "idle until the next restart".
+  Staging *was* on the prod database (so staging pushes migrated prod data). It now has its own `Hackathon2025Db-staging` (free offer,
+  AutoPause on exhaustion, $0), with managed-identity login (`Authentication=Active Directory Managed Identity`, contained user
+  `[starlitstories-api-dev]` in db_owner) and no password; the new secret version is in `kv-starlitstories-dev`, the old one is kept for rollback.
+  It started empty (no prod data copied). Budget alert raised to $30/mo. To do 2026-10-15: confirm prod DB `app_cpu_billed` fell from ~58k vCore-s/day.
+  Optional cleanup: 12 stale SQL firewall rules (today's is 67.5.114.186). New standing rule: cost check on every change ("Cost" in AGENTS.md).
 
 ## Next up (user priorities, 2026-10-08)
 

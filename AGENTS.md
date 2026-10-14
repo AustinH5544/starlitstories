@@ -38,9 +38,19 @@ No frontend test suite exists; run `npm run lint` and verify UI changes manually
 - **Secrets** come from Key Vault (prod) or `dotnet user-secrets` (local). Never commit them. `ClientApp/.env.*` hold only public `VITE_*` values.
 - **Docs drift**: verify claims in docs against code before relying on them.
 
+## Cost: check every change
+
+Every change gets a cost check before it ships. In Oct 2026 a background job that queried the database every 10 minutes kept it from ever pausing and multiplied the Azure bill ~15x before anyone noticed. State the expected monthly cost impact (even "none") in the plan and the PR description.
+
+- **Database (Azure SQL serverless):** cheap only while it can auto-pause, which needs 15 idle minutes. Any timer, keep-alive, warm-up or health check that touches the DB keeps it awake, costing roughly $8/day. Prod App Service runs Always On, so in-process timers run 24/7.
+- **Paid APIs:** OpenAI text and image calls per story (image quality stays `low`), Stripe fees.
+- **Azure resources:** new resources, tier/SKU changes, more instances, storage and bandwidth growth.
+- **After a cost-relevant deploy:** check Cost analysis (or the DB's `app_cpu_billed` metric) a day later. The budget alert is $30/month.
+- **Databases:** prod uses `Hackathon2025Db`; staging has its own free-tier `Hackathon2025Db-staging`. Neither should ever be pointed at the other.
+
 ## Conventions
 
 - C#: nullable + implicit usings, 4-space indent, PascalCase types/members, camelCase locals, one class per file.
 - React: `.jsx`, 4-space indent, PascalCase components in `src/components/` and `src/pages/`, each page/component paired with a same-named `.css` file; lower-case utility files (`api.js`, `config.js`).
 - Tests: mirror production namespaces, files named `*Tests.cs`, descriptive method names like `Signup_Returns_RequiresVerification_And_Sends_Email`.
-- Commits: short, specific subjects (`Updated character creation`). PRs: summary, testing performed, screenshots for UI, and explicit callouts for config/billing/auth/webhook impact.
+- Commits: short, specific subjects (`Updated character creation`). PRs: summary, testing performed, screenshots for UI, and explicit callouts for config/billing/auth/webhook/cost impact.
