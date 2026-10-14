@@ -24,6 +24,9 @@
 - [ ] Database migration? ( ) Yes  ( ) No  
   - If **Yes**: name = `Release###_<short-name>` and applied to **staging** first
 
+## Cost impact
+<!-- Expected monthly cost change (even "none"). Anything that queries the DB on a timer, calls OpenAI, or adds/upsizes Azure resources needs a number. See "Cost" in AGENTS.md. -->
+
 ## Screenshots (optional)
 
 ## Rollback plan
