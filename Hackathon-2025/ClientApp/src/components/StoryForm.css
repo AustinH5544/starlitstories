@@ -745,3 +745,80 @@
         border-color: #a18cd1;
         box-shadow: 0 0 0 3px rgba(161, 140, 209, 0.2);
     }
+
+/* Skin tone: color chips from light to deep */
+.skin-tone-swatches {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+@media (min-width: 600px) {
+    .skin-tone-swatches {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+.skin-tone-swatch {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.25rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.skin-tone-swatch:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.skin-tone-swatch.selected {
+    border-color: rgba(76, 175, 80, 0.8);
+    background: rgba(76, 175, 80, 0.16);
+}
+
+.skin-tone-swatch.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.skin-tone-swatch:has(input:focus-visible) {
+    outline: 2px solid #a78bfa;
+    outline-offset: 2px;
+}
+
+/* The radio stays in place (invisible) so keyboard focus and validation messages anchor to the chip. */
+.skin-tone-swatch input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    opacity: 0;
+    cursor: inherit;
+}
+
+.skin-tone-chip {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.skin-tone-swatch.selected .skin-tone-chip {
+    border-color: #90ee90;
+}
+
+.skin-tone-name {
+    font-size: 0.78rem;
+    line-height: 1.2;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.88);
+}

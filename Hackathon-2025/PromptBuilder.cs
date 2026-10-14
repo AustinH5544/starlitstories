@@ -19,27 +19,42 @@ public static class PromptBuilder
 
     // --- Descriptor lookup tables -------------------------------------------
 
-    private static readonly Dictionary<string, string> SkinToneMap = new(StringComparer.OrdinalIgnoreCase)
+    // The form offers one light-to-deep scale (SKIN_TONES in StoryForm.jsx); each value maps to a full phrase, "skin" included.
+    private static readonly Dictionary<string, string> SkinToneScale = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["almond"]   = "almond-toned skin",
-        ["amber"]    = "amber-toned skin",
-        ["ashen"]    = "soft ashen skin",
-        ["blush"]    = "soft blush-toned skin",
-        ["bronze"]   = "bronze-toned skin",
-        ["pale"]     = "very pale ivory skin",
-        ["light"]    = "fair light skin",
-        ["freckled"] = "light freckled skin",
-        ["olive"]    = "olive-toned skin",
-        ["tan"]      = "warm tan skin",
-        ["caramel"]  = "caramel-toned skin",
-        ["brown"]    = "medium brown skin",
-        ["dark"]     = "deep dark brown skin",
-        ["ebony"]    = "rich ebony-toned skin",
-        ["porcelain"] = "porcelain skin",
-        ["rose"]     = "rose-toned skin",
-        ["sun-kissed"] = "sun-kissed skin",
-        ["warm beige"] = "warm beige-toned skin",
+        ["porcelain"]     = "very fair porcelain skin with cool pink undertones",
+        ["fair"]          = "fair skin",
+        ["light"]         = "light skin with warm undertones",
+        ["light olive"]   = "light olive skin",
+        ["golden"]        = "warm golden skin",
+        ["olive"]         = "olive skin",
+        ["tan"]           = "warm tan skin",
+        ["bronze"]        = "bronze light brown skin",
+        ["medium brown"]  = "medium brown skin",
+        ["warm brown"]    = "warm brown skin with golden undertones",
+        ["deep brown"]    = "deep brown skin",
+        ["deepest brown"] = "very deep brown skin",
     };
+
+    // Options the form used to offer (saved characters and old requests still carry them) -> nearest scale tone.
+    private static readonly Dictionary<string, string> PreviousSkinTones = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["pale"] = "porcelain", ["ashen"] = "porcelain", ["pink"] = "fair", ["blush"] = "fair", ["rose"] = "fair",
+        ["freckled"] = "light", ["warm beige"] = "light", ["almond"] = "light olive",
+        ["sun-kissed"] = "golden", ["amber"] = "golden", ["medium"] = "tan", ["warm"] = "tan",
+        ["caramel"] = "bronze", ["brown"] = "medium brown", ["rich brown"] = "deep brown",
+        ["dark"] = "deep brown", ["deep"] = "deep brown", ["ebony"] = "deepest brown", ["espresso"] = "deepest brown",
+    };
+
+    private static string DescribeSkin(string skinTone)
+    {
+        var tone = skinTone.Trim();
+        if (PreviousSkinTones.TryGetValue(tone, out var nearest)) tone = nearest;
+        if (SkinToneScale.TryGetValue(tone, out var phrase)) return phrase;
+
+        // A custom description: keep the parent's words, adding "skin" only when they didn't say it.
+        return tone.Contains("skin", StringComparison.OrdinalIgnoreCase) ? tone : $"{tone} skin";
+    }
 
     private static readonly Dictionary<string, string> HairColorMap = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -222,13 +237,9 @@ public static class PromptBuilder
         if (!string.IsNullOrWhiteSpace(age) || !string.IsNullOrWhiteSpace(gender))
             parts.Add($"{age}-year-old {gender}".Trim(' ', '-'));
 
-        if (fields.TryGetValue("ethnicity", out var ethnicity) && !string.IsNullOrWhiteSpace(ethnicity))
-            parts.Add(ethnicity);
-        else if (fields.TryGetValue("race", out var race) && !string.IsNullOrWhiteSpace(race))
-            parts.Add(race);
-
+        // Ethnicity is no longer asked for (decided 2026-10-13); older saved characters may still carry it, so it is ignored here.
         if (fields.TryGetValue("skinTone", out var skin) && !string.IsNullOrWhiteSpace(skin))
-            parts.Add($"{Map(SkinToneMap, skin)} skin");
+            parts.Add(DescribeSkin(skin));
 
         if (fields.TryGetValue("hairColor", out var hair) && !string.IsNullOrWhiteSpace(hair))
         {

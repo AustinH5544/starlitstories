@@ -108,4 +108,70 @@ public class PromptBuilderTests
             Human(), "Under the Sea", "early", "comic", new[] { "They swam.", "They rested." }, new HttpClient(api), "test-key"));
         Assert.AreEqual(4, api.Calls);
     }
+
+    // Decided 2026-10-13: one light-to-deep skin tone scale for every plan, no ethnicity in the form or the prompts.
+
+    private static string PortraitFor(Dictionary<string, string> fields) => PromptBuilder.BuildBaseCharacterPrompt(
+        new List<CharacterSpec> { new() { Name = "Milo", DescriptionFields = new(fields, StringComparer.OrdinalIgnoreCase) } }, "watercolor");
+
+    private static string PortraitWithSkin(string skinTone) => PortraitFor(new() { ["age"] = "7", ["gender"] = "boy", ["skinTone"] = skinTone });
+
+    [DataTestMethod]
+    [DataRow("porcelain", "very fair porcelain skin with cool pink undertones")]
+    [DataRow("fair", "fair skin")]
+    [DataRow("light", "light skin with warm undertones")]
+    [DataRow("light olive", "light olive skin")]
+    [DataRow("golden", "warm golden skin")]
+    [DataRow("olive", "olive skin")]
+    [DataRow("tan", "warm tan skin")]
+    [DataRow("bronze", "bronze light brown skin")]
+    [DataRow("medium brown", "medium brown skin")]
+    [DataRow("warm brown", "warm brown skin with golden undertones")]
+    [DataRow("deep brown", "deep brown skin")]
+    [DataRow("deepest brown", "very deep brown skin")]
+    public void Each_Scale_Tone_Is_Described_Clearly_And_Once(string tone, string expected)
+    {
+        var prompt = PortraitWithSkin(tone);
+
+        StringAssert.Contains(prompt, expected);
+        Assert.IsFalse(prompt.Contains("skin skin"), prompt);
+    }
+
+    // Saved characters and old requests still carry the previous options; they map to the nearest scale tone.
+    [DataTestMethod]
+    [DataRow("pale", "very fair porcelain skin with cool pink undertones")]
+    [DataRow("freckled", "light skin with warm undertones")]
+    [DataRow("dark", "deep brown skin")]
+    [DataRow("ebony", "very deep brown skin")]
+    [DataRow("brown", "medium brown skin")]
+    [DataRow("medium", "warm tan skin")]
+    [DataRow("sun-kissed", "warm golden skin")]
+    public void Previous_Tone_Options_Map_To_The_Nearest_Scale_Tone(string oldTone, string expected)
+    {
+        var prompt = PortraitWithSkin(oldTone);
+
+        StringAssert.Contains(prompt, expected);
+        Assert.IsFalse(prompt.Contains("skin skin"), prompt);
+    }
+
+    [DataTestMethod]
+    [DataRow("light brown with freckles", "light brown with freckles skin")]
+    [DataRow("pale skin with rosy cheeks", "pale skin with rosy cheeks")]
+    public void A_Custom_Skin_Description_Is_Kept_And_Reads_Naturally(string custom, string expected)
+    {
+        var prompt = PortraitWithSkin(custom);
+
+        // The description ends where the next part (or the sentence) begins: no stray "skin" tacked on.
+        StringAssert.Matches(prompt, new System.Text.RegularExpressions.Regex(System.Text.RegularExpressions.Regex.Escape(expected) + "[,.]"));
+    }
+
+    [TestMethod]
+    public void Ethnicity_From_Older_Saved_Characters_Is_Not_Put_In_Image_Prompts()
+    {
+        var prompt = PortraitFor(new() { ["age"] = "7", ["gender"] = "boy", ["ethnicity"] = "Pacific Islander", ["race"] = "Asian", ["skinTone"] = "golden" });
+
+        Assert.IsFalse(prompt.Contains("Pacific Islander"), prompt);
+        Assert.IsFalse(prompt.Contains("Asian"), prompt);
+        StringAssert.Contains(prompt, "warm golden skin");
+    }
 }

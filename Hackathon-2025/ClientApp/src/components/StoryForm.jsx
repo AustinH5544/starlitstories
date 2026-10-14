@@ -55,6 +55,43 @@ const getSavedDescriptionFields = (character = {}) =>
     character.DescriptionFields ||
     {}
 
+// One light-to-deep scale for every plan (decided 2026-10-13). Values must match SkinToneScale in PromptBuilder.cs.
+// Names are neutral on purpose: no food words.
+const SKIN_TONES = [
+    { value: "porcelain", label: "Porcelain", swatch: "#F6E1D3" },
+    { value: "fair", label: "Fair", swatch: "#EFCFB6" },
+    { value: "light", label: "Light", swatch: "#E5BE9A" },
+    { value: "light olive", label: "Light olive", swatch: "#D8B387" },
+    { value: "golden", label: "Golden", swatch: "#D1A06A" },
+    { value: "olive", label: "Olive", swatch: "#B99368" },
+    { value: "tan", label: "Tan", swatch: "#B98559" },
+    { value: "bronze", label: "Bronze", swatch: "#A06A42" },
+    { value: "medium brown", label: "Medium brown", swatch: "#8A5634" },
+    { value: "warm brown", label: "Warm brown", swatch: "#7A4527" },
+    { value: "deep brown", label: "Deep brown", swatch: "#573120" },
+    { value: "deepest brown", label: "Deepest brown", swatch: "#3A2118" },
+]
+
+// Options the form used to offer -> nearest scale tone (mirrors PreviousSkinTones in PromptBuilder.cs).
+const PREVIOUS_SKIN_TONES = {
+    pale: "porcelain", ashen: "porcelain", pink: "fair", blush: "fair", rose: "fair",
+    freckled: "light", "warm beige": "light", almond: "light olive",
+    "sun-kissed": "golden", amber: "golden", medium: "tan", warm: "tan",
+    caramel: "bronze", brown: "medium brown", "rich brown": "deep brown",
+    dark: "deep brown", deep: "deep brown", ebony: "deepest brown", espresso: "deepest brown",
+}
+
+// Saved characters from before the scale: move old tones onto it and drop ethnicity, which the form no longer asks for.
+const normalizeLegacyFields = (fields = {}) => {
+    const next = { ...fields }
+    const tone = String(next.skinTone || "").trim().toLowerCase()
+    if (PREVIOUS_SKIN_TONES[tone]) next.skinTone = PREVIOUS_SKIN_TONES[tone]
+    delete next.ethnicity
+    delete next.ethnicityCustom
+    delete next.race
+    return next
+}
+
 const normalizeSavedCharacter = (character = {}) => ({
     ...character,
     role: character.role || character.Role || "main",
@@ -65,7 +102,7 @@ const normalizeSavedCharacter = (character = {}) => ({
             ? character.isAnimal
             : character.IsAnimal
     ),
-    descriptionFields: getSavedDescriptionFields(character),
+    descriptionFields: normalizeLegacyFields(getSavedDescriptionFields(character)),
 })
 
 const prepareCharacterForSubmit = (character) => {
@@ -447,27 +484,6 @@ const StoryForm = ({ onSubmit }) => {
         gender: sortedUnique(["boy", "girl"]), // keep just boy/girl
 
         // Alphabetically sorted style options
-        ethnicity: sortedUnique([
-            "Asian",
-            "Black",
-            "Hispanic",
-            "Middle Eastern",
-            "Multiracial",
-            "Native American",
-            "Pacific Islander",
-            "White",
-        ]),
-        skinTonesByEthnicity: {
-            default: sortedUnique(["deep", "fair", "light", "medium", "olive", "tan", "warm"]),
-            asian: sortedUnique(["fair", "golden", "light", "medium", "olive", "tan", "warm"]),
-            black: sortedUnique(["deep", "ebony", "espresso", "medium", "rich brown", "warm brown"]),
-            hispanic: sortedUnique(["golden", "light", "medium", "olive", "tan", "warm", "warm brown"]),
-            "middle eastern": sortedUnique(["golden", "light", "medium", "olive", "tan", "warm", "warm brown"]),
-            multiracial: sortedUnique(["deep", "fair", "golden", "light", "medium", "olive", "tan", "warm"]),
-            "native american": sortedUnique(["golden", "medium", "olive", "sun-kissed", "tan", "warm brown"]),
-            "pacific islander": sortedUnique(["golden", "medium", "olive", "sun-kissed", "tan", "warm brown"]),
-            white: sortedUnique(["fair", "freckled", "light", "medium", "olive", "pink", "tan"]),
-        },
         hairColor: sortedUnique([
             "auburn", "black", "blonde", "blue", "brown", "burgundy", "copper",
             "dark brown", "dirty blonde", "gray", "green", "lavender", "light brown", "pink",
@@ -519,7 +535,6 @@ const StoryForm = ({ onSubmit }) => {
         pantsColor: sortedUnique(["black", "blue", "brown", "gray", "green", "khaki", "white"]),
         shirtColor: sortedUnique(["black", "blue", "green", "orange", "pink", "purple", "red", "white", "yellow"]),
         shoeColor: sortedUnique(["black", "blue", "brown", "gold", "green", "pink", "red", "silver", "white", "yellow"]),
-        skinTone: sortedUnique(["brown", "dark", "freckled", "light", "olive", "pale", "tan"]),
     }
 
     const defaultThemes = [
@@ -571,24 +586,9 @@ const StoryForm = ({ onSubmit }) => {
         setCharacters(updated)
     }
 
-    const getSkinToneOptionsForEthnicity = (ethnicityValue) => {
-        const ethnicityKey = (ethnicityValue || "").trim().toLowerCase()
-        return defaultOptions.skinTonesByEthnicity[ethnicityKey] || defaultOptions.skinTonesByEthnicity.default
-    }
-
     const handleFieldChange = (index, field, value) => {
         const updated = [...characters]
         updated[index].descriptionFields[field] = value
-
-        if (field === "ethnicity") {
-            const nextSkinTones = getSkinToneOptionsForEthnicity(value)
-            const selectedSkinTone = (updated[index].descriptionFields.skinTone || "").trim()
-            const hasCustomSkinTone = ((updated[index].descriptionFields.skinToneCustom || "").trim()).length > 0
-            if (selectedSkinTone && !hasCustomSkinTone && !nextSkinTones.includes(selectedSkinTone)) {
-                updated[index].descriptionFields.skinTone = ""
-            }
-        }
-
         setCharacters(updated)
     }
 
@@ -852,6 +852,56 @@ const StoryForm = ({ onSubmit }) => {
                         disabled={disabled}
                     />
                 </div>
+            </div>
+        )
+    }
+
+    // Color chips from light to deep. Real radio inputs, so keyboard, screen readers and the
+    // "Please choose a skin tone" validation message (anchored on the first chip) all work.
+    const renderSkinTonePicker = (index) => {
+        const fields = characters[index].descriptionFields
+        const customValue = fields.skinToneCustom || ""
+        const groupName = `skinTone-${index}`
+        const clearGroupValidity = (event) => {
+            event.target.form?.querySelectorAll(`input[name="${groupName}"]`).forEach((input) => input.setCustomValidity(""))
+        }
+
+        return (
+            <div className="field-group">
+                <label className="field-label" id={`${groupName}-label`}>Skin Tone</label>
+                <div className="skin-tone-swatches" role="radiogroup" aria-labelledby={`${groupName}-label`}>
+                    {SKIN_TONES.map((tone, toneIndex) => {
+                        const isSelected = !customValue && fields.skinTone === tone.value
+                        return (
+                            <label key={tone.value} className={`skin-tone-swatch${isSelected ? " selected" : ""}${customValue ? " disabled" : ""}`}>
+                                <input
+                                    type="radio"
+                                    name={groupName}
+                                    value={tone.value}
+                                    checked={isSelected}
+                                    disabled={!!customValue}
+                                    data-field={toneIndex === 0 ? "skinTone" : undefined}
+                                    onChange={(e) => {
+                                        clearGroupValidity(e)
+                                        handleFieldChange(index, "skinTone", tone.value)
+                                    }}
+                                />
+                                <span className="skin-tone-chip" style={{ background: tone.swatch }} aria-hidden="true" />
+                                <span className="skin-tone-name">{tone.label}</span>
+                            </label>
+                        )
+                    })}
+                </div>
+                <input
+                    data-field="skinToneCustom"
+                    placeholder="Or describe the skin tone in your own words"
+                    value={customValue}
+                    onChange={(e) => {
+                        clearValidationMessage(e)
+                        handleFieldChange(index, "skinToneCustom", e.target.value)
+                    }}
+                    className={`form-input skin-tone-custom${customValue ? " is-filled" : ""}`}
+                />
             </div>
         )
     }
@@ -1168,16 +1218,10 @@ const StoryForm = ({ onSubmit }) => {
                                         <>
                                             {showAdvancedOptions ? (
                                                 <>
-                                                    {renderDropdownWithCustom(i, "ethnicity", "Ethnicity (optional)", defaultOptions.ethnicity)}
                                                     {hasGenderSelection
                                                         ? renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)
                                                         : null}
-                                                    {renderDropdownWithCustom(
-                                                        i,
-                                                        "skinTone",
-                                                        "Skin Tone",
-                                                        getSkinToneOptionsForEthnicity(char.descriptionFields.ethnicity)
-                                                    )}
+                                                    {renderSkinTonePicker(i)}
                                                     {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
                                                     {renderDropdownWithCustom(i, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
                                                     {hasOnePieceOutfit
@@ -1195,7 +1239,7 @@ const StoryForm = ({ onSubmit }) => {
                                                     {hasGenderSelection
                                                         ? renderDropdownWithCustom(i, "hairColor", "Hair Color", basicOptions.hairColor)
                                                         : null}
-                                                    {renderDropdownWithCustom(i, "skinTone", "Skin Tone", basicOptions.skinTone)}
+                                                    {renderSkinTonePicker(i)}
                                                     {renderDropdownWithCustom(i, "eyeColor", "Eye Color", basicOptions.eyeColor)}
                                                     {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", basicOptions.shirtColor)}
                                                     {renderDropdownWithCustom(i, "pantsColor", "Pants Color", basicOptions.pantsColor)}
