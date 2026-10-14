@@ -28,20 +28,29 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
 | 10 | Deferred CI/test minors (workflow permissions, pin mssql image, job timeouts, refund-on-upload-failure test, etc.) | hygiene | done (chore/ci-test-hygiene) |
 | 11 | Stories interrupted by a restart/deploy keep the credit spent and leave a stuck draft | credits | done (fix/recover-interrupted-stories; adds migration AddStoryReservedFromAddOn) |
 
-## Resume here (state at 2026-10-09)
+## Resume here (state at 2026-10-14)
 
 - **PR #68** (items 1-8, 10, new avatars) merged 2026-10-08 as ada0d05. **PR #69** (item 11, interrupted-story recovery + migration
   `20261008120000_AddStoryReservedFromAddOn`) merged 2026-10-08 as 027e509. Both prod runs passed; prod `/healthz` is 200 and the API started, so the migration applied.
 - The user merged #69 with the default first-run behavior: recovery refunds **every** already-stuck draft as a plan credit (no 30-day cutoff).
 - Items 1-8, 10 and 11 are all in prod. Next-up item 5 (flight game) is in prod (PR #70, merge commit 6fba913, 2026-10-10).
-- Next-up item 3A (character cards) is on `staging` (ab834e9), user-tested, with a staging -> main PR opened 2026-10-10.
+- Next-up item 3A (character cards) is in prod (PR #71). PR #72 (DB cost fix) is in prod.
+- **On `staging` since 2026-10-14 (ab2f7c4), awaiting the user's staging test, no PR yet:** branch `feat/skin-tone-scale` (items 7 + character-creation review):
+  one 12-tone swatch scale (no food names), ethnicity removed from the form and prompts, "skin skin" prompt bug fixed; one hairstyle list for
+  everyone (afro, locs, braids, cornrows, twists, puffs, curly, coily...) with hair worded as hair; "Other…" reveals custom boxes; only name,
+  age, gender, skin tone and hair color required; simple outfit (shirt & pants / dress / overalls) for every plan (Free now keeps
+  onePieceWear/onePieceColor server-side); same colors for everyone; live summary; hearing aids + wheelchair accessories (one story-prompt
+  line only for wheelchair users). User approved the skin and hair wording. Cost impact: none. Next: user tests on staging (fresh signup:
+  staging DB is new and empty), then open the staging -> main PR with callouts (membership allow-list, prompt wording, wheelchair story line).
 - **Item 1 (lessons) is in design**: the agreed direction is a Story Spine outline (8 beats: setup, routine, problem, three escalating tries,
   solution by the child hero, how things changed) used as a hidden plan, never as repeated phrases, plus lesson rules (lesson drives the problem,
   translated into the theme; safety lessons model the safe choice). Prompt work stays on its own branch, off `staging`, until the user approves
-  old-vs-new samples. Samples are generated locally by calling OpenAI directly; this is blocked on a funded key (the local user-secrets key has no credits).
+  old-vs-new samples. Samples are generated locally by calling OpenAI directly (scratchpad `lesson_samples.py`). **Unblocked 2026-10-14:** the
+  local user-secrets key has no credits, but the dev Key Vault key works (`az keyvault secret show --vault-name kv-starlitstories-dev --name
+  OpenAI--ApiKey`, never printed). Next session: run the samples (~1 cent) and show old vs new to the user.
 - **Prompt changes are reviewed with the user before any push, even to staging**: show the before/after prompt text and sample outputs first.
 - Local tooling notes: Docker Desktop must be running for the SqlServer test category (skipped locally without it; CI runs them).
-  The Azure CLI login has expired (`az login` needed to read Key Vault / App Service settings or prod logs). The Higgsfield MCP has ~1,119 credits.
+  `az login` works again (renewed 2026-10-14). The Higgsfield MCP has ~1,119 credits.
 - The repo lives in OneDrive; a sync lock once broke `git switch` mid-way (recovered cleanly). Recommend moving it to e.g. `C:\dev\`.
 - **Azure SQL cost (2026-10-14):** the one database (`hackathonserver2025/Hackathon2025Db`, serverless GP_S_Gen5, 0.5-1 vCore, 15 min auto-pause)
   billed ~58k vCore-s/day (~$8.50/day, never paused) from 2026-10-09, because `StaleDraftRecoveryService` queried every 10 minutes on prod
