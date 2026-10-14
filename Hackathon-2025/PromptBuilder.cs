@@ -19,27 +19,79 @@ public static class PromptBuilder
 
     // --- Descriptor lookup tables -------------------------------------------
 
-    private static readonly Dictionary<string, string> SkinToneMap = new(StringComparer.OrdinalIgnoreCase)
+    // The form offers one light-to-deep scale (SKIN_TONES in StoryForm.jsx); each value maps to a full phrase, "skin" included.
+    private static readonly Dictionary<string, string> SkinToneScale = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["almond"]   = "almond-toned skin",
-        ["amber"]    = "amber-toned skin",
-        ["ashen"]    = "soft ashen skin",
-        ["blush"]    = "soft blush-toned skin",
-        ["bronze"]   = "bronze-toned skin",
-        ["pale"]     = "very pale ivory skin",
-        ["light"]    = "fair light skin",
-        ["freckled"] = "light freckled skin",
-        ["olive"]    = "olive-toned skin",
-        ["tan"]      = "warm tan skin",
-        ["caramel"]  = "caramel-toned skin",
-        ["brown"]    = "medium brown skin",
-        ["dark"]     = "deep dark brown skin",
-        ["ebony"]    = "rich ebony-toned skin",
-        ["porcelain"] = "porcelain skin",
-        ["rose"]     = "rose-toned skin",
-        ["sun-kissed"] = "sun-kissed skin",
-        ["warm beige"] = "warm beige-toned skin",
+        ["porcelain"]     = "very fair porcelain skin with cool pink undertones",
+        ["fair"]          = "fair skin",
+        ["light"]         = "light skin with warm undertones",
+        ["light olive"]   = "light olive skin",
+        ["golden"]        = "warm golden skin",
+        ["olive"]         = "olive skin",
+        ["tan"]           = "warm tan skin",
+        ["bronze"]        = "bronze light brown skin",
+        ["medium brown"]  = "medium brown skin",
+        ["warm brown"]    = "warm brown skin with golden undertones",
+        ["deep brown"]    = "deep brown skin",
+        ["deepest brown"] = "very deep brown skin",
     };
+
+    // Options the form used to offer (saved characters and old requests still carry them) -> nearest scale tone.
+    private static readonly Dictionary<string, string> PreviousSkinTones = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["pale"] = "porcelain", ["ashen"] = "porcelain", ["pink"] = "fair", ["blush"] = "fair", ["rose"] = "fair",
+        ["freckled"] = "light", ["warm beige"] = "light", ["almond"] = "light olive",
+        ["sun-kissed"] = "golden", ["amber"] = "golden", ["medium"] = "tan", ["warm"] = "tan",
+        ["caramel"] = "bronze", ["brown"] = "medium brown", ["rich brown"] = "deep brown",
+        ["dark"] = "deep brown", ["deep"] = "deep brown", ["ebony"] = "deepest brown", ["espresso"] = "deepest brown",
+    };
+
+    // One hairstyle list for everyone (HAIR_STYLES in StoryForm.jsx). Words that describe the hair read "brown curly hair";
+    // named styles read "brown hair in an afro". Values must match the form's list.
+    private static readonly HashSet<string> DescriptiveHairStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "straight", "wavy", "curly", "coily", "messy", "spiky", "wind-swept", "slicked back", "braided", "shoulder-length", "long", "short", "shaved",
+    };
+
+    private static readonly Dictionary<string, string> NamedHairStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["afro"] = "in an afro", ["locs"] = "in locs", ["braids"] = "in braids", ["box braids"] = "in box braids",
+        ["cornrows"] = "in cornrows", ["twists"] = "in twists", ["puffs"] = "in puffs", ["bun"] = "in a bun",
+        ["double buns"] = "in double buns", ["pigtails"] = "in pigtails", ["ponytail"] = "in a ponytail",
+        ["crown braid"] = "in a crown braid", ["bob cut"] = "in a bob cut", ["pixie cut"] = "in a pixie cut",
+        ["buzz cut"] = "in a buzz cut", ["crew cut"] = "in a crew cut", ["mohawk"] = "in a mohawk",
+        ["short side part"] = "in a short side part", ["tied with ribbon"] = "tied with a ribbon",
+    };
+
+    private static readonly Dictionary<string, string> PreviousHairStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["dreadlocks"] = "locs",
+    };
+
+    private static string DescribeHair(string? hairColor, string? hairStyle)
+    {
+        var color = string.IsNullOrWhiteSpace(hairColor) ? "" : Map(HairColorMap, hairColor.Trim());
+        var style = (hairStyle ?? "").Trim();
+        if (PreviousHairStyles.TryGetValue(style, out var renamed)) style = renamed;
+
+        var hair = color.Length > 0 ? $"{color} hair" : "hair";
+        if (style.Length == 0) return color.Length > 0 ? hair : "";
+        if (DescriptiveHairStyles.Contains(style)) return color.Length > 0 ? $"{color} {style} hair" : $"{style} hair";
+        if (NamedHairStyles.TryGetValue(style, out var phrase)) return $"{hair} {phrase}";
+
+        // A custom style: keep the parent's words after the hair color.
+        return $"{hair}, {style}";
+    }
+
+    private static string DescribeSkin(string skinTone)
+    {
+        var tone = skinTone.Trim();
+        if (PreviousSkinTones.TryGetValue(tone, out var nearest)) tone = nearest;
+        if (SkinToneScale.TryGetValue(tone, out var phrase)) return phrase;
+
+        // A custom description: keep the parent's words, adding "skin" only when they didn't say it.
+        return tone.Contains("skin", StringComparison.OrdinalIgnoreCase) ? tone : $"{tone} skin";
+    }
 
     private static readonly Dictionary<string, string> HairColorMap = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -222,21 +274,15 @@ public static class PromptBuilder
         if (!string.IsNullOrWhiteSpace(age) || !string.IsNullOrWhiteSpace(gender))
             parts.Add($"{age}-year-old {gender}".Trim(' ', '-'));
 
-        if (fields.TryGetValue("ethnicity", out var ethnicity) && !string.IsNullOrWhiteSpace(ethnicity))
-            parts.Add(ethnicity);
-        else if (fields.TryGetValue("race", out var race) && !string.IsNullOrWhiteSpace(race))
-            parts.Add(race);
-
+        // Ethnicity is no longer asked for (decided 2026-10-13); older saved characters may still carry it, so it is ignored here.
         if (fields.TryGetValue("skinTone", out var skin) && !string.IsNullOrWhiteSpace(skin))
-            parts.Add($"{Map(SkinToneMap, skin)} skin");
+            parts.Add(DescribeSkin(skin));
 
-        if (fields.TryGetValue("hairColor", out var hair) && !string.IsNullOrWhiteSpace(hair))
-        {
-            var mappedHair = Map(HairColorMap, hair);
-            parts.Add(fields.TryGetValue("hairStyle", out var hairStyle) && !string.IsNullOrWhiteSpace(hairStyle)
-                ? $"{mappedHair} {hairStyle}"
-                : mappedHair);
-        }
+        fields.TryGetValue("hairColor", out var hairColor);
+        fields.TryGetValue("hairStyle", out var hairStyle);
+        var hairDescription = DescribeHair(hairColor, hairStyle);
+        if (hairDescription.Length > 0)
+            parts.Add(hairDescription);
 
         if (fields.TryGetValue("eyeColor", out var eyes) && !string.IsNullOrWhiteSpace(eyes))
             parts.Add($"{Map(EyeColorMap, eyes)} eyes");
@@ -332,10 +378,40 @@ public static class PromptBuilder
         return string.Join(", ", parts);
     }
 
+    // Most accessories read fine as-is ("glasses", "scarf"); these need a verb to be clear to the image model.
+    private static readonly Dictionary<string, string> AccessoryPhrases = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["wheelchair"] = "using a wheelchair",
+        ["hearing aids"] = "wearing hearing aids",
+    };
+
     private static IEnumerable<string> GetAccessories(IReadOnlyDictionary<string, string> fields) =>
         AccessoryFieldNames
-            .Select(fieldName => fields.TryGetValue(fieldName, out var value) ? value : null)
-            .Where(value => !string.IsNullOrWhiteSpace(value))!;
+            .Select(fieldName => fields.TryGetValue(fieldName, out var value) ? value?.Trim() : null)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => AccessoryPhrases.TryGetValue(value!, out var phrase) ? phrase : value!);
+
+    /// <summary>
+    /// Facts the story writer needs so the text matches the pictures, e.g. a hero who uses a wheelchair
+    /// should roll and reach rather than run and climb. Empty when there is nothing to add.
+    /// </summary>
+    public static List<string> BuildStoryCharacterNotes(IEnumerable<CharacterSpec> characters)
+    {
+        var notes = new List<string>();
+        foreach (var character in characters)
+        {
+            var usesWheelchair = AccessoryFieldNames.Any(fieldName =>
+                character.DescriptionFields?.TryGetValue(fieldName, out var value) == true &&
+                string.Equals(value?.Trim(), "wheelchair", StringComparison.OrdinalIgnoreCase));
+            if (usesWheelchair)
+            {
+                var name = string.IsNullOrWhiteSpace(character.Name) ? "The main character" : character.Name.Trim();
+                notes.Add($"{name} uses a wheelchair. Write their actions to fit (rolling, wheeling, reaching) " +
+                          "without making the wheelchair the focus of the story.");
+            }
+        }
+        return notes;
+    }
 
     public static async Task<string> BuildImagePromptWithSceneAsync(
     List<CharacterSpec> characters,

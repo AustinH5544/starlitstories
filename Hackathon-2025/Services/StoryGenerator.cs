@@ -180,6 +180,13 @@ After you finish the {pageCount} paragraphs, write one extra line that begins wi
                 : "- On page 1, introduce the character by name in the first sentence.";
         }
 
+        // Facts the text must respect so it matches the pictures (e.g. a hero who uses a wheelchair).
+        // Empty for most stories, in which case the prompt is unchanged.
+        var characterNotes = PromptBuilder.BuildStoryCharacterNotes(characters);
+        var characterNotesLines = characterNotes.Count > 0
+            ? "\n" + string.Join("\n", characterNotes.Select(note => "- " + note))
+            : "";
+
         var prompt = $"""
 {lengthLine}
 They go on an adventure involving {request.Theme}. The reader already knows what the characters look like,
@@ -191,7 +198,7 @@ CAST:
 Rules:
 {referLine}
 - Do not invent new named characters.
-{introLine}
+{introLine}{characterNotesLines}
 - Keep each page to 1–3 sentences.
 - {ChildSafetyRule}
 

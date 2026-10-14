@@ -37,6 +37,26 @@ public class MembershipEntitlementsTests
         Assert.AreEqual("brown", result["hairColor"]);
     }
 
+    // Decided 2026-10-13: every plan can pick a simple outfit (shirt & pants, dress or overalls).
+    // Detailed tops, bottoms and shoe styles stay on paid plans.
+    [TestMethod]
+    public void Free_Plan_Keeps_A_Dress_Or_Overalls_But_Not_Detailed_Outfits()
+    {
+        var fields = new Dictionary<string, string>
+        {
+            ["onePieceWear"] = "dress",
+            ["onePieceColor"] = "yellow",
+            ["onePieceColorCustom"] = "sunflower yellow",
+            ["topWear"] = "hoodie",
+            ["bottomWear"] = "skirt",
+            ["shoeStyle"] = "boots",
+        };
+
+        var result = MembershipEntitlements.SanitizeDescriptionFields(MembershipPlan.Free, fields);
+
+        CollectionAssert.AreEquivalent(new[] { "onePieceWear", "onePieceColor", "onePieceColorCustom" }, result.Keys.ToArray());
+    }
+
     [TestMethod]
     public void Paid_Fields_Keep_Everything_Non_Blank()
     {
