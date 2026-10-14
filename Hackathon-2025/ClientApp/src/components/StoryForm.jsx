@@ -81,11 +81,22 @@ const PREVIOUS_SKIN_TONES = {
     dark: "deep brown", deep: "deep brown", ebony: "deepest brown", espresso: "deepest brown",
 }
 
+// One hairstyle list for everyone, not filtered by gender (decided 2026-10-13). Must match PromptBuilder.cs.
+const HAIR_STYLES = sortedUnique([
+    "afro", "bob cut", "box braids", "braids", "bun", "buzz cut", "coily", "cornrows", "crew cut", "crown braid",
+    "curly", "double buns", "locs", "long", "messy", "mohawk", "pigtails", "pixie cut", "ponytail", "puffs",
+    "shaved", "short", "short side part", "shoulder-length", "slicked back", "spiky", "straight", "tied with ribbon",
+    "twists", "wavy", "wind-swept",
+])
+const PREVIOUS_HAIR_STYLES = { dreadlocks: "locs", braided: "braids" }
+
 // Saved characters from before the scale: move old tones onto it and drop ethnicity, which the form no longer asks for.
 const normalizeLegacyFields = (fields = {}) => {
     const next = { ...fields }
     const tone = String(next.skinTone || "").trim().toLowerCase()
     if (PREVIOUS_SKIN_TONES[tone]) next.skinTone = PREVIOUS_SKIN_TONES[tone]
+    const hairStyle = String(next.hairStyle || "").trim().toLowerCase()
+    if (PREVIOUS_HAIR_STYLES[hairStyle]) next.hairStyle = PREVIOUS_HAIR_STYLES[hairStyle]
     delete next.ethnicity
     delete next.ethnicityCustom
     delete next.race
@@ -263,7 +274,7 @@ const describeCharacter = (character = {}) => {
 
     const who = join(hasValue(f.age) ? `${f.age}-year-old` : "", f.gender)
     // "brown messy hair" reads well; "red pigtails hair" doesn't, so named styles stand on their own.
-    const styleIsDescriptive = ["messy", "spiky", "straight", "wind-swept", "slicked back", "braided", "curly", "wavy"]
+    const styleIsDescriptive = ["straight", "wavy", "curly", "coily", "messy", "spiky", "wind-swept", "slicked back", "braided", "shoulder-length", "long", "short", "shaved"]
         .includes(String(f.hairStyle || "").trim().toLowerCase())
     const hair = !hasValue(f.hairStyle)
         ? (hasValue(f.hairColor) ? join(f.hairColor, "hair") : "")
@@ -499,12 +510,6 @@ const StoryForm = ({ onSubmit }) => {
         onePieceColor: sortedUnique(["black", "blue", "blush", "brown", "cream", "gold", "gray", "green", "lavender", "navy", "orange", "peach", "pink", "purple", "red", "silver", "teal", "white", "yellow"]),
         shoeStyle: sortedUnique(["boots", "dress shoes", "flats", "high-tops", "loafers", "sandals", "slippers", "sneakers"]),
         shoeColor: sortedUnique(["black", "blue", "brown", "cream", "gold", "gray", "green", "navy", "orange", "pink", "purple", "red", "silver", "tan", "teal", "white", "yellow"]),
-
-        hairstylesByGender: {
-            boy: sortedUnique(["buzz cut", "crew cut", "messy", "mohawk", "short side part", "slicked back", "spiky"]),
-            girl: sortedUnique(["bob cut", "braided", "bun", "crown braid", "double buns", "pigtails", "pixie cut", "ponytail"]),
-            default: sortedUnique(["afro", "dreadlocks", "mohawk", "straight", "tied with ribbon", "wind-swept"]),
-        },
 
         species: sortedUnique(["bear", "bird", "cat", "dinosaur", "dog", "dragon", "fox", "horse", "koala", "rabbit", "turtle"]),
         bodyCovering: sortedUnique(["feathers", "fur", "scales", "shell", "skin"]),
@@ -1181,29 +1186,6 @@ const StoryForm = ({ onSubmit }) => {
                                 {renderDropdownWithCustom(i, "age", "Age", defaultOptions.age)}
                                 {renderDropdownWithCustom(i, "gender", "Gender", defaultOptions.gender)}
                                 {(() => {
-                                    const genderDropdown = (char.descriptionFields.gender || "").trim()
-                                    const genderCustom = (char.descriptionFields.genderCustom || "").trim()
-                                    const isStandard = genderDropdown === "boy" || genderDropdown === "girl"
-
-                                    let hairOptions = []
-                                    if (isStandard) {
-                                        hairOptions = defaultOptions.hairstylesByGender[genderDropdown]
-                                    } else if (genderCustom) {
-                                        // Custom gender → use neutral/default hairstyles
-                                        hairOptions = defaultOptions.hairstylesByGender.default
-                                    } else {
-                                        hairOptions = []
-                                    }
-
-                                    return hairOptions.length > 0
-                                        ? renderDropdownWithCustom(i, "hairStyle", "Hair Style", hairOptions)
-                                        : null
-                                })()}
-
-                                {(() => {
-                                    const hasGenderSelection =
-                                        ((char.descriptionFields.gender || "").trim()).length > 0 ||
-                                        ((char.descriptionFields.genderCustom || "").trim()).length > 0
                                     const hasOnePieceOutfit =
                                         ((char.descriptionFields.onePieceWear || "").trim()).length > 0 ||
                                         ((char.descriptionFields.onePieceWearCustom || "").trim()).length > 0
@@ -1218,9 +1200,8 @@ const StoryForm = ({ onSubmit }) => {
                                         <>
                                             {showAdvancedOptions ? (
                                                 <>
-                                                    {hasGenderSelection
-                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)
-                                                        : null}
+                                                    {renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)}
+                                                    {renderDropdownWithCustom(i, "hairStyle", "Hair Style (optional)", HAIR_STYLES)}
                                                     {renderSkinTonePicker(i)}
                                                     {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
                                                     {renderDropdownWithCustom(i, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
@@ -1236,9 +1217,8 @@ const StoryForm = ({ onSubmit }) => {
                                                 </>
                                             ) : (
                                                 <>
-                                                    {hasGenderSelection
-                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", basicOptions.hairColor)
-                                                        : null}
+                                                    {renderDropdownWithCustom(i, "hairColor", "Hair Color", basicOptions.hairColor)}
+                                                    {renderDropdownWithCustom(i, "hairStyle", "Hair Style (optional)", HAIR_STYLES)}
                                                     {renderSkinTonePicker(i)}
                                                     {renderDropdownWithCustom(i, "eyeColor", "Eye Color", basicOptions.eyeColor)}
                                                     {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", basicOptions.shirtColor)}

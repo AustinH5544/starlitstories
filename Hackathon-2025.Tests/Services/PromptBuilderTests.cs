@@ -165,6 +165,29 @@ public class PromptBuilderTests
         StringAssert.Matches(prompt, new System.Text.RegularExpressions.Regex(System.Text.RegularExpressions.Regex.Escape(expected) + "[,.]"));
     }
 
+    // Decided 2026-10-13: one hairstyle list for everyone (no filtering by gender), and hair always reads as hair.
+    [DataTestMethod]
+    [DataRow("brown", "messy", "chestnut brown messy hair")]
+    [DataRow("black", "curly", "jet black curly hair")]
+    [DataRow("black", "afro", "jet black hair in an afro")]
+    [DataRow("black", "locs", "jet black hair in locs")]
+    [DataRow("black", "dreadlocks", "jet black hair in locs")]
+    [DataRow("red", "pigtails", "bright natural red hair in pigtails")]
+    [DataRow("blonde", "ponytail", "golden blonde hair in a ponytail")]
+    [DataRow("dark brown", "cornrows", "deep dark brown hair in cornrows")]
+    [DataRow("black", "half-up with a clip", "jet black hair, half-up with a clip")]
+    [DataRow("black", "", "jet black hair")]
+    [DataRow("", "curly", "curly hair")]
+    [DataRow("", "afro", "hair in an afro")]
+    public void Hair_Is_Described_As_Hair_With_Its_Style(string color, string style, string expected)
+    {
+        var fields = new Dictionary<string, string> { ["age"] = "7", ["gender"] = "girl" };
+        if (color.Length > 0) fields["hairColor"] = color;
+        if (style.Length > 0) fields["hairStyle"] = style;
+
+        StringAssert.Matches(PortraitFor(fields), new System.Text.RegularExpressions.Regex(", " + System.Text.RegularExpressions.Regex.Escape(expected) + "[,.]"));
+    }
+
     [TestMethod]
     public void Ethnicity_From_Older_Saved_Characters_Is_Not_Put_In_Image_Prompts()
     {

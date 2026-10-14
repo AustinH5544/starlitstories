@@ -46,6 +46,43 @@ public static class PromptBuilder
         ["dark"] = "deep brown", ["deep"] = "deep brown", ["ebony"] = "deepest brown", ["espresso"] = "deepest brown",
     };
 
+    // One hairstyle list for everyone (HAIR_STYLES in StoryForm.jsx). Words that describe the hair read "brown curly hair";
+    // named styles read "brown hair in an afro". Values must match the form's list.
+    private static readonly HashSet<string> DescriptiveHairStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "straight", "wavy", "curly", "coily", "messy", "spiky", "wind-swept", "slicked back", "braided", "shoulder-length", "long", "short", "shaved",
+    };
+
+    private static readonly Dictionary<string, string> NamedHairStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["afro"] = "in an afro", ["locs"] = "in locs", ["braids"] = "in braids", ["box braids"] = "in box braids",
+        ["cornrows"] = "in cornrows", ["twists"] = "in twists", ["puffs"] = "in puffs", ["bun"] = "in a bun",
+        ["double buns"] = "in double buns", ["pigtails"] = "in pigtails", ["ponytail"] = "in a ponytail",
+        ["crown braid"] = "in a crown braid", ["bob cut"] = "in a bob cut", ["pixie cut"] = "in a pixie cut",
+        ["buzz cut"] = "in a buzz cut", ["crew cut"] = "in a crew cut", ["mohawk"] = "in a mohawk",
+        ["short side part"] = "in a short side part", ["tied with ribbon"] = "tied with a ribbon",
+    };
+
+    private static readonly Dictionary<string, string> PreviousHairStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["dreadlocks"] = "locs",
+    };
+
+    private static string DescribeHair(string? hairColor, string? hairStyle)
+    {
+        var color = string.IsNullOrWhiteSpace(hairColor) ? "" : Map(HairColorMap, hairColor.Trim());
+        var style = (hairStyle ?? "").Trim();
+        if (PreviousHairStyles.TryGetValue(style, out var renamed)) style = renamed;
+
+        var hair = color.Length > 0 ? $"{color} hair" : "hair";
+        if (style.Length == 0) return color.Length > 0 ? hair : "";
+        if (DescriptiveHairStyles.Contains(style)) return color.Length > 0 ? $"{color} {style} hair" : $"{style} hair";
+        if (NamedHairStyles.TryGetValue(style, out var phrase)) return $"{hair} {phrase}";
+
+        // A custom style: keep the parent's words after the hair color.
+        return $"{hair}, {style}";
+    }
+
     private static string DescribeSkin(string skinTone)
     {
         var tone = skinTone.Trim();
@@ -241,13 +278,11 @@ public static class PromptBuilder
         if (fields.TryGetValue("skinTone", out var skin) && !string.IsNullOrWhiteSpace(skin))
             parts.Add(DescribeSkin(skin));
 
-        if (fields.TryGetValue("hairColor", out var hair) && !string.IsNullOrWhiteSpace(hair))
-        {
-            var mappedHair = Map(HairColorMap, hair);
-            parts.Add(fields.TryGetValue("hairStyle", out var hairStyle) && !string.IsNullOrWhiteSpace(hairStyle)
-                ? $"{mappedHair} {hairStyle}"
-                : mappedHair);
-        }
+        fields.TryGetValue("hairColor", out var hairColor);
+        fields.TryGetValue("hairStyle", out var hairStyle);
+        var hairDescription = DescribeHair(hairColor, hairStyle);
+        if (hairDescription.Length > 0)
+            parts.Add(hairDescription);
 
         if (fields.TryGetValue("eyeColor", out var eyes) && !string.IsNullOrWhiteSpace(eyes))
             parts.Add($"{Map(EyeColorMap, eyes)} eyes");
