@@ -207,6 +207,39 @@ const getCharacterValidationResult = (character, { advanced }) => {
     return null
 }
 
+// Characters saved with the advanced creator (tops, bottoms, one-pieces) need it switched on to load and validate correctly.
+const usesAdvancedOutfit = (character = {}) => {
+    const fields = getSavedDescriptionFields(character)
+    return ["topWear", "bottomWear", "onePieceWear"].some(
+        (field) => hasValue(fields[field]) || hasValue(fields[`${field}Custom`])
+    )
+}
+
+// A short, readable line for a character card, e.g. "7-year-old girl · red pigtails · yellow dress".
+const describeCharacter = (character = {}) => {
+    const f = normalizeDescFields(getSavedDescriptionFields(character))
+    const join = (...values) => values.filter(hasValue).join(" ")
+
+    if (character.isAnimal) {
+        return [join(f.bodyColor, f.species), f.accessory].filter(hasValue).join(" · ")
+    }
+
+    const who = join(hasValue(f.age) ? `${f.age}-year-old` : "", f.gender)
+    // "brown messy hair" reads well; "red pigtails hair" doesn't, so named styles stand on their own.
+    const styleIsDescriptive = ["messy", "spiky", "straight", "wind-swept", "slicked back", "braided", "curly", "wavy"]
+        .includes(String(f.hairStyle || "").trim().toLowerCase())
+    const hair = !hasValue(f.hairStyle)
+        ? (hasValue(f.hairColor) ? join(f.hairColor, "hair") : "")
+        : join(f.hairColor, f.hairStyle, styleIsDescriptive ? "hair" : "")
+    const outfit = hasValue(f.onePieceWear)
+        ? join(f.onePieceColor, f.onePieceWear)
+        : hasValue(f.topWear)
+            ? join(f.topWearColor, f.topWear)
+            : hasValue(f.shirtColor) ? join(f.shirtColor, "shirt") : ""
+
+    return [who, hair, outfit].filter(hasValue).join(" · ")
+}
+
 const StoryForm = ({ onSubmit }) => {
     const { user } = useAuth()
     const formRef = useRef(null)
@@ -382,9 +415,14 @@ const StoryForm = ({ onSubmit }) => {
             try {
                 const { data } = await api.get("/saved-character/me")
                 if (!isMounted) return
-                applySavedCharactersResponse(data)
-                setIsUsingSavedCharacter(false)
-                setEditingSavedCharacterId(null)
+                const items = applySavedCharactersResponse(data)
+                // Returning families usually want their hero again: start with the most recently updated one picked.
+                if (items.length) {
+                    selectSavedCharacter(items[0])
+                } else {
+                    setIsUsingSavedCharacter(false)
+                    setEditingSavedCharacterId(null)
+                }
             } catch (err) {
                 if (err?.response?.status !== 404) {
                     console.error("Failed to load saved character:", err)
@@ -401,6 +439,7 @@ const StoryForm = ({ onSubmit }) => {
         return () => {
             isMounted = false
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load saved characters once on mount
     }, [])
 
     const defaultOptions = {
@@ -653,74 +692,70 @@ const StoryForm = ({ onSubmit }) => {
         }
     }
 
-    const loadSelectedSavedCharacter = (savedCharacterId) => {
-        const selected = savedCharacters.find((x) => String(x.id) === String(savedCharacterId))
-        if (!selected) return
-        setCharacters([cloneCharacter(selected.character)])
-        setAccessoryFieldCounts(getAccessoryFieldCounts([selected.character]))
-        setEditingSavedCharacterId(selected.id)
+    // Picks a saved character for this story: one tap, editor tucked away, summary shown on its card.
+    const selectSavedCharacter = (item) => {
+        if (!item) return
+        if (canUseAdvancedCharacterCreation && usesAdvancedOutfit(item.character)) {
+            setShowAdvancedOptions(true)
+        }
+        setCharacters([cloneCharacter(item.character)])
+        setAccessoryFieldCounts(getAccessoryFieldCounts([item.character]))
+        setSelectedSavedCharacterId(String(item.id))
+        setEditingSavedCharacterId(item.id)
         setSavedCharacterNotice("")
         setIsUsingSavedCharacter(true)
     }
 
-    const handleLoadSavedCharacter = () => {
-        loadSelectedSavedCharacter(selectedSavedCharacterId)
-    }
-
-    const handleSelectedSavedCharacterChange = (nextSavedCharacterId) => {
-        setSelectedSavedCharacterId(nextSavedCharacterId)
-
-        if (isUsingSavedCharacter) {
-            loadSelectedSavedCharacter(nextSavedCharacterId)
-        }
-    }
-
-    const handleDeleteSavedCharacter = async () => {
-        const selected = savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId))
-        if (!selected) return
+    const handleDeleteSavedCharacter = async (item) => {
+        if (!item) return
+        const label = item.name || "this character"
+        if (!window.confirm(`Delete ${label}? This can't be undone. Stories you already made with ${label} are kept.`)) return
 
         try {
             setIsDeletingCharacter(true)
             setSavedCharacterNotice("")
-            await api.delete(`/saved-character/me/${selected.id}`)
+            await api.delete(`/saved-character/me/${item.id}`)
         } catch (err) {
             console.error("Failed to delete saved character:", err)
             const apiMessage = err?.response?.data?.message
-            if (apiMessage) setSavedCharacterNotice(apiMessage)
+            setSavedCharacterNotice(apiMessage || `We couldn't delete ${label} right now. Please try again.`)
+            return
         } finally {
             setIsDeletingCharacter(false)
         }
 
-        const nextCharacters = await refreshSavedCharacters()
-        setSelectedSavedCharacterId(nextCharacters.length ? String(nextCharacters[0].id) : "")
-
-        if (isUsingSavedCharacter && editingSavedCharacterId === selected.id) {
-            setIsUsingSavedCharacter(false)
-            setCharacters([createEmptyCharacter("main")])
-            setAccessoryFieldCounts([1])
-        }
-        if (editingSavedCharacterId === selected.id) {
-            setEditingSavedCharacterId(null)
+        const remaining = await refreshSavedCharacters()
+        if (editingSavedCharacterId === item.id) {
+            if (remaining.length) {
+                selectSavedCharacter(remaining[0])
+            } else {
+                handleStartNewCharacter()
+                setSelectedSavedCharacterId("")
+            }
         }
     }
 
+    // Opens the editor on the picked character; saving updates it for future stories.
     const handleEditSavedCharacter = () => {
-        const selected = savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId))
-        if (!selected) return
-        setCharacters([cloneCharacter(selected.character)])
-        setAccessoryFieldCounts(getAccessoryFieldCounts([selected.character]))
-        setEditingSavedCharacterId(selected.id)
         setSavedCharacterNotice("")
         setIsUsingSavedCharacter(false)
     }
 
+    // Leaves the editor without saving and goes back to the saved version.
+    const handleCancelEditSavedCharacter = () => {
+        const saved = savedCharacters.find((x) => x.id === editingSavedCharacterId)
+        if (saved) selectSavedCharacter(saved)
+    }
+
     const handleStartNewCharacter = () => {
         setEditingSavedCharacterId(null)
+        setSelectedSavedCharacterId("")
         setCharacters([createEmptyCharacter("main")])
         setAccessoryFieldCounts([1])
         setSavedCharacterNotice("")
         setIsUsingSavedCharacter(false)
     }
+
 
     const handleSubmit = (e) => {
         e.preventDefault()
@@ -864,6 +899,7 @@ const StoryForm = ({ onSubmit }) => {
         savedCharacters.find((x) => String(x.id) === String(selectedSavedCharacterId)) || null
     const canSaveCharacter = !!characters[0]?.name?.trim()
     const isCreatingNewCharacter = !isUsingSavedCharacter && !editingSavedCharacterId
+    const isEditingSavedCharacter = !isUsingSavedCharacter && !!editingSavedCharacterId
 
     return (
         <form
@@ -883,6 +919,329 @@ const StoryForm = ({ onSubmit }) => {
             }}
             className="story-form"
         >
+            {/* Who's the story about? Saved characters as cards, then the editor */}
+            <div className="form-section saved-character-section">
+                <h3 className="section-title">
+                    <span className="section-icon">
+                        <img
+                            src={personIcon}
+                            alt=""
+                            aria-hidden="true"
+                            className="section-icon-img"
+                        />
+                    </span>
+                    Who&apos;s the story about?
+                </h3>
+
+                {hasSavedCharacter && (
+                    <div className="character-picker" role="radiogroup" aria-label="Saved characters">
+                        {savedCharacters.map((item) => {
+                            const isSelected = String(item.id) === String(selectedSavedCharacterId)
+                            const summary = describeCharacter(item.character)
+                            return (
+                                <div key={item.id} className={`character-choice${isSelected ? " selected" : ""}`}>
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={isSelected}
+                                        className="character-choice-main"
+                                        onClick={() => selectSavedCharacter(item)}
+                                        disabled={isSavingCharacter || isDeletingCharacter}
+                                    >
+                                        <span className="character-choice-avatar" aria-hidden="true">
+                                            {(item.name || "?").trim().charAt(0).toUpperCase()}
+                                        </span>
+                                        <span className="character-choice-text">
+                                            <span className="character-choice-name">{item.name}</span>
+                                            {summary && <span className="character-choice-summary">{summary}</span>}
+                                        </span>
+                                    </button>
+                                    {isSelected && isUsingSavedCharacter && (
+                                        <div className="character-choice-actions">
+                                            <button
+                                                type="button"
+                                                className="character-choice-link"
+                                                onClick={handleEditSavedCharacter}
+                                                disabled={isSavingCharacter || isDeletingCharacter}
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="character-choice-link danger"
+                                                onClick={() => handleDeleteSavedCharacter(item)}
+                                                disabled={isSavingCharacter || isDeletingCharacter}
+                                            >
+                                                {isDeletingCharacter ? "Deleting..." : "Delete"}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                        <div className={`character-choice character-choice-new${isCreatingNewCharacter ? " selected" : ""}`}>
+                            <button
+                                type="button"
+                                role="radio"
+                                aria-checked={isCreatingNewCharacter}
+                                className="character-choice-main"
+                                onClick={handleStartNewCharacter}
+                                disabled={isSavingCharacter || isDeletingCharacter}
+                            >
+                                <span className="character-choice-avatar" aria-hidden="true">+</span>
+                                <span className="character-choice-text">
+                                    <span className="character-choice-name">New character</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                <p className="field-hint saved-character-count">
+                    {hasSavedCharacter
+                        ? `Saved ${savedCharacters.length} / ${savedCharacterLimit}`
+                        : `Create your hero below. Your ${membership === "premium" ? "Premium" : membership === "pro" ? "Pro" : "Free"} plan can save up to ${savedCharacterLimit} character${savedCharacterLimit === 1 ? "" : "s"} for future stories.`}
+                </p>
+                {isEditingSavedCharacter && (
+                    <p className="saved-character-editing">
+                        Editing {selectedSavedCharacter?.name || "your character"}. Save changes to update them for future stories.
+                    </p>
+                )}
+                {!!savedCharacterNotice && (
+                    <p className="saved-character-notice">{savedCharacterNotice}</p>
+                )}
+            </div>
+
+            <div className={`character-editor-panel ${isUsingSavedCharacter ? "collapsed" : ""}`}>
+                {characters.map((char, i) => (
+                <div key={i} className="character-card">
+                    <div className="character-header">
+                        <h3 className="character-title">
+                            <span className="character-icon">
+                                <img
+                                    src={personIcon}
+                                    alt={char.isAnimal ? "Animal character" : "Human character"}
+                                    className="character-icon-img"
+                                />
+                            </span>
+                            {char.role === "main" ? "Main Character" : `Character ${i + 1}`}
+                        </h3>
+                        {i > 0 && (
+                            <button type="button" onClick={() => removeCharacter(i)} className="remove-character-btn">
+                                <span>✕</span>
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="field-group">
+                        <label className="field-label">Character Name</label>
+                        <input
+                            type="text"
+                            data-field="name"
+                            placeholder="Enter character name"
+                            value={char.name}
+                            onChange={(e) => {
+                                clearValidationMessage(e)
+                                handleCharacterChange(i, "name", e.target.value)
+                            }}
+                            required
+                            className={`form-input${char.name?.trim() ? " is-filled" : ""}`}
+                        />
+                    </div>
+
+                    {i > 0 && (
+                        <div className="field-group">
+                            <label className="field-label">Character Role</label>
+                            <div className="dual-input-container">
+                                <select
+                                    value={char.role}
+                                    onChange={(e) => handleCharacterChange(i, "role", e.target.value)}
+                                    className={`form-select${char.role ? " is-filled" : ""}`}
+                                >
+                                    <option value="">Select Role</option>
+                                    <option value="dad">Dad</option>
+                                    <option value="friend">Friend</option>
+                                    <option value="mom">Mom</option>
+                                    <option value="pet">Pet</option>
+                                    <option value="sibling">Sibling</option>
+                                    <option value="teacher">Teacher</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    placeholder="Or enter custom role"
+                                    value={char.roleCustom || ""}
+                                    onChange={(e) => handleCharacterChange(i, "roleCustom", e.target.value)}
+                                    className={`form-input${char.roleCustom?.trim() ? " is-filled" : ""}`}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {showCharacterTypeAndExtraButton && (
+                        <div className="character-type-toggle">
+                            <label className="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    checked={char.isAnimal}
+                                    onChange={(e) => handleCharacterChange(i, "isAnimal", e.target.checked)}
+                                    className="toggle-checkbox"
+                                />
+                                <span className="toggle-slider"></span>
+                                <span className="toggle-text">
+                                    {char.isAnimal ? "🐾 Animal Character" : "👤 Human Character"}
+                                </span>
+                            </label>
+                        </div>
+                    )}
+
+                    {i === 0 && canUseAdvancedCharacterCreation && (
+                        <div className="field-group" style={{ marginTop: "1rem" }}>
+                            <label className="toggle-label">
+                                <input
+                                    type="checkbox"
+                                    className="toggle-checkbox"
+                                    checked={showAdvancedOptions}
+                                    onChange={(e) => setShowAdvancedOptions(e.target.checked)}
+                                />
+                                <span className="toggle-slider" />
+                                <span className="toggle-text">
+                                    Show advanced character options
+                                </span>
+                            </label>
+                        </div>
+                    )}
+                    {i === 0 && !canUseAdvancedCharacterCreation && (
+                        <div className="field-group" style={{ marginTop: "1rem" }}>
+                            <p className="field-hint">
+                                Advanced character creation is available on Pro and Premium. Free includes the standard character creator.
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="character-details">
+                        {char.isAnimal ? (
+                            <>
+                                {renderDropdownWithCustom(i, "species", "Species", defaultOptions.species)}
+                                {renderDropdownWithCustom(i, "bodyCovering", "Body Covering", defaultOptions.bodyCovering)}
+                                {renderDropdownWithCustom(i, "bodyColor", "Body Color", defaultOptions.bodyColor)}
+                                {renderAccessoryFields(i, defaultOptions.animalAccessories)}
+                            </>
+                        ) : (
+                            <>
+                                {renderDropdownWithCustom(i, "age", "Age", defaultOptions.age)}
+                                {renderDropdownWithCustom(i, "gender", "Gender", defaultOptions.gender)}
+                                {(() => {
+                                    const genderDropdown = (char.descriptionFields.gender || "").trim()
+                                    const genderCustom = (char.descriptionFields.genderCustom || "").trim()
+                                    const isStandard = genderDropdown === "boy" || genderDropdown === "girl"
+
+                                    let hairOptions = []
+                                    if (isStandard) {
+                                        hairOptions = defaultOptions.hairstylesByGender[genderDropdown]
+                                    } else if (genderCustom) {
+                                        // Custom gender → use neutral/default hairstyles
+                                        hairOptions = defaultOptions.hairstylesByGender.default
+                                    } else {
+                                        hairOptions = []
+                                    }
+
+                                    return hairOptions.length > 0
+                                        ? renderDropdownWithCustom(i, "hairStyle", "Hair Style", hairOptions)
+                                        : null
+                                })()}
+
+                                {(() => {
+                                    const hasGenderSelection =
+                                        ((char.descriptionFields.gender || "").trim()).length > 0 ||
+                                        ((char.descriptionFields.genderCustom || "").trim()).length > 0
+                                    const hasOnePieceOutfit =
+                                        ((char.descriptionFields.onePieceWear || "").trim()).length > 0 ||
+                                        ((char.descriptionFields.onePieceWearCustom || "").trim()).length > 0
+                                    const onePieceValue =
+                                        (char.descriptionFields.onePieceWearCustom || "").trim() ||
+                                        (char.descriptionFields.onePieceWear || "").trim()
+                                    const allowsTopLayer = onePieceAllowsTopLayer(onePieceValue)
+                                    const disableTopFields = hasOnePieceOutfit && !allowsTopLayer
+                                    const disableBottomFields = hasOnePieceOutfit
+
+                                    return (
+                                        <>
+                                            {showAdvancedOptions ? (
+                                                <>
+                                                    {renderDropdownWithCustom(i, "ethnicity", "Ethnicity (optional)", defaultOptions.ethnicity)}
+                                                    {hasGenderSelection
+                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)
+                                                        : null}
+                                                    {renderDropdownWithCustom(
+                                                        i,
+                                                        "skinTone",
+                                                        "Skin Tone",
+                                                        getSkinToneOptionsForEthnicity(char.descriptionFields.ethnicity)
+                                                    )}
+                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
+                                                    {renderDropdownWithCustom(i, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
+                                                    {hasOnePieceOutfit
+                                                        ? renderDropdownWithCustom(i, "onePieceColor", "One-Piece Color", defaultOptions.onePieceColor)
+                                                        : null}
+                                                    {renderDropdownWithCustom(i, "topWear", "Top", defaultOptions.topWear, disableTopFields)}
+                                                    {renderDropdownWithCustom(i, "topWearColor", "Top Color", defaultOptions.topWearColor, disableTopFields)}
+                                                    {renderDropdownWithCustom(i, "bottomWear", "Bottom", defaultOptions.bottomWear, disableBottomFields)}
+                                                    {renderDropdownWithCustom(i, "bottomWearColor", "Bottom Color", defaultOptions.bottomWearColor, disableBottomFields)}
+                                                    {renderDropdownWithCustom(i, "shoeStyle", "Shoe Style", defaultOptions.shoeStyle)}
+                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", defaultOptions.shoeColor)}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {hasGenderSelection
+                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", basicOptions.hairColor)
+                                                        : null}
+                                                    {renderDropdownWithCustom(i, "skinTone", "Skin Tone", basicOptions.skinTone)}
+                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", basicOptions.eyeColor)}
+                                                    {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", basicOptions.shirtColor)}
+                                                    {renderDropdownWithCustom(i, "pantsColor", "Pants Color", basicOptions.pantsColor)}
+                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", basicOptions.shoeColor)}
+                                                </>
+                                            )}
+                                        </>
+                                    )
+                                })()}
+                                {renderAccessoryFields(i, defaultOptions.humanAccessories)}
+                            </>
+                        )}
+                    </div>
+                </div>
+                ))}
+            </div>
+
+            {!isUsingSavedCharacter && (
+                <div className="character-editor-actions">
+                    <button
+                        type="button"
+                        onClick={handleSaveCharacter}
+                        className="save-character-btn"
+                        disabled={!canSaveCharacter || isSavingCharacter || isDeletingCharacter}
+                    >
+                        <span>
+                            {isSavingCharacter
+                                ? "Saving..."
+                                : isEditingSavedCharacter
+                                    ? "Save Changes"
+                                    : "Save Character"}
+                        </span>
+                    </button>
+                    {isEditingSavedCharacter && (
+                        <button
+                            type="button"
+                            onClick={handleCancelEditSavedCharacter}
+                            className="cancel-edit-btn"
+                            disabled={isSavingCharacter || isDeletingCharacter}
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
+            )}
+
             {/* Reading/Art section */}
             <div className="form-section">
                 <h3 className="section-title">
@@ -1160,315 +1519,7 @@ const StoryForm = ({ onSubmit }) => {
                 </div>
             </div>
 
-            <div className="form-section saved-character-section">
-                <h3 className="section-title">
-                    <span className="section-icon">
-                        <img
-                            src={personIcon}
-                            alt="Saved character controls"
-                            className="section-icon-img"
-                        />
-                    </span>
-                    Saved Character
-                </h3>
-                {!hasSavedCharacter ? (
-                    <p className="field-hint">
-                        Save characters here. Your {membership === "premium" ? "Premium" : membership === "pro" ? "Pro" : "Free"} plan includes up to {savedCharacterLimit} saved character{savedCharacterLimit === 1 ? "" : "s"}.
-                    </p>
-                ) : (
-                    <>
-                        <div className="field-group">
-                            <label className="field-label">Select saved character</label>
-                            <select
-                                className="form-select"
-                                value={selectedSavedCharacterId}
-                                onChange={(e) => handleSelectedSavedCharacterChange(e.target.value)}
-                                disabled={isSavingCharacter || isDeletingCharacter}
-                            >
-                                {savedCharacters.map((item) => (
-                                    <option key={item.id} value={String(item.id)}>
-                                        {item.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <p className="saved-character-current-name">
-                            Saved {savedCharacters.length} / {savedCharacterLimit}
-                        </p>
-                        <div className="saved-character-controls">
-                            {!isUsingSavedCharacter ? (
-                                <button
-                                    type="button"
-                                    className="load-character-btn"
-                                    onClick={handleLoadSavedCharacter}
-                                    disabled={isSavingCharacter || isDeletingCharacter}
-                                >
-                                    Load Saved Character
-                                </button>
-                            ) : (
-                                <button
-                                    type="button"
-                                    className="edit-character-btn"
-                                    onClick={handleEditSavedCharacter}
-                                    disabled={isSavingCharacter || isDeletingCharacter}
-                                >
-                                    Edit Character
-                                </button>
-                            )}
-                            {!isCreatingNewCharacter && (
-                                <button
-                                    type="button"
-                                    className="load-character-btn"
-                                    onClick={handleStartNewCharacter}
-                                    disabled={isSavingCharacter || isDeletingCharacter}
-                                >
-                                    New Character
-                                </button>
-                            )}
-                            <button
-                                type="button"
-                                className="delete-character-btn"
-                                onClick={handleDeleteSavedCharacter}
-                                disabled={isSavingCharacter || isDeletingCharacter}
-                            >
-                                {isDeletingCharacter ? "Deleting..." : "Delete Saved Character"}
-                            </button>
-                        </div>
-                    </>
-                )}
-                {!!savedCharacterNotice && (
-                    <p className="saved-character-notice">{savedCharacterNotice}</p>
-                )}
-            </div>
-
-            <div className={`character-editor-panel ${isUsingSavedCharacter ? "collapsed" : ""}`}>
-                {characters.map((char, i) => (
-                <div key={i} className="character-card">
-                    <div className="character-header">
-                        <h3 className="character-title">
-                            <span className="character-icon">
-                                <img
-                                    src={personIcon}
-                                    alt={char.isAnimal ? "Animal character" : "Human character"}
-                                    className="character-icon-img"
-                                />
-                            </span>
-                            {char.role === "main" ? "Main Character" : `Character ${i + 1}`}
-                        </h3>
-                        {i > 0 && (
-                            <button type="button" onClick={() => removeCharacter(i)} className="remove-character-btn">
-                                <span>✕</span>
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="field-group">
-                        <label className="field-label">Character Name</label>
-                        <input
-                            type="text"
-                            data-field="name"
-                            placeholder="Enter character name"
-                            value={char.name}
-                            onChange={(e) => {
-                                clearValidationMessage(e)
-                                handleCharacterChange(i, "name", e.target.value)
-                            }}
-                            required
-                            className={`form-input${char.name?.trim() ? " is-filled" : ""}`}
-                        />
-                    </div>
-
-                    {i > 0 && (
-                        <div className="field-group">
-                            <label className="field-label">Character Role</label>
-                            <div className="dual-input-container">
-                                <select
-                                    value={char.role}
-                                    onChange={(e) => handleCharacterChange(i, "role", e.target.value)}
-                                    className={`form-select${char.role ? " is-filled" : ""}`}
-                                >
-                                    <option value="">Select Role</option>
-                                    <option value="dad">Dad</option>
-                                    <option value="friend">Friend</option>
-                                    <option value="mom">Mom</option>
-                                    <option value="pet">Pet</option>
-                                    <option value="sibling">Sibling</option>
-                                    <option value="teacher">Teacher</option>
-                                </select>
-                                <input
-                                    type="text"
-                                    placeholder="Or enter custom role"
-                                    value={char.roleCustom || ""}
-                                    onChange={(e) => handleCharacterChange(i, "roleCustom", e.target.value)}
-                                    className={`form-input${char.roleCustom?.trim() ? " is-filled" : ""}`}
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {showCharacterTypeAndExtraButton && (
-                        <div className="character-type-toggle">
-                            <label className="toggle-label">
-                                <input
-                                    type="checkbox"
-                                    checked={char.isAnimal}
-                                    onChange={(e) => handleCharacterChange(i, "isAnimal", e.target.checked)}
-                                    className="toggle-checkbox"
-                                />
-                                <span className="toggle-slider"></span>
-                                <span className="toggle-text">
-                                    {char.isAnimal ? "🐾 Animal Character" : "👤 Human Character"}
-                                </span>
-                            </label>
-                        </div>
-                    )}
-
-                    {i === 0 && canUseAdvancedCharacterCreation && (
-                        <div className="field-group" style={{ marginTop: "1rem" }}>
-                            <label className="toggle-label">
-                                <input
-                                    type="checkbox"
-                                    className="toggle-checkbox"
-                                    checked={showAdvancedOptions}
-                                    onChange={(e) => setShowAdvancedOptions(e.target.checked)}
-                                />
-                                <span className="toggle-slider" />
-                                <span className="toggle-text">
-                                    Show advanced character options
-                                </span>
-                            </label>
-                        </div>
-                    )}
-                    {i === 0 && !canUseAdvancedCharacterCreation && (
-                        <div className="field-group" style={{ marginTop: "1rem" }}>
-                            <p className="field-hint">
-                                Advanced character creation is available on Pro and Premium. Free includes the standard character creator.
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="character-details">
-                        {char.isAnimal ? (
-                            <>
-                                {renderDropdownWithCustom(i, "species", "Species", defaultOptions.species)}
-                                {renderDropdownWithCustom(i, "bodyCovering", "Body Covering", defaultOptions.bodyCovering)}
-                                {renderDropdownWithCustom(i, "bodyColor", "Body Color", defaultOptions.bodyColor)}
-                                {renderAccessoryFields(i, defaultOptions.animalAccessories)}
-                            </>
-                        ) : (
-                            <>
-                                {renderDropdownWithCustom(i, "age", "Age", defaultOptions.age)}
-                                {renderDropdownWithCustom(i, "gender", "Gender", defaultOptions.gender)}
-                                {(() => {
-                                    const genderDropdown = (char.descriptionFields.gender || "").trim()
-                                    const genderCustom = (char.descriptionFields.genderCustom || "").trim()
-                                    const isStandard = genderDropdown === "boy" || genderDropdown === "girl"
-
-                                    let hairOptions = []
-                                    if (isStandard) {
-                                        hairOptions = defaultOptions.hairstylesByGender[genderDropdown]
-                                    } else if (genderCustom) {
-                                        // Custom gender → use neutral/default hairstyles
-                                        hairOptions = defaultOptions.hairstylesByGender.default
-                                    } else {
-                                        hairOptions = []
-                                    }
-
-                                    return hairOptions.length > 0
-                                        ? renderDropdownWithCustom(i, "hairStyle", "Hair Style", hairOptions)
-                                        : null
-                                })()}
-
-                                {(() => {
-                                    const hasGenderSelection =
-                                        ((char.descriptionFields.gender || "").trim()).length > 0 ||
-                                        ((char.descriptionFields.genderCustom || "").trim()).length > 0
-                                    const hasOnePieceOutfit =
-                                        ((char.descriptionFields.onePieceWear || "").trim()).length > 0 ||
-                                        ((char.descriptionFields.onePieceWearCustom || "").trim()).length > 0
-                                    const onePieceValue =
-                                        (char.descriptionFields.onePieceWearCustom || "").trim() ||
-                                        (char.descriptionFields.onePieceWear || "").trim()
-                                    const allowsTopLayer = onePieceAllowsTopLayer(onePieceValue)
-                                    const disableTopFields = hasOnePieceOutfit && !allowsTopLayer
-                                    const disableBottomFields = hasOnePieceOutfit
-
-                                    return (
-                                        <>
-                                            {showAdvancedOptions ? (
-                                                <>
-                                                    {renderDropdownWithCustom(i, "ethnicity", "Ethnicity (optional)", defaultOptions.ethnicity)}
-                                                    {hasGenderSelection
-                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", defaultOptions.hairColor)
-                                                        : null}
-                                                    {renderDropdownWithCustom(
-                                                        i,
-                                                        "skinTone",
-                                                        "Skin Tone",
-                                                        getSkinToneOptionsForEthnicity(char.descriptionFields.ethnicity)
-                                                    )}
-                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", defaultOptions.eyeColor)}
-                                                    {renderDropdownWithCustom(i, "onePieceWear", "One-Piece Outfit (optional)", defaultOptions.onePieceWear)}
-                                                    {hasOnePieceOutfit
-                                                        ? renderDropdownWithCustom(i, "onePieceColor", "One-Piece Color", defaultOptions.onePieceColor)
-                                                        : null}
-                                                    {renderDropdownWithCustom(i, "topWear", "Top", defaultOptions.topWear, disableTopFields)}
-                                                    {renderDropdownWithCustom(i, "topWearColor", "Top Color", defaultOptions.topWearColor, disableTopFields)}
-                                                    {renderDropdownWithCustom(i, "bottomWear", "Bottom", defaultOptions.bottomWear, disableBottomFields)}
-                                                    {renderDropdownWithCustom(i, "bottomWearColor", "Bottom Color", defaultOptions.bottomWearColor, disableBottomFields)}
-                                                    {renderDropdownWithCustom(i, "shoeStyle", "Shoe Style", defaultOptions.shoeStyle)}
-                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", defaultOptions.shoeColor)}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    {hasGenderSelection
-                                                        ? renderDropdownWithCustom(i, "hairColor", "Hair Color", basicOptions.hairColor)
-                                                        : null}
-                                                    {renderDropdownWithCustom(i, "skinTone", "Skin Tone", basicOptions.skinTone)}
-                                                    {renderDropdownWithCustom(i, "eyeColor", "Eye Color", basicOptions.eyeColor)}
-                                                    {renderDropdownWithCustom(i, "shirtColor", "Shirt Color", basicOptions.shirtColor)}
-                                                    {renderDropdownWithCustom(i, "pantsColor", "Pants Color", basicOptions.pantsColor)}
-                                                    {renderDropdownWithCustom(i, "shoeColor", "Shoe Color", basicOptions.shoeColor)}
-                                                </>
-                                            )}
-                                        </>
-                                    )
-                                })()}
-                                {renderAccessoryFields(i, defaultOptions.humanAccessories)}
-                            </>
-                        )}
-                    </div>
-                </div>
-                ))}
-            </div>
-
-            <div className={`character-card loaded-character-card ${isUsingSavedCharacter ? "visible" : ""}`}>
-                <div className="field-group">
-                    <label className="field-label">Loaded Character</label>
-                    <p className="loaded-character-name">{characters[0]?.name || selectedSavedCharacter?.name || "Saved character"}</p>
-                    <p className="field-hint">
-                        Character creation is hidden while using this saved character. Click Edit Character to update and save again.
-                    </p>
-                </div>
-            </div>
-
             <div className="form-actions">
-                {!isUsingSavedCharacter && (
-                    <button
-                        type="button"
-                        onClick={handleSaveCharacter}
-                        className="save-character-btn"
-                        disabled={!canSaveCharacter || isSavingCharacter || isDeletingCharacter}
-                    >
-                        <span>
-                            {isSavingCharacter
-                                ? "Saving..."
-                                : editingSavedCharacterId
-                                    ? "Save Changes"
-                                    : "Save Character"}
-                        </span>
-                    </button>
-                )}
 
                 {!isUsingSavedCharacter && showCharacterTypeAndExtraButton && (
                     characters.length < MAX_CHARACTERS_PER_STORY ? (
