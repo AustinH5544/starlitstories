@@ -60,6 +60,8 @@ public class StoryGenerationTests
         Assert.IsTrue(story.CoverImageUrl!.StartsWith("https://blob.test/"), story.CoverImageUrl);
         Assert.IsTrue(story.Pages.All(p => p.ImageUrl!.StartsWith("https://blob.test/")));
         Assert.AreEqual(3, _factory.BlobUploads.Uploaded.Count, "cover + 2 pages");
+        Assert.IsTrue(_factory.BlobUploads.Uploaded.All(name => !name.Contains(user.Email) && name.StartsWith($"u{user.Id}-")),
+            "Image URLs are public, so file names must not contain the user's email.");
         var saved = await _factory.QueryDbAsync(db => db.Users.SingleAsync(u => u.Id == user.Id));
         Assert.AreEqual(1, saved.BooksGenerated);
     }
