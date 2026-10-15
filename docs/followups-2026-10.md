@@ -42,7 +42,13 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
   onePieceWear/onePieceColor server-side); same colors for everyone; live summary; hearing aids + wheelchair accessories (one story-prompt
   line only for wheelchair users). User approved the skin and hair wording. Cost impact: none. Next: user tests on staging (fresh signup:
   staging DB is new and empty), then open the staging -> main PR with callouts (membership allow-list, prompt wording, wheelchair story line).
-- **Item 1 (lessons) is in design**: the agreed direction is a Story Spine outline (8 beats: setup, routine, problem, three escalating tries,
+- **Item 1 (lessons), 2026-10-14: built on branch `feat/story-structure` (off staging, NOT pushed), awaiting the user's OK on the
+  final prompt diff.** Prompt moved to `Services/StoryPrompt.cs` (16 tests in `StoryPromptTests`). Includes: hidden 8-beat plan, "make it a
+  real story" rules, lesson block, hero pronouns from gender (boy/girl/custom -> they/them default), and a narrower safety rule (no "ask a
+  trusted adult" in every scene, sent once; safety lessons show the near-miss, a grown-up is family who came along). Wheelchair line kept.
+  Approved by the user from scratch samples (4 rounds + safety-lesson checks, ~5 cents). C# prompt verified identical to the sampled one.
+  Next: user OKs the diff -> merge into staging and push -> user makes real books on staging (check pictures still match) -> PR.
+- **Item 1 (lessons) design notes**: the agreed direction is a Story Spine outline (8 beats: setup, routine, problem, three escalating tries,
   solution by the child hero, how things changed) used as a hidden plan, never as repeated phrases, plus lesson rules (lesson drives the problem,
   translated into the theme; safety lessons model the safe choice). Prompt work stays on its own branch, off `staging`, until the user approves
   old-vs-new samples. Samples are generated locally by calling OpenAI directly (scratchpad `lesson_samples.py`). **Unblocked 2026-10-14:** the
