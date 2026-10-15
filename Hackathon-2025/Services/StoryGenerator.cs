@@ -163,8 +163,10 @@ public class StoryGenerator : IStoryGeneratorService
             Message = "Planning each illustration..."
         });
 
-        var imagePromptTasks = paragraphsForImages.Select(p =>
-            PromptBuilder.BuildImagePromptAsync(characters, p, _httpClient, _apiKey, request.ArtStyle));
+        // Each scene sees the whole story so the setting stays consistent across pages.
+        var imagePromptTasks = paragraphsForImages.Select((p, i) =>
+            PromptBuilder.BuildImagePromptAsync(characters, p, _httpClient, _apiKey, request.ArtStyle,
+                request.Theme, paragraphsForImages, i));
         var imagePrompts = await Task.WhenAll(imagePromptTasks);
 
         _logger?.LogInformation("Image prompts generated: count={Count}", imagePrompts.Length);
