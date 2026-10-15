@@ -113,7 +113,7 @@ public class StoryController : ControllerBase
         try
         {
             // Upload cover
-            var coverFileName = $"{user.Email}-cover-{Guid.NewGuid()}.png";
+            var coverFileName = StoryImageNames.Cover(user.Id);
             var coverBlobUrl = await _blobService.UploadImageAsync(result.CoverImageUrl!, coverFileName);
             result = result with { CoverImageUrl = coverBlobUrl };
 
@@ -123,7 +123,7 @@ public class StoryController : ControllerBase
                 if (string.IsNullOrEmpty(p.ImageUrl))
                     return p;
 
-                var pageFileName = $"{user.Email}-page-{i}-{Guid.NewGuid()}.png";
+                var pageFileName = StoryImageNames.Page(user.Id, i);
                 var blobUrl = await _blobService.UploadImageAsync(p.ImageUrl!, pageFileName);
                 return p with { ImageUrl = blobUrl };
             }).ToList();
@@ -244,7 +244,7 @@ public class StoryController : ControllerBase
                     // Upload cover
                     _progress.Publish(jobId, new ProgressUpdate { Stage = "upload", Percent = 88, Message = "Saving your cover art...", Index = 0, Total = result.Pages.Count + 1 });
 
-                    var coverFileName = $"{sUser.Email}-cover-{Guid.NewGuid()}.png";
+                    var coverFileName = StoryImageNames.Cover(sUser.Id);
                     var coverBlobUrl = await scopedBlob.UploadImageAsync(result.CoverImageUrl!, coverFileName);
                     result = result with { CoverImageUrl = coverBlobUrl };
 
@@ -255,7 +255,7 @@ public class StoryController : ControllerBase
                     {
                         if (!string.IsNullOrEmpty(pages[i].ImageUrl))
                         {
-                            var pageFileName = $"{sUser.Email}-page-{i}-{Guid.NewGuid()}.png";
+                            var pageFileName = StoryImageNames.Page(sUser.Id, i);
                             var blobUrl = await scopedBlob.UploadImageAsync(pages[i].ImageUrl!, pageFileName);
                             pages[i] = pages[i] with { ImageUrl = blobUrl };
                         }
