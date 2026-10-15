@@ -48,6 +48,12 @@ Each item: own branch → tests that fail first → merge to `staging` → user 
   trusted adult" in every scene, sent once; safety lessons show the near-miss, a grown-up is family who came along). Wheelchair line kept.
   Approved by the user from scratch samples (4 rounds + safety-lesson checks, ~5 cents). C# prompt verified identical to the sampled one.
   Next: user OKs the diff -> merge into staging and push -> user makes real books on staging (check pictures still match) -> PR.
+- **2026-10-15, all on staging (CI green, healthz 200), awaiting the user's staging test, no PR yet:** story structure (approved by the
+  user and merged), `fix/scene-setting` (each page's scene now gets the theme + whole story; found from a staging book where "the fort"
+  became a blanket fort / summer backyard instead of the snow fort), `fix/image-names` (blob names use `u{userId}` instead of the email;
+  existing blobs keep their old names). Storage: there is only ONE storage account (`storybookstorage2025`, container `story-images`),
+  shared by prod and staging. Judged low-risk (GUID names, delete-by-URL, a few MB of test images); left as is, per the user.
+  The staging -> main PR will carry character creation + story structure + scene setting + image names.
 - **Item 1 (lessons) design notes**: the agreed direction is a Story Spine outline (8 beats: setup, routine, problem, three escalating tries,
   solution by the child hero, how things changed) used as a hidden plan, never as repeated phrases, plus lesson rules (lesson drives the problem,
   translated into the theme; safety lessons model the safe choice). Prompt work stays on its own branch, off `staging`, until the user approves
