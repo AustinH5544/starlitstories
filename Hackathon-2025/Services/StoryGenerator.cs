@@ -31,28 +31,6 @@ public class StoryGenerator : IStoryGeneratorService
         _config = config;
     }
 
-    // string -> canonical role label used in prompts (only used if >1 character)
-    private static string ToRoleString(string? role)
-    {
-        if (string.IsNullOrWhiteSpace(role))
-            return "character";
-
-        var r = role.Trim();
-
-        return r.ToLowerInvariant() switch
-        {
-            "main" => "main character",
-            "friend" => "friend",
-            "guardian" => "guardian",
-            "mom" or "mother" => "mom",
-            "dad" or "father" => "dad",
-            "pet" => "pet",
-            "sibling" or "brother" or "sister" => "sibling",
-            "teacher" => "teacher",
-            _ => r   // fallback: whatever you stored on the frontend
-        };
-    }
-
     public async Task<StoryResult> GenerateFullStoryAsync(
         StoryRequest request,
         Action<ProgressUpdate>? onProgress = null)
@@ -60,162 +38,12 @@ public class StoryGenerator : IStoryGeneratorService
         // Normalize characters list so it's never null
         var characters = request.Characters ?? new List<CharacterSpec>();
 
-        var style = BuildReadingStyle(request.ReadingLevel);
-
         // SINGLE SOURCE OF TRUTH: page count from config only
         int pageCount = _config.GetValue<int?>("Story:DefaultParagraphs") ?? 10;
         var mustLesson = !string.IsNullOrWhiteSpace(request.LessonLearned);
-        const string ChildSafetyRule =
-            "Follow fundamental child-safety guidance: do not normalize risky, secretive, or unsupervised behavior for children. " +
-            "If a theme or lesson touches on safety, model age-appropriate choices such as staying aware, using caution, asking a trusted adult for help, and following caregiver guidance.";
 
-        // ----- System prompt depends on whether a lesson is required -----
-        string systemContent;
-        if (mustLesson)
-        {
-            systemContent =
-                "You are a creative children's story writer. " +
-                "Never describe physical appearance. " +
-                "Use only the provided character names and roles; do not invent other named characters. " +
-                ChildSafetyRule + " " +
-                "If a lesson is provided, weave it naturally into the plot and always conclude with a final line that begins with 'Lesson:'.";
-        }
-        else
-        {
-            systemContent =
-                "You are a creative children's story writer. " +
-                "Never describe physical appearance. " +
-                "Use only the provided character names and roles; do not invent other named characters. " +
-                ChildSafetyRule + " " +
-                "If any moral or takeaway emerges, keep it subtle and do NOT add any explicit line that starts with 'Lesson:'.";
-        }
-
-        // Enforce the explicit page delimiter
-        const string DelimiterRule =
-            "Separate each page with a line containing only --- (three hyphens). " +
-            "Never include --- inside a paragraph. Do not number the pages.";
-
-        // Prevent headings or Page labels
-        var formatRule = "Write plain paragraphs only. Do NOT add any headings, numbers, or 'Page' labels.";
-
-        // Exact length line
-        string lengthLine = $@"
-Return exactly {pageCount} short paragraphs, one per page.
-Each page MUST contain 1–3 sentences of story text.
-Do not leave any page blank. Do not include bullets, numbers, or page labels.
-Use '---' between pages. Do not return code fences or markdown.";
-
-        // Lesson line (exact branch)
-        var lessonLine = mustLesson
-            ? $"""
-Ensure the story naturally reflects this moral: "{request.LessonLearned}".
-After you finish the {pageCount} paragraphs, write one extra line that begins with "Lesson:" and states this moral in simple words. Do not count this line as a paragraph.
-"""
-            : "If a gentle lesson emerges naturally, keep it subtle. Do not add any line that begins with \"Lesson:\".";
-
-        // ----- Character-aware text (single vs multi) -----
-        var hasMultipleCharacters = characters.Count > 1;
-        var firstName = characters.FirstOrDefault()?.Name;
-
-        string BuildRosterLine()
-        {
-            // Frontend guarantees at least 1 character
-            if (characters.Count == 1)
-            {
-                var c = characters[0];
-                var name = string.IsNullOrWhiteSpace(c.Name) ? "the child" : c.Name;
-
-                return $"Use only this character by name throughout the story: {name}. " +
-                       "Do not introduce new named characters; unnamed extras are okay.";
-            }
-
-            // Multi-character branch (only used once you support more characters)
-            var cast = characters.Select(c =>
-            {
-                var pieces = new List<string>();
-
-                if (!string.IsNullOrWhiteSpace(c.Name))
-                    pieces.Add(c.Name);
-
-                var roleLabel = ToRoleString(c.Role);
-                if (!string.IsNullOrWhiteSpace(roleLabel) &&
-                    !string.Equals(roleLabel, "character", StringComparison.OrdinalIgnoreCase))
-                {
-                    pieces.Add($"the {roleLabel}");
-                }
-
-                // Species is only considered when you actually add it for extra characters
-                if (c.DescriptionFields is not null &&
-                    c.DescriptionFields.TryGetValue("species", out var sv) &&
-                    !string.IsNullOrWhiteSpace(sv))
-                {
-                    pieces.Add($"({sv})");
-                }
-
-                return string.Join(" ", pieces.Where(p => !string.IsNullOrWhiteSpace(p)));
-            });
-
-            return "Use only these characters by name throughout the story: " +
-                   string.Join(", ", cast) +
-                   ". Do not introduce new named characters; unnamed extras are okay.";
-        }
-
-        var rosterLine = BuildRosterLine();
-
-        var referLine = hasMultipleCharacters
-            ? "- Refer to the characters by the exact names above and keep their relationships consistent."
-            : "- Refer to the character by the exact name above.";
-
-        string introLine;
-        if (!string.IsNullOrWhiteSpace(firstName))
-        {
-            introLine = hasMultipleCharacters
-                ? $"- On page 1, introduce {firstName} by name in the first sentence as the main character."
-                : $"- On page 1, introduce {firstName} by name in the first sentence.";
-        }
-        else
-        {
-            introLine = hasMultipleCharacters
-                ? "- On page 1, introduce the main character by name in the first sentence."
-                : "- On page 1, introduce the character by name in the first sentence.";
-        }
-
-        // Facts the text must respect so it matches the pictures (e.g. a hero who uses a wheelchair).
-        // Empty for most stories, in which case the prompt is unchanged.
-        var characterNotes = PromptBuilder.BuildStoryCharacterNotes(characters);
-        var characterNotesLines = characterNotes.Count > 0
-            ? "\n" + string.Join("\n", characterNotes.Select(note => "- " + note))
-            : "";
-
-        var prompt = $"""
-{lengthLine}
-They go on an adventure involving {request.Theme}. The reader already knows what the characters look like,
-so do not describe their appearance, clothing, or physical features.
-
-CAST:
-{rosterLine}
-
-Rules:
-{referLine}
-- Do not invent new named characters.
-{introLine}{characterNotesLines}
-- Keep each page to 1–3 sentences.
-- {ChildSafetyRule}
-
-{style.AudienceLine}
-Use a {style.Tone} tone. Prefer {style.SentenceRule}
-Use {style.VocabHint}.
-{formatRule}
-{DelimiterRule}
-{lessonLine}
-
-Structure the story with:
-- A clear beginning that introduces the setting and the characters naturally
-- A middle that includes a magical or challenging journey
-- A satisfying end that resolves the conflict
-
-Put a line containing only --- between paragraphs. Do not include any other dividers.
-""";
+        var systemContent = StoryPrompt.BuildSystemPrompt(mustLesson);
+        var prompt = StoryPrompt.BuildUserPrompt(request, characters, pageCount);
 
         _logger?.LogInformation("=== STORY PROMPT ===\n{Prompt}\n====================", prompt);
 
@@ -535,44 +363,4 @@ no extra words, no Markdown.
 
         return cleaned;
     }
-
-    // --- Simplified: map reading level to text style guidance (no readerAge)
-    private static ReadingStyle BuildReadingStyle(string? readingLevel)
-    {
-        // Defaults
-        var tone = "warm and imaginative";
-        var sentenceRule = "short sentences (about 10 words on average)";
-        var vocabHint = "simple, common words and clear phrasing";
-        var audienceLine = "Aim for the selected reading level.";
-
-        switch ((readingLevel ?? "").Trim().ToLowerInvariant())
-        {
-            case "pre":
-                tone = "soothing, playful, and rhythmic";
-                sentenceRule = "very short sentences (around 6–8 words)";
-                vocabHint = "very common sight words and familiar phrases";
-                break;
-
-            case "early":
-                tone = "friendly and engaging";
-                sentenceRule = "short sentences (about 8–12 words)";
-                vocabHint = "age-appropriate vocabulary with simple connectors";
-                break;
-
-            case "independent":
-                tone = "adventurous and lively";
-                sentenceRule = "mostly short sentences with occasional longer ones (10–14 words)";
-                vocabHint = "age-appropriate vocabulary with a few vivid verbs";
-                break;
-        }
-
-        return new ReadingStyle(tone, sentenceRule, vocabHint, audienceLine);
-    }
-
-    private readonly record struct ReadingStyle(
-        string Tone,
-        string SentenceRule,
-        string VocabHint,
-        string AudienceLine
-    );
 }
