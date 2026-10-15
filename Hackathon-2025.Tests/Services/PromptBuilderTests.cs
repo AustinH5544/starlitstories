@@ -226,4 +226,60 @@ public class PromptBuilderTests
         Assert.IsFalse(prompt.Contains("Asian"), prompt);
         StringAssert.Contains(prompt, "warm golden skin");
     }
+
+    // Found on staging 2026-10-15: each scene saw only its own page, so "the fort" on later pages was drawn
+    // as a blanket fort indoors or a summer backyard fort instead of the snow fort from page 2.
+    private static readonly string[] SnowFortStory =
+    {
+        "Vanessa loved visiting Winter Wonderland.",
+        "She wanted to build the biggest snow fort anyone had ever seen.",
+        "But when other children came near, Vanessa told them to stay away from the fort."
+    };
+
+    [TestMethod]
+    public void Scene_Request_Includes_The_Theme_And_Whole_Story_For_Context()
+    {
+        var request = PromptBuilder.BuildSceneRequest(SnowFortStory[2], "Winter Wonderland", SnowFortStory, 2);
+
+        StringAssert.Contains(request, "The story's theme is \"Winter Wonderland\".");
+        StringAssert.Contains(request, "Page 2: She wanted to build the biggest snow fort anyone had ever seen.");
+        StringAssert.Contains(request, "Keep the setting consistent with the rest of the story");
+        StringAssert.Contains(request, $"Describe page 3: \"{SnowFortStory[2]}\"");
+    }
+
+    [DataTestMethod]
+    [DataRow(-1)]
+    [DataRow(3)]
+    public void Scene_Request_Without_A_Valid_Page_Falls_Back_To_The_Single_Paragraph_Request(int pageIndex)
+    {
+        var request = PromptBuilder.BuildSceneRequest("They swam with jellyfish.", "Under the Sea", SnowFortStory, pageIndex);
+
+        StringAssert.StartsWith(request, "Summarize the following story paragraph");
+        StringAssert.Contains(request, "Paragraph: \"They swam with jellyfish.\"");
+        Assert.IsFalse(request.Contains("Page 1:"));
+    }
+
+    [TestMethod]
+    public async Task Image_Prompt_Sends_The_Story_Context_To_The_Scene_Writer()
+    {
+        var api = new CapturingSceneApi();
+
+        await PromptBuilder.BuildImagePromptAsync(Human(), SnowFortStory[2], new HttpClient(api), "test-key", "comic",
+            "Winter Wonderland", SnowFortStory, 2);
+
+        StringAssert.Contains(api.LastBody, "snow fort anyone had ever seen");
+        StringAssert.Contains(api.LastBody, "Describe page 3");
+    }
+
+    private sealed class CapturingSceneApi : HttpMessageHandler
+    {
+        public string LastBody { get; private set; } = "";
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            LastBody = await request.Content!.ReadAsStringAsync(cancellationToken);
+            var body = System.Text.Json.JsonSerializer.Serialize(new { choices = new[] { new { message = new { content = "building a snow fort" } } } });
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(body) };
+        }
+    }
 }

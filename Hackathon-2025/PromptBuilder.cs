@@ -221,14 +221,17 @@ public static class PromptBuilder
         string paragraph,
         HttpClient httpClient,
         string apiKey,
-        string? artStyleKey)
+        string? artStyleKey,
+        string? theme = null,
+        IReadOnlyList<string>? storyPages = null,
+        int pageIndex = -1)
     {
         // 1) Clean once up front
         paragraph = CleanForModel(paragraph);
 
         // 2) Retry transient failures; if it keeps failing the story fails and the credit is refunded.
         return await WithSceneRetriesAsync(() => BuildImagePromptWithSceneAsync(
-            characters, paragraph, httpClient, apiKey, artStyleKey));
+            characters, paragraph, httpClient, apiKey, artStyleKey, theme, storyPages, pageIndex));
     }
 
     // Scene-writing calls to OpenAI are retried patiently (rate limits and blips usually clear within seconds).
@@ -413,12 +416,61 @@ public static class PromptBuilder
         return notes;
     }
 
+    /// <summary>
+    /// The request that turns one page into a scene clause for its illustration. With the whole story and
+    /// theme as context, a page that only says "the fort" still gets drawn as the snow fort from page 2,
+    /// instead of whatever fort the page alone suggests.
+    /// </summary>
+    public static string BuildSceneRequest(string paragraph, string? theme = null, IReadOnlyList<string>? storyPages = null, int pageIndex = -1)
+    {
+        const string requirements = """
+Requirements:
+- Describe only what the characters are doing and what the environment looks like.
+- Do NOT mention any subject like "a person", "a child", "the boy", "they", "he", "she", or any character names.
+- Begin with a verb or a prepositional phrase, so it can follow "Show the described character".
+- Examples: "stepping into a swirling, glowing portal of light..." or
+  "in a cozy bedroom filled with toys and books..."
+""";
+
+        var hasStory = storyPages is { Count: > 0 } && pageIndex >= 0 && pageIndex < storyPages.Count;
+        if (!hasStory)
+        {
+            return $"""
+Summarize the following story paragraph into a short visual scene clause for an illustration.
+
+{requirements}
+
+Paragraph: "{paragraph}"
+""";
+        }
+
+        var story = string.Join("\n", storyPages!.Select((page, i) => $"Page {i + 1}: {CleanForModel(page)}"));
+        var themeLine = string.IsNullOrWhiteSpace(theme)
+            ? "Here is the whole story, for context only:"
+            : $"The story's theme is \"{CleanForModel(theme, 100)}\". Here is the whole story, for context only:";
+
+        return $"""
+Summarize one page of a children's story into a short visual scene clause for its illustration.
+
+{themeLine}
+{story}
+
+{requirements}
+- Keep the setting consistent with the rest of the story: use the theme and earlier pages to fill in where this happens, what the place looks like, the season and weather, and what things are made of, unless this page clearly moves somewhere else.
+
+Describe page {pageIndex + 1}: "{paragraph}"
+""";
+    }
+
     public static async Task<string> BuildImagePromptWithSceneAsync(
     List<CharacterSpec> characters,
     string paragraph,
     HttpClient httpClient,
     string apiKey,
-    string? artStyleKey)
+    string? artStyleKey,
+    string? theme = null,
+    IReadOnlyList<string>? storyPages = null,
+    int pageIndex = -1)
     {
         // sanitize input a bit (avoid breaking quotes/newlines)
         string ParaClean(string s) =>
@@ -429,18 +481,7 @@ public static class PromptBuilder
         string anchors = string.Join(" and ", characters.Select(GetCharacterAnchor));
         var style = GetArtStyle(artStyleKey);
 
-        var userPrompt = $"""
-Summarize the following story paragraph into a short visual scene clause for an illustration.
-
-Requirements:
-- Describe only what the characters are doing and what the environment looks like.
-- Do NOT mention any subject like "a person", "a child", "the boy", "they", "he", "she", or any character names.
-- Begin with a verb or a prepositional phrase, so it can follow "Show the described character".
-- Examples: "stepping into a swirling, glowing portal of light..." or
-  "in a cozy bedroom filled with toys and books..."
-
-Paragraph: "{paragraph}"
-""";
+        var userPrompt = BuildSceneRequest(paragraph, theme, storyPages, pageIndex);
 
         var requestBody = new
         {
